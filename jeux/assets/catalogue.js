@@ -10,6 +10,35 @@
 
 window.ARCADE_GAMES = [
   {
+    slug: "mraha",
+    title: "M'raha",
+    emoji: "🌰",
+    tagline: "Le jeu de graines de Mayotte.",
+    description:
+      "Le jeu traditionnel de Mayotte, sur un plateau en bois de 4 rangées de 8 trous. Sème tes graines, prends celles d'en face et bloque ton adversaire. Contre l'ordinateur (3 niveaux) ou à deux sur le même écran.",
+    path: "games/mraha/index.html",
+    cover: "images/mraha.png",
+    orientation: "paysage",
+    accent: "#e0a96a",
+    tags: ["Mayotte", "Réflexion", "Tradition"],
+    difficulty: 3,
+    duration: "5 à 10 min par partie",
+    content: "3 niveaux",
+    touch: true,
+    added: "2026-10-26",
+    controls: [
+      ["Clic", "choisir un trou (2 graines ou plus)"],
+      ["Clic", "pendant le semis : accélérer"],
+      ["?", "afficher les règles"],
+      ["M", "couper le son"],
+    ],
+    progress() {
+      const s = readJSON("mraha-v1");
+      if (!s || !s.wins) return null;
+      return { value: Math.min(s.wins, 10), max: 10, label: `${s.wins} victoire${s.wins > 1 ? "s" : ""} contre l'ordinateur` };
+    },
+  },
+  {
     slug: "course-de-tortues",
     title: "La course la plus lente",
     emoji: "🐢",

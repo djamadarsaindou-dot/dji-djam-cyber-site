@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>M'raha — le jeu de graines de Mayotte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --wood-1: #8a4f22;
+    --wood-2: #6b3a17;
+    --wood-3: #4a260d;
+    --gold: #ffcf6b;
+    --lagoon: #1fb5b8;
+    --ink: #2a1607;
+    --me: #4cd97b;
+    --ai: #ff8a5c;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    font-family: "Fredoka", system-ui, sans-serif; color: #fff;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+    background:
+      radial-gradient(ellipse at 50% 120%, rgba(255,170,80,.45), transparent 55%),
+      linear-gradient(180deg, #0d3b66 0%, #1a6c8f 38%, #ff9f68 78%, #ffcf8a 100%);
+  }
+  /* silhouette du lagon et des îlots */
+  body::before {
+    content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: 26vh; z-index: 0;
+    background:
+      radial-gradient(ellipse 30% 60% at 15% 100%, #13302f 60%, transparent 61%),
+      radial-gradient(ellipse 22% 45% at 80% 100%, #163a37 60%, transparent 61%),
+      radial-gradient(ellipse 12% 30% at 58% 100%, #1b4440 60%, transparent 61%),
+      linear-gradient(180deg, rgba(31,181,184,.0), rgba(31,181,184,.55) 40%, #0e6f74);
+    pointer-events: none;
+  }
+  .app { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vh; padding: 12px; }
+
+  /* ---------- bandeau du haut ---------- */
+  .top { width: min(980px, 100%); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .player {
+    display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 16px;
+    background: rgba(20, 10, 2, .35); border: 2px solid transparent; backdrop-filter: blur(6px);
+    transition: border-color .25s, box-shadow .25s, transform .25s;
+  }
+  .player.turn { border-color: var(--gold); box-shadow: 0 0 24px rgba(255,207,107,.55); transform: scale(1.04); }
+  .player .av { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; background: rgba(255,255,255,.15); }
+  .player b { display: block; font-size: 16px; line-height: 1.1; }
+  .player span { font-size: 13px; opacity: .85; }
+  .player .score { font-size: 26px; font-weight: 700; margin-left: 6px; min-width: 36px; text-align: right; }
+  .icons { display: flex; gap: 8px; }
+  .ib { width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); background: rgba(20,10,2,.35); color: #fff; font-size: 18px; cursor: pointer; font-family: inherit; }
+
+  /* ---------- plateau en bois ---------- */
+  .board-wrap { position: relative; width: min(980px, 100%); }
+  .board {
+    --hole: min(9.6vw, 13.5vh, 98px);
+    position: relative; margin: 0 auto; width: fit-content;
+    padding: calc(var(--hole) * .28) calc(var(--hole) * .32);
+    border-radius: calc(var(--hole) * .5);
+    background:
+      repeating-linear-gradient(92deg, rgba(0,0,0,.0) 0 18px, rgba(0,0,0,.06) 18px 20px, rgba(255,255,255,.03) 20px 34px),
+      repeating-linear-gradient(88deg, rgba(255,220,170,.05) 0 3px, transparent 3px 11px),
+      linear-gradient(180deg, #a2612c, var(--wood-1) 40%, var(--wood-2));
+    box-shadow:
+      inset 0 3px 0 rgba(255,220,170,.35), inset 0 -6px 0 rgba(0,0,0,.35),
+      0 6px 0 var(--wood-3), 0 26px 50px rgba(0,0,0,.45);
+  }
+  .rows { display: grid; grid-template-columns: repeat(8, var(--hole)); gap: calc(var(--hole) * .12); }
+  .divider { grid-column: 1 / -1; height: calc(var(--hole) * .16); position: relative; }
+  .divider::before { content: ""; position: absolute; left: 4%; right: 4%; top: 50%; height: 3px; transform: translateY(-50%); border-radius: 3px; background: linear-gradient(90deg, transparent, rgba(0,0,0,.35), transparent); }
+  .hole {
+    position: relative; width: var(--hole); height: var(--hole); border-radius: 50%;
+    background: radial-gradient(circle at 50% 38%, #2b1405 0%, #3d1e09 55%, #5a2f11 80%, #6e3a17 100%);
+    box-shadow: inset 0 calc(var(--hole) * .1) calc(var(--hole) * .14) rgba(0,0,0,.7), 0 2px 0 rgba(255,220,170,.22);
+    transition: box-shadow .2s, transform .15s;
+  }
+  .hole.mine.playable { cursor: pointer; }
+  .hole.mine.playable::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid rgba(255,207,107,.55);
+    animation: glow 1.8s ease-in-out infinite;
+  }
+  .hole.mine.playable:hover { transform: translateY(-3px); }
+  .hole.flash { box-shadow: inset 0 calc(var(--hole) * .1) calc(var(--hole) * .14) rgba(0,0,0,.7), 0 0 0 3px var(--gold), 0 0 22px rgba(255,207,107,.8); }
+  .hole.captured { box-shadow: inset 0 calc(var(--hole) * .1) calc(var(--hole) * .14) rgba(0,0,0,.7), 0 0 0 3px #ff5a5f, 0 0 26px rgba(255,90,95,.9); }
+  .hole.last { box-shadow: inset 0 calc(var(--hole) * .1) calc(var(--hole) * .14) rgba(0,0,0,.7), 0 0 0 2px rgba(255,255,255,.45); }
+  .count {
+    position: absolute; right: -4px; top: -4px; z-index: 3; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px;
+    display: grid; place-items: center; font-size: 13px; font-weight: 700; color: var(--ink); background: #ffe6b3;
+    box-shadow: 0 2px 4px rgba(0,0,0,.4);
+  }
+  .count.zero { opacity: .35; }
+  .seed {
+    position: absolute; width: 24%; height: 18%; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff3d6 0%, var(--c, #d9a066) 35%, color-mix(in srgb, var(--c, #d9a066) 55%, #000) 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
+  .seed.drop { animation: drop .28s ease-out; }
+  .side-label { position: absolute; left: calc(var(--hole) * -.05); writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; letter-spacing: 2px; opacity: .55; }
+  @keyframes glow { 50% { opacity: .25; transform: scale(1.04); } }
+  @keyframes drop { from { transform: translateY(-140%) scale(1.3); opacity: 0; } }
+
+  .status { min-height: 32px; font-size: clamp(16px, 2.4vh, 22px); font-weight: 600; text-shadow: 0 2px 8px rgba(0,0,0,.45); text-align: center; }
+  .status .big { color: var(--gold); }
+  .bottom-hint { font-size: 13px; opacity: .8; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
+
+  /* ---------- écrans ---------- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 20px;
+    background: rgba(10, 30, 45, .55); backdrop-filter: blur(6px);
+    opacity: 0; pointer-events: none; transition: opacity .25s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .card {
+    width: min(560px, 100%); max-height: 100%; overflow: auto; text-align: center; padding: 30px 28px;
+    border-radius: 28px; color: var(--ink);
+    background: linear-gradient(180deg, #fff6e4, #ffe8c2);
+    box-shadow: 0 30px 70px rgba(0,0,0,.45), inset 0 0 0 6px rgba(138,79,34,.15);
+  }
+  .card h1 { font-size: clamp(44px, 9vw, 64px); margin: 0; line-height: 1; color: var(--wood-2); text-shadow: 0 4px 0 rgba(138,79,34,.25); }
+  .card h2 { font-size: 30px; margin: 4px 0 10px; color: var(--wood-2); }
+  .card .sub { font-size: 18px; margin: 8px 0 20px; color: #7a4a22; }
+  .card .kicker { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--lagoon); font-weight: 700; }
+  .card p { line-height: 1.5; }
+  .btns { display: grid; gap: 10px; margin-top: 10px; }
+  .btn {
+    font-family: inherit; font-size: 19px; font-weight: 600; padding: 13px 20px; border-radius: 16px; border: 0; cursor: pointer;
+    color: #fff; background: linear-gradient(180deg, #2ccfd2, #13979a); box-shadow: 0 5px 0 #0c6d70;
+    transition: transform .08s;
+  }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #0c6d70; }
+  .btn.wood { background: linear-gradient(180deg, #a2612c, var(--wood-2)); box-shadow: 0 5px 0 var(--wood-3); }
+  .btn.light { color: var(--wood-2); background: #fff; box-shadow: 0 5px 0 #e2c9a0; }
+  .levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .levels .btn { font-size: 16px; padding: 12px 8px; }
+  .rules { text-align: left; margin: 0; padding-left: 20px; }
+  .rules li { margin-bottom: 8px; }
+  .seeds-deco { font-size: 30px; letter-spacing: 4px; margin: 6px 0 2px; }
+  .link { background: none; border: 0; font-family: inherit; font-size: 15px; color: #7a4a22; text-decoration: underline; cursor: pointer; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="player" id="pTop"><div class="av" id="avTop">🤖</div><div><b id="nameTop">Ordinateur</b><span>graines</span></div><div class="score" id="scoreTop">32</div></div>
+    <div class="icons">
+      <button class="ib" id="rulesBtn" title="Règles">?</button>
+      <button class="ib" id="muteBtn" title="Son">🔊</button>
+      <button class="ib" id="menuBtn" title="Menu">☰</button>
+    </div>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="top">
+    <div class="player" id="pBot"><div class="av">🧑🏾</div><div><b id="nameBot">Toi</b><span>graines</span></div><div class="score" id="scoreBot">32</div></div>
+    <div class="status" id="status"></div>
+  </div>
+  <div class="bottom-hint" id="hint">Touche un de tes trous (en bas) qui contient au moins 2 graines.</div>
+</div>
+
+<!-- Menu -->
+<div class="overlay show" id="menu">
+  <div class="card">
+    <div class="kicker">Jeu traditionnel de Mayotte</div>
+    <h1>M'raha</h1>
+    <div class="seeds-deco">🟤🟠🟤🟠🟤</div>
+    <div class="sub">Sème tes graines, prends celles d'en face.</div>
+    <div class="btns">
+      <div style="font-weight:600;color:#7a4a22">Contre l'ordinateur</div>
+      <div class="levels">
+        <button class="btn" data-a="ai1">🌱 Facile</button>
+        <button class="btn" data-a="ai2">🌿 Moyen</button>
+        <button class="btn" data-a="ai3">🌳 Fort</button>
+      </div>
+      <button class="btn wood" data-a="pvp">👥 À deux sur le même écran</button>
+      <button class="btn light" data-a="rules">📖 Les règles</button>
+    </div>
+  </div>
+</div>
+
+<!-- Règles -->
+<div class="overlay" id="rulesBox">
+  <div class="card">
+    <h2>Les règles du M'raha</h2>
+    <ol class="rules">
+      <li>Le plateau a <b>4 rangées de 8 trous</b>. Chaque joueur possède les <b>2 rangées de son côté</b> : la rangée intérieure (au milieu) et la rangée extérieure.</li>
+      <li>Au départ, il y a <b>2 graines dans chaque trou</b>.</li>
+      <li>À ton tour, choisis un de tes trous qui contient <b>au moins 2 graines</b>. Prends-les toutes et <b>sème-les une par une</b> dans les trous suivants, en tournant sur tes 2 rangées (vers la droite en bas, vers la gauche au milieu).</li>
+      <li><b>Prise en face :</b> si ta dernière graine tombe dans un trou <b>non vide de ta rangée intérieure</b>, et que le trou de l'adversaire <b>juste en face</b> contient des graines, tu les prends et tu les sèmes chez toi, à partir du trou suivant. Une prise peut en entraîner une autre !</li>
+      <li>Sinon, ton tour s'arrête.</li>
+      <li>Le joueur qui <b>ne peut plus jouer</b> (aucun trou avec 2 graines ou plus) a perdu.</li>
+    </ol>
+    <p style="font-size:14px;color:#7a4a22">Les règles du M'raha varient selon les villages et les familles. Ici, c'est la version « prise en face ».</p>
+    <button class="btn" data-a="closeRules">J'ai compris</button>
+  </div>
+</div>
+
+<!-- Fin -->
+<div class="overlay" id="endBox">
+  <div class="card">
+    <div class="kicker" id="endKicker">Fin de la partie</div>
+    <h2 id="endTitle"></h2>
+    <p id="endText"></p>
+    <div class="btns">
+      <button class="btn" data-a="again">↻ Rejouer</button>
+      <button class="btn light" data-a="menu">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ============================================================
+//  M'RAHA — jeu de graines traditionnel (4 rangées de 8 trous)
+//  Joueur 0 = en bas (rangées 3 = extérieure, 2 = intérieure)
+//  Joueur 1 = en haut (rangées 0 = extérieure, 1 = intérieure)
+// ============================================================
+
+const ROWS = 4, COLS = 8, START = 2;
+const SEED_COLORS = ["#c98b4a", "#a0612c", "#e0a96a", "#8a5a33", "#d79a55", "#b5773d"];
+
+// ordre de semis de chaque joueur (16 trous en boucle)
+const RING = [
+  [...Array(8)].map((_, c) => [3, c]).concat([...Array(8)].map((_, c) => [2, 7 - c])),
+  [...Array(8)].map((_, c) => [0, 7 - c]).concat([...Array(8)].map((_, c) => [1, c])),
+];
+const INNER = [2, 1];
+const owner = (r) => (r >= 2 ? 0 : 1);
+const ringIndex = (p, r, c) => RING[p].findIndex(([a, b]) => a === r && b === c);
+
+let board, turn, mode, level, busy, movesPlayed, speed, lastHole;
+let save = { muted: false, wins: 0 };
+try { Object.assign(save, JSON.parse(localStorage.getItem("mraha-v1") || "{}")); } catch (e) {}
+const persist = () => { try { localStorage.setItem("mraha-v1", JSON.stringify(save)); } catch (e) {} };
+
+// ---------- sons (bois et graines) ----------
+let actx = null;
+function audio() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (actx && actx.state === "suspended") actx.resume();
+}
+function tone(f, d, type = "sine", v = 0.15, delay = 0, slide) {
+  if (save.muted || !actx) return;
+  const t = actx.currentTime + delay, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+  o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + d + 0.03);
+}
+const sClack = () => { tone(900 + Math.random() * 500, 0.05, "triangle", 0.12); tone(220, 0.06, "sine", 0.08); };
+const sCapture = () => [660, 880, 1100].forEach((f, i) => tone(f, 0.16, "triangle", 0.12, i * 0.07));
+const sWin = () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.3, "triangle", 0.14, i * 0.12));
+const sLose = () => [392, 349, 311].forEach((f, i) => tone(f, 0.35, "sawtooth", 0.06, i * 0.2));
+
+// ---------- logique pure (utilisée aussi par l'ordinateur) ----------
+function legalMoves(b, p) {
+  const out = [];
+  RING[p].forEach(([r, c], i) => { if (b[r][c] >= 2) out.push(i); });
+  return out;
+}
+// joue un coup et renvoie la liste des étapes (pour l'animation)
+function play(b, p, idx, steps) {
+  const ring = RING[p];
+  let [r, c] = ring[idx];
+  let hand = b[r][c];
+  b[r][c] = 0;
+  steps && steps.push({ t: "take", r, c });
+  let pos = idx, captured = 0;
+  for (let guard = 0; guard < 500; guard++) {
+    while (hand > 0) {
+      pos = (pos + 1) % 16;
+      const [rr, cc] = ring[pos];
+      b[rr][cc]++; hand--;
+      steps && steps.push({ t: "sow", r: rr, c: cc });
+    }
+    const [lr, lc] = ring[pos];
+    const opp = [INNER[1 - p], lc];
+    if (lr === INNER[p] && b[lr][lc] > 1 && b[opp[0]][opp[1]] > 0) {
+      hand = b[opp[0]][opp[1]];
+      captured += hand;
+      b[opp[0]][opp[1]] = 0;
+      steps && steps.push({ t: "capture", r: opp[0], c: opp[1], n: hand });
+    } else break;
+  }
+  steps && steps.push({ t: "end", r: ring[pos][0], c: ring[pos][1] });
+  return captured;
+}
+const sideCount = (b, p) => b.reduce((s, row, r) => s + (owner(r) === p ? row.reduce((a, x) => a + x, 0) : 0), 0);
+const clone = (b) => b.map((row) => row.slice());
+
+// ---------- ordinateur (minimax avec élagage) ----------
+function evaluate(b, me) {
+  const mine = sideCount(b, me), theirs = sideCount(b, 1 - me);
+  const mob = legalMoves(b, me).length - legalMoves(b, 1 - me).length;
+  return mine - theirs + mob * 0.3;
+}
+function minimax(b, p, depth, me, alpha, beta) {
+  const moves = legalMoves(b, p);
+  if (!moves.length) return p === me ? -1000 - depth : 1000 + depth;
+  if (depth === 0) return evaluate(b, me);
+  let best = p === me ? -Infinity : Infinity;
+  for (const m of moves) {
+    const nb = clone(b);
+    play(nb, p, m);
+    const v = minimax(nb, 1 - p, depth - 1, me, alpha, beta);
+    if (p === me) { best = Math.max(best, v); alpha = Math.max(alpha, v); }
+    else { best = Math.min(best, v); beta = Math.min(beta, v); }
+    if (beta <= alpha) break;
+  }
+  return best;
+}
+function aiChoose(b, p) {
+  const moves = legalMoves(b, p);
+  if (level === 1) {
+    // facile : souvent au hasard, parfois la meilleure prise immédiate
+    if (Math.random() < 0.6) return moves[Math.floor(Math.random() * moves.length)];
+    let best = moves[0], bv = -1;
+    for (const m of moves) { const nb = clone(b); const v = play(nb, p, m); if (v > bv) { bv = v; best = m; } }
+    return best;
+  }
+  const depth = level === 2 ? 2 : 4;
+  let best = moves[0], bv = -Infinity;
+  for (const m of moves) {
+    const nb = clone(b);
+    play(nb, p, m);
+    const v = minimax(nb, 1 - p, depth - 1, p, -Infinity, Infinity) + Math.random() * 0.2;
+    if (v > bv) { bv = v; best = m; }
+  }
+  return best;
+}
+
+// ---------- affichage ----------
+const boardEl = document.getElementById("board");
+const holeEls = [];
+function buildBoard() {
+  boardEl.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.className = "rows";
+  for (let r = 0; r < ROWS; r++) {
+    holeEls[r] = [];
+    if (r === 2) { const d = document.createElement("div"); d.className = "divider"; grid.appendChild(d); }
+    for (let c = 0; c < COLS; c++) {
+      const h = document.createElement("div");
+      h.className = "hole" + (owner(r) === 0 ? " mine" : " theirs");
+      h.dataset.r = r; h.dataset.c = c;
+      h.addEventListener("click", () => onHole(r, c));
+      grid.appendChild(h);
+      holeEls[r][c] = h;
+    }
+  }
+  boardEl.appendChild(grid);
+}
+// position stable de chaque graine dans un trou (pour ne pas "trembler")
+function seedPos(r, c, i) {
+  const a = (i * 2.399 + r * 1.3 + c * 0.7);
+  const rad = 0.08 + 0.26 * Math.sqrt((i % 14) / 14);
+  return [50 + Math.cos(a) * rad * 100 - 12, 50 + Math.sin(a) * rad * 100 - 9, SEED_COLORS[(i + r * 3 + c) % SEED_COLORS.length], (a * 57) % 180];
+}
+function renderHole(r, c, dropNew) {
+  const h = holeEls[r][c], n = board[r][c];
+  const shown = h.querySelectorAll(".seed").length;
+  const target = Math.min(n, 18);
+  if (target < shown) h.querySelectorAll(".seed").forEach((s, i) => { if (i >= target) s.remove(); });
+  for (let i = shown; i < target; i++) {
+    const [x, y, col, rot] = seedPos(r, c, i);
+    const s = document.createElement("div");
+    s.className = "seed" + (dropNew ? " drop" : "");
+    s.style.cssText = `left:${x}%;top:${y}%;--c:${col};transform:rotate(${rot}deg)`;
+    h.appendChild(s);
+  }
+  let badge = h.querySelector(".count");
+  if (!badge) { badge = document.createElement("div"); badge.className = "count"; h.appendChild(badge); }
+  badge.textContent = n;
+  badge.classList.toggle("zero", n === 0);
+}
+function renderAll() {
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) renderHole(r, c, false);
+  updateUI();
+}
+function updateUI() {
+  document.getElementById("scoreBot").textContent = sideCount(board, 0);
+  document.getElementById("scoreTop").textContent = sideCount(board, 1);
+  document.getElementById("pBot").classList.toggle("turn", turn === 0);
+  document.getElementById("pTop").classList.toggle("turn", turn === 1);
+  const humanTurn = !busy && (turn === 0 || mode === "pvp");
+  const legal = new Set(legalMoves(board, turn).map((i) => RING[turn][i].join(",")));
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const h = holeEls[r][c];
+    const isTurnSide = owner(r) === turn;
+    h.classList.toggle("mine", isTurnSide);
+    h.classList.toggle("playable", humanTurn && isTurnSide && legal.has(r + "," + c));
+    h.classList.toggle("last", lastHole && lastHole[0] === r && lastHole[1] === c);
+  }
+}
+function setStatus(html) { document.getElementById("status").innerHTML = html; }
+
+// ---------- déroulement d'un coup (animé) ----------
+const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+async function doMove(p, idx) {
+  busy = true;
+  updateUI();
+  const steps = [];
+  const sim = clone(board);
+  play(sim, p, idx, steps);
+  for (const s of steps) {
+    const h = holeEls[s.r][s.c];
+    if (s.t === "take") {
+      board[s.r][s.c] = 0; renderHole(s.r, s.c);
+      h.classList.add("flash"); await wait(220 / speed); h.classList.remove("flash");
+    } else if (s.t === "sow") {
+      board[s.r][s.c]++; renderHole(s.r, s.c, true); sClack();
+      h.classList.add("flash"); await wait(170 / speed); h.classList.remove("flash");
+    } else if (s.t === "capture") {
+      h.classList.add("captured"); sCapture();
+      setStatus(`<span class="big">Prise !</span> +${s.n} graine${s.n > 1 ? "s" : ""}`);
+      await wait(520 / speed);
+      board[s.r][s.c] = 0; renderHole(s.r, s.c); h.classList.remove("captured");
+      await wait(150 / speed);
+    } else if (s.t === "end") {
+      lastHole = [s.r, s.c];
+    }
+  }
+  board = sim; // l'état final calculé fait foi
+  renderAll();
+  movesPlayed++;
+  busy = false;
+  speed = 1;
+  nextTurn(1 - p);
+}
+
+function nextTurn(p) {
+  turn = p;
+  const moves = legalMoves(board, p);
+  if (!moves.length) return endGame(1 - p, "plus de coup possible");
+  if (movesPlayed >= 300) {
+    const a = sideCount(board, 0), b = sideCount(board, 1);
+    return endGame(a === b ? -1 : a > b ? 0 : 1, "partie trop longue : on compte les graines");
+  }
+  updateUI();
+  if (mode === "ai" && p === 1) {
+    setStatus("L'ordinateur réfléchit… 🤔");
+    setTimeout(() => doMove(1, aiChoose(board, 1)), 650);
+  } else {
+    setStatus(mode === "pvp" ? (p === 0 ? "À toi, joueur du bas 👇" : "À toi, joueur du haut 👆") : "À toi de jouer !");
+  }
+}
+
+function onHole(r, c) {
+  audio();
+  if (busy) { speed = 4; return; } // accélérer l'animation
+  if (owner(r) !== turn) return;
+  if (mode === "ai" && turn === 1) return;
+  if (board[r][c] < 2) { setStatus("Il faut au moins <span class='big'>2 graines</span> dans le trou."); return; }
+  doMove(turn, ringIndex(turn, r, c));
+}
+
+function endGame(winner, why) {
+  busy = true;
+  updateUI();
+  const t = document.getElementById("endTitle"), x = document.getElementById("endText");
+  if (winner === -1) { t.textContent = "🤝 Égalité !"; x.textContent = "Autant de graines de chaque côté."; }
+  else if (mode === "ai") {
+    if (winner === 0) { t.textContent = "🏆 Tu as gagné !"; save.wins++; persist(); sWin(); x.textContent = `Bravo ! L'ordinateur (${["", "facile", "moyen", "fort"][level]}) ne peut plus jouer.`; }
+    else { t.textContent = "😅 L'ordinateur a gagné"; sLose(); x.textContent = "Tu ne pouvais plus jouer. Retente ta chance !"; }
+  } else {
+    t.textContent = winner === 0 ? "🏆 Le joueur du bas gagne !" : "🏆 Le joueur du haut gagne !"; sWin();
+    x.textContent = "L'adversaire ne pouvait plus jouer.";
+  }
+  if (why && winner === -1) x.textContent += " (" + why + ")";
+  document.getElementById("endKicker").textContent = `Partie terminée en ${movesPlayed} coups`;
+  show("endBox");
+}
+
+function newGame(m, lv) {
+  mode = m; level = lv || 0;
+  board = [...Array(ROWS)].map(() => Array(COLS).fill(START));
+  turn = 0; busy = false; movesPlayed = 0; speed = 1; lastHole = null;
+  document.getElementById("nameTop").textContent = mode === "pvp" ? "Joueur du haut" : "Ordinateur";
+  document.getElementById("avTop").textContent = mode === "pvp" ? "🧑🏽" : "🤖";
+  document.getElementById("nameBot").textContent = mode === "pvp" ? "Joueur du bas" : "Toi";
+  document.getElementById("hint").textContent = mode === "pvp"
+    ? "Chacun joue sur ses 2 rangées. Touche un trou avec au moins 2 graines."
+    : "Touche un de tes trous (en bas) qui contient au moins 2 graines. Touche le plateau pour accélérer.";
+  buildBoard();
+  renderAll();
+  hideAll();
+  nextTurn(0);
+}
+
+// ---------- écrans ----------
+function show(id) { document.getElementById(id).classList.add("show"); }
+function hideAll() { document.querySelectorAll(".overlay").forEach((o) => o.classList.remove("show")); }
+let rulesFrom = "menu";
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-a]")?.dataset.a;
+  if (!a) return;
+  audio();
+  if (a === "ai1" || a === "ai2" || a === "ai3") newGame("ai", +a[2]);
+  else if (a === "pvp") newGame("pvp");
+  else if (a === "rules") { rulesFrom = "menu"; hideAll(); show("rulesBox"); }
+  else if (a === "closeRules") { hideAll(); if (rulesFrom === "menu") show("menu"); }
+  else if (a === "again") newGame(mode, level);
+  else if (a === "menu") { hideAll(); show("menu"); }
+});
+document.getElementById("rulesBtn").onclick = () => { rulesFrom = "game"; show("rulesBox"); };
+document.getElementById("menuBtn").onclick = () => { hideAll(); show("menu"); };
+const muteBtn = document.getElementById("muteBtn");
+muteBtn.textContent = save.muted ? "🔇" : "🔊";
+muteBtn.onclick = () => { save.muted = !save.muted; persist(); muteBtn.textContent = save.muted ? "🔇" : "🔊"; };
+document.addEventListener("keydown", (e) => { if (e.key === "m" || e.key === "M") muteBtn.click(); if (e.key === "Escape") { hideAll(); show("menu"); } });
+
+// plateau de démonstration derrière le menu
+mode = "ai"; level = 2;
+board = [...Array(ROWS)].map(() => Array(COLS).fill(START));
+turn = 0; busy = true; movesPlayed = 0; speed = 1; lastHole = null;
+buildBoard();
+renderAll();
+</script>
+</body>
+</html>

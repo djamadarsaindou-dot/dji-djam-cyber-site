@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Belesset – Dji Djam Cyber</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #2a160c; font-family: 'Fredoka', sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+  /* Scène virtuelle 960x540, mise à l'échelle en JS */
+  #stage { position: absolute; left: 50%; top: 50%; width: 960px; height: 540px; transform-origin: center center; overflow: hidden; border-radius: 6px; }
+  #c { position: absolute; left: 0; top: 0; width: 960px; height: 540px; display: block; }
+  .ov { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: rgba(40, 18, 6, .62); backdrop-filter: blur(3px); color: #fff8ec; text-align: center; padding: 30px; }
+  .ov.show { display: flex; }
+  .card { background: linear-gradient(#fff6e6, #f4dfbd); color: #4a2410; border-radius: 26px; padding: 26px 34px; box-shadow: 0 12px 0 #b5652e, 0 20px 40px rgba(0,0,0,.4); max-width: 760px; }
+  h1 { font-size: 74px; font-weight: 700; color: #ffd36b; text-shadow: 0 5px 0 #a3471c, 0 10px 20px rgba(0,0,0,.4); letter-spacing: 2px; }
+  h2 { font-size: 38px; font-weight: 700; margin-bottom: 10px; }
+  p { font-size: 19px; line-height: 1.4; }
+  .sub { font-size: 20px; color: #ffe9c4; margin: 6px 0 22px; }
+  .btns { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+  button { font-family: inherit; font-size: 24px; font-weight: 600; border: 0; border-radius: 18px; padding: 12px 28px; cursor: pointer; color: #fff; background: linear-gradient(#f39a3c, #d9681e); box-shadow: 0 6px 0 #9a4312; transition: transform .08s; }
+  button:hover { transform: translateY(-2px); }
+  button:active { transform: translateY(3px); box-shadow: 0 3px 0 #9a4312; }
+  button.alt { background: linear-gradient(#3fb4b0, #23827f); box-shadow: 0 6px 0 #145553; }
+  button.grey { background: linear-gradient(#a08670, #7a6350); box-shadow: 0 6px 0 #4f3e30; }
+  #levelsGrid { display: grid; grid-template-columns: repeat(4, 150px); gap: 14px; margin-top: 10px; }
+  .lvl { height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 18px; padding: 8px; }
+  .lvl b { font-size: 34px; }
+  .lvl .st { font-size: 20px; letter-spacing: 2px; color: #ffe27a; }
+  .lvl.locked { background: linear-gradient(#8c7a6c, #6b5b4f); box-shadow: 0 6px 0 #3f342c; cursor: not-allowed; opacity: .8; }
+  .rules { text-align: left; font-size: 17px; }
+  .rules li { margin: 4px 0 4px 20px; }
+  .stars { font-size: 56px; color: #f2b632; text-shadow: 0 3px 0 #9b5d10; letter-spacing: 6px; }
+  .stars .off { color: #cdb79a; text-shadow: none; }
+  /* Boutons de jeu (HUD DOM) */
+  #hudBtns { position: absolute; top: 12px; right: 12px; display: none; gap: 10px; }
+  #hudBtns button { font-size: 20px; padding: 6px 14px; border-radius: 14px; }
+  #action { position: absolute; right: 26px; bottom: 26px; width: 150px; height: 150px; border-radius: 50%; font-size: 24px; display: none; line-height: 1.1; }
+  #action.catch { background: radial-gradient(#ffe46b, #f0a020); box-shadow: 0 7px 0 #9a5a08; color: #5a2c00; animation: pulse .35s infinite alternate; }
+  #action.wait { background: linear-gradient(#a08670, #7a6350); box-shadow: 0 6px 0 #4f3e30; font-size: 19px; }
+  @keyframes pulse { to { transform: scale(1.07); } }
+  #muteBtn { position: absolute; top: 12px; left: 12px; font-size: 20px; padding: 6px 12px; border-radius: 14px; z-index: 5; }
+  .hint { font-size: 15px; color: #ffe9c4; margin-top: 16px; opacity: .9; }
+  /* Écrans tactiles : boutons plus gros */
+  @media (pointer: coarse) {
+    button { font-size: 28px; padding: 16px 32px; }
+    #action { width: 180px; height: 180px; font-size: 28px; }
+    #hudBtns button { font-size: 24px; padding: 10px 18px; }
+    .hint.kb { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+
+  <button id="muteBtn" class="grey" title="Son (M)">🔊</button>
+  <div id="hudBtns"><button id="pauseBtn" class="grey" title="Pause (Échap / P)">❚❚ Pause</button></div>
+  <button id="action">LANCER</button>
+
+  <!-- Menu principal -->
+  <div id="menu" class="ov show">
+    <h1>BELESSET</h1>
+    <div class="sub">Lance, ramasse, attrape ! 7 cailloux, 7 étapes.</div>
+    <div class="btns">
+      <button id="bPlay">▶ Jouer</button>
+      <button id="bLevels" class="alt">Étapes</button>
+      <button id="bRules" class="grey">Règles</button>
+    </div>
+    <div class="hint">Inspiré du belesset, jeu traditionnel mahorais proche des osselets (7 cailloux, 7 étapes).<br>Les règles varient selon les villages ; voici notre version.</div>
+  </div>
+
+  <!-- Choix d'étape -->
+  <div id="levels" class="ov">
+    <h2 style="color:#ffd36b">Choisis ton étape</h2>
+    <div id="levelsGrid"></div>
+    <div class="btns"><button class="grey" data-go="menu">← Retour</button></div>
+  </div>
+
+  <!-- Règles -->
+  <div id="rules" class="ov">
+    <div class="card rules">
+      <h2>Comment jouer ?</h2>
+      <p><i>Inspiré du belesset, jeu traditionnel mahorais proche des osselets (7 cailloux, 7 étapes). Les règles varient selon les villages ; voici notre version.</i></p>
+      <ul>
+        <li><b>Lance</b> le caillou blanc (le lanceur) : <b>Espace</b> ou le gros bouton.</li>
+        <li>Pendant qu'il vole, <b>ramasse les cailloux marqués en jaune</b> (clic / toucher, ou flèches + Espace).</li>
+        <li>Quand l'anneau se resserre et que « ATTRAPE ! » s'affiche, <b>rattrape</b> le lanceur (Espace, bouton, ou clic sur la main).</li>
+        <li>Mauvais caillou, trop tôt ou caillou tombé = <b>une vie en moins</b> (3 vies).</li>
+        <li>Étape 6 : chaque caillou ramassé doit être <b>posé dans le cercle</b> avant d'attraper.</li>
+        <li>Étoiles : 0 erreur = ★★★, 1 erreur = ★★, plus = ★.</li>
+        <li><b>Échap / P</b> : pause — <b>M</b> : son.</li>
+      </ul>
+      <div class="btns"><button data-go="menu">Compris !</button></div>
+    </div>
+  </div>
+
+  <!-- Pause -->
+  <div id="pause" class="ov">
+    <h2 style="color:#ffd36b;font-size:54px">Pause</h2>
+    <div class="btns">
+      <button id="bResume">Reprendre</button>
+      <button id="bRestart" class="alt">Recommencer</button>
+      <button class="grey" data-go="menu">Menu</button>
+    </div>
+  </div>
+
+  <!-- Fin d'étape / partie -->
+  <div id="end" class="ov">
+    <div class="card">
+      <h2 id="endTitle">Étape réussie !</h2>
+      <div id="endStars" class="stars"></div>
+      <p id="endText"></p>
+      <div class="btns">
+        <button id="bNext">Étape suivante ▶</button>
+        <button id="bAgain" class="alt">Rejouer</button>
+        <button class="grey" data-go="menu">Menu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+//  BELESSET — jeu d'adresse inspiré du jeu traditionnel mahorais
+//  Fichier unique : tout est ici (dessin, sons, logique, sauvegarde).
+//  Les fonctions/variables principales sont globales pour pouvoir
+//  tester depuis la console : startStage(0), state, tick(1/60), render()
+// =====================================================================
+
+var W = 960, H = 540;              // taille virtuelle de la scène
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+var stageEl = document.getElementById('stage');
+var S = 1, DPR = 1;                // échelle d'affichage et densité de pixels
+var bgCanvas = document.createElement('canvas'); // décor pré-dessiné
+
+// Position de la main du joueur (où le lanceur part et revient)
+var HAND = { x: 480, y: 470 };
+// Cercle tracé au sol (étape 6)
+var CIRCLE = { x: 790, y: 300, r: 62 };
+
+// ---------------------------------------------------------------------
+//  Les 7 étapes : groups = nombre de cailloux à ramasser à chaque lancer
+//  air = durée du vol (s), win = fenêtre pour attraper (s)
+//  drift = cailloux qui bougent, circle = poser dans le cercle
+// ---------------------------------------------------------------------
+var STAGES = [
+  { nom: 'Un par un',          groups: [1,1,1,1,1,1], air: 2.0,  win: 0.60, drift: 0,   circle: false, aide: 'Ramasse 1 caillou à chaque lancer.' },
+  { nom: 'Deux par deux',      groups: [2,2,2],       air: 2.0,  win: 0.52, drift: 0,   circle: false, aide: 'Ramasse 2 cailloux à chaque lancer.' },
+  { nom: 'Trois par trois',    groups: [3,3],         air: 2.1,  win: 0.46, drift: 0,   circle: false, aide: 'Ramasse 3 cailloux à chaque lancer.' },
+  { nom: 'Quatre et deux',     groups: [4,2],         air: 2.2,  win: 0.42, drift: 0,   circle: false, aide: '4 cailloux d\'abord, puis les 2 derniers.' },
+  { nom: 'Cailloux qui glissent', groups: [2,2,2],    air: 1.85, win: 0.40, drift: 1,   circle: false, aide: 'Attention, les cailloux bougent !' },
+  { nom: 'Le cercle',          groups: [1,1,1,1,1,1], air: 2.2,  win: 0.40, drift: 0,   circle: true,  aide: 'Ramasse 1 caillou puis pose-le dans le cercle.' },
+  { nom: 'La grande rafle',    groups: [6],           air: 2.7,  win: 0.34, drift: 0.7, circle: false, aide: 'Les 6 cailloux en un seul lancer !' }
+];
+
+var GRACE = 0.12;        // petite marge après l'arrivée dans la main
+var TOSS_HEIGHT = 380;   // hauteur du lancer (pixels)
+
+// ---------------------------------------------------------------------
+//  État global du jeu
+// ---------------------------------------------------------------------
+var state = {
+  screen: 'menu',     // 'menu' | 'play' | 'pause' | 'end'
+  stage: 0,
+  cfg: STAGES[0],
+  lives: 3,
+  mistakes: 0,
+  groupIdx: 0,        // numéro du lancer en cours dans l'étape
+  phase: 'ready',     // 'ready' | 'air' | 'catch' | 'fail' | 'done'
+  t: 0,               // temps écoulé depuis le lancer
+  phaseT: 0,          // minuteur des phases courtes (réussite/échec)
+  stones: [],         // les 6 cailloux au sol
+  need: 0, got: 0,    // cailloux à ramasser / ramassés pendant ce lancer
+  holding: null,      // caillou tenu en main (étape 6)
+  sel: 0,             // caillou sélectionné au clavier
+  kb: false,          // le joueur utilise le clavier ?
+  inHand: 0,          // cailloux gagnés (dans la main)
+  inCircle: 0,        // cailloux posés dans le cercle
+  launcher: { x: HAND.x, y: HAND.y - 16, vy: 0 },
+  msg: '', msgT: 0, msgCol: '#fff',
+  shake: 0,
+  particles: [],
+  time: 0,            // horloge globale (animations)
+  stageTime: 0
+};
+
+// ---------------------------------------------------------------------
+//  Sauvegarde (localStorage, protégé par try/catch)
+// ---------------------------------------------------------------------
+var SAVE_KEY = 'belesset-v1';
+var save = { unlocked: 1, stages: {}, muted: false };
+function loadSave() {
+  try {
+    var raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      var d = JSON.parse(raw);
+      save.unlocked = Math.max(1, Math.min(7, d.unlocked | 0 || 1));
+      save.stages = d.stages || {};
+      save.muted = !!d.muted;
+    }
+  } catch (e) { /* stockage indisponible : on joue sans sauvegarde */ }
+}
+function writeSave() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+}
+
+// ---------------------------------------------------------------------
+//  Sons synthétisés (WebAudio) — aucun fichier externe
+// ---------------------------------------------------------------------
+var AC = null;
+function audio() {
+  if (save.muted) return null;
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+// Une note simple avec enveloppe
+function tone(freq, dur, type, vol, freqEnd, delay) {
+  var a = audio(); if (!a) return;
+  var t0 = a.currentTime + (delay || 0);
+  var o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, t0);
+  if (freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol || 0.2, t0 + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+// Un bruit filtré (souffle, choc)
+function noise(dur, vol, f1, f2) {
+  var a = audio(); if (!a) return;
+  var n = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+  for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  var src = a.createBufferSource(); src.buffer = buf;
+  var f = a.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
+  f.frequency.setValueAtTime(f1, a.currentTime);
+  f.frequency.exponentialRampToValueAtTime(f2 || f1, a.currentTime + dur);
+  var g = a.createGain(); g.gain.value = vol;
+  src.connect(f); f.connect(g); g.connect(a.destination);
+  src.start();
+}
+var sfx = {
+  toss:  function () { noise(0.35, 0.5, 500, 2200); tone(300, 0.25, 'sine', 0.08, 700); },
+  clack: function () { tone(1900 + Math.random() * 400, 0.06, 'square', 0.07); noise(0.05, 0.4, 3000); },
+  place: function () { tone(700, 0.08, 'triangle', 0.15); noise(0.08, 0.3, 900); },
+  catch: function () { tone(660, 0.12, 'triangle', 0.2); tone(990, 0.18, 'triangle', 0.16, null, 0.08); },
+  fail:  function () { tone(330, 0.35, 'sawtooth', 0.09, 110); noise(0.25, 0.5, 300, 120); },
+  win:   function () { [523, 659, 784, 1046].forEach(function (f, i) { tone(f, 0.3, 'triangle', 0.16, null, i * 0.11); }); },
+  click: function () { tone(880, 0.05, 'sine', 0.1); }
+};
+
+// ---------------------------------------------------------------------
+//  Outils
+// ---------------------------------------------------------------------
+function rand(a, b) { return a + Math.random() * (b - a); }
+function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function shuffle(arr) { for (var i = arr.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = arr[i]; arr[i] = arr[j]; arr[j] = t; } return arr; }
+var COARSE = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+
+// Couleurs des cailloux (dégradés : clair, moyen, sombre)
+var STONE_COLS = [
+  ['#9c9a96', '#6c6a66', '#3c3a38'],  // basalte gris
+  ['#e2c79a', '#b8955f', '#6e5432'],  // beige
+  ['#c97a52', '#9b4f2e', '#5a2a16'],  // rougeâtre
+  ['#8a8f86', '#5d635a', '#30352e'],  // gris-vert
+  ['#d8b48a', '#a9845a', '#5e4428'],
+  ['#7c746c', '#554d46', '#2c2622']
+];
+
+// ---------------------------------------------------------------------
+//  Création des cailloux au sol
+// ---------------------------------------------------------------------
+function makeStones() {
+  var list = [];
+  for (var i = 0; i < 6; i++) {
+    var x, y, ok, tries = 0;
+    do {
+      x = rand(250, 690); y = rand(300, 410); ok = true;
+      for (var j = 0; j < list.length; j++) if (dist(x, y, list[j].bx, list[j].by) < 68) ok = false;
+      if (dist(x, y, HAND.x, HAND.y) < 95) ok = false;
+      tries++;
+    } while (!ok && tries < 200);
+    list.push({
+      id: i, bx: x, by: y, x: x, y: y,
+      r: rand(13, 16), rot: rand(0, 6.28), squash: rand(0.72, 0.85),
+      col: STONE_COLS[i % STONE_COLS.length],
+      where: 'ground',   // 'ground' | 'fly' | 'hand' | 'held' | 'circle'
+      target: false,
+      seed: rand(0, 100),
+      fx: 0, fy: 0, tx: 0, ty: 0, ft: 0, // animation de vol
+      thisToss: false
+    });
+  }
+  return list;
+}
+function groundStones() { return state.stones.filter(function (s) { return s.where === 'ground'; }); }
+
+// Choisit au hasard les cailloux à ramasser pour ce lancer
+function chooseTargets() {
+  state.stones.forEach(function (s) { s.target = false; s.thisToss = false; });
+  var g = shuffle(groundStones());
+  state.need = state.cfg.groups[state.groupIdx];
+  state.got = 0;
+  for (var i = 0; i < state.need && i < g.length; i++) g[i].target = true;
+  selectNextKeyboard(); // au clavier, on présélectionne un bon caillou
+}
+
+// ---------------------------------------------------------------------
+//  Démarrer une étape (index 0 à 6)
+// ---------------------------------------------------------------------
+function startStage(i) {
+  i = clamp(i | 0, 0, 6);
+  state.stage = i;
+  state.cfg = STAGES[i];
+  state.lives = 3;
+  state.mistakes = 0;
+  state.groupIdx = 0;
+  state.inHand = 0;
+  state.inCircle = 0;
+  state.holding = null;
+  state.particles = [];
+  state.stones = makeStones();
+  state.stageTime = 0;
+  resetLauncher();
+  chooseTargets();
+  state.phase = 'ready';
+  state.screen = 'play';
+  showOverlay(null);
+  say('Étape ' + (i + 1) + ' : ' + state.cfg.nom, '#ffe27a', 2.2);
+  updateHudDom();
+}
+function resetLauncher() { state.launcher.x = HAND.x; state.launcher.y = HAND.y - 16; state.launcher.vy = 0; }
+function say(text, col, dur) { state.msg = text; state.msgCol = col || '#fff'; state.msgT = dur || 1.4; }
+
+// ---------------------------------------------------------------------
+//  Actions du joueur
+// ---------------------------------------------------------------------
+// Lancer le caillou blanc
+function toss() {
+  if (state.screen !== 'play' || state.phase !== 'ready') return;
+  state.phase = 'air';
+  state.t = 0;
+  sfx.toss();
+  burst(HAND.x, HAND.y - 20, 8, '#f6e0b5', 120);
+}
+
+// Ramasser un caillou
+function pick(s) {
+  if (state.phase !== 'air' || !s || s.where !== 'ground') return;
+  if (state.cfg.circle && state.holding) { say('Pose d\'abord ton caillou !', '#ffd36b', 1); return; }
+  if (state.got >= state.need) return;
+  if (!s.target) { fail('Mauvais caillou !'); return; }
+  s.thisToss = true;
+  s.target = false;
+  state.got++;
+  sfx.clack();
+  burst(s.x, s.y, 10, '#d9a066', 140);
+  if (state.cfg.circle) {
+    // Étape 6 : le caillou reste tenu en attendant d'être posé
+    flyTo(s, HAND.x + 40, HAND.y - 40, 'held');
+    state.holding = s;
+  } else {
+    var slot = pileSlot(state.inHand + state.got - 1);
+    flyTo(s, slot.x, slot.y, 'hand');
+  }
+  selectNextKeyboard();
+}
+
+// Poser le caillou tenu dans le cercle (étape 6)
+function placeInCircle() {
+  var s = state.holding;
+  if (!s || state.phase !== 'air') return;
+  var k = state.inCircle + countThisTossInCircle();
+  var a = k * 1.05 + 0.3, rr = 14 + (k % 3) * 12;
+  flyTo(s, CIRCLE.x + Math.cos(a) * rr, CIRCLE.y + Math.sin(a) * rr * 0.6, 'circle');
+  state.holding = null;
+  sfx.place();
+  burst(CIRCLE.x, CIRCLE.y, 12, '#fff3d6', 110);
+}
+function countThisTossInCircle() { return state.stones.filter(function (s) { return s.thisToss && s.where === 'circle' || (s.thisToss && s.where === 'fly' && s.dest === 'circle'); }).length; }
+
+// Tous les cailloux du lancer sont-ils ramassés (et posés) ?
+function tossDone() { return state.got >= state.need && !state.holding; }
+
+// Rattraper le lanceur
+function tryCatch() {
+  if (state.phase !== 'air') return;
+  var T = state.cfg.air;
+  if (!tossDone()) { fail('Il manque des cailloux !'); return; }
+  if (state.t < T - state.cfg.win) { fail('Trop tôt !'); return; }
+  success();
+}
+
+// Bouton principal / Espace : action selon le moment
+function mainAction() {
+  if (state.screen !== 'play') return;
+  if (state.phase === 'ready') { toss(); return; }
+  if (state.phase !== 'air') return;
+  if (state.cfg.circle && state.holding) { placeInCircle(); return; }
+  if (state.got < state.need) {
+    // Au clavier : on ramasse le caillou sélectionné
+    var list = sortedGround();
+    if (list.length) pick(list[clamp(state.sel, 0, list.length - 1)]);
+    return;
+  }
+  tryCatch();
+}
+
+// Animation d'un caillou qui vole vers une position
+function flyTo(s, tx, ty, dest) {
+  s.fx = s.x; s.fy = s.y; s.tx = tx; s.ty = ty; s.ft = 0; s.where = 'fly'; s.dest = dest;
+}
+// Emplacement d'un caillou gagné, dans le petit tas à gauche de la main
+function pileSlot(k) { return { x: 372 + (k % 3) * 24 + (Math.floor(k / 3) % 2) * 12, y: 500 - Math.floor(k / 3) * 14 }; }
+
+// Réussite d'un lancer
+function success() {
+  state.phase = 'catch';
+  state.phaseT = 0.6;
+  sfx.catch();
+  burst(HAND.x, HAND.y - 20, 18, '#ffe27a', 220, true);
+  // Bonus : attrapé tout près de la main = "Parfait"
+  var late = Math.abs(state.t - state.cfg.air);
+  say(late < 0.12 ? 'Parfait !' : 'Bien joué !', '#ffe27a', 0.9);
+  resetLauncher();
+  state.stones.forEach(function (s) { s.thisToss = false; });
+  if (state.cfg.circle) state.inCircle += state.got; else state.inHand += state.got;
+}
+
+// Échec : une vie en moins, on recommence le lancer
+function fail(text) {
+  if (state.phase !== 'air') return;
+  state.phase = 'fail';
+  state.phaseT = 1.1;
+  state.lives--;
+  state.mistakes++;
+  state.shake = 0.35;
+  sfx.fail();
+  say(text, '#ff8a6b', 1.3);
+  // Le lanceur tombe par terre
+  state.launcher.vy = 120;
+  if (state.launcher.y > HAND.y + 10) state.launcher.y = HAND.y - 10;
+  // Les cailloux ramassés pendant ce lancer retournent au sol
+  state.stones.forEach(function (s) {
+    if (s.thisToss) { s.where = 'ground'; s.x = s.bx; s.y = s.by; s.thisToss = false; burst(s.bx, s.by, 6, '#b8794c', 80); }
+  });
+  state.holding = null;
+  updateHudDom();
+}
+
+// Fin de la phase réussite / échec
+function afterPhase() {
+  if (state.phase === 'catch') {
+    state.groupIdx++;
+    if (state.groupIdx >= state.cfg.groups.length) { stageComplete(); return; }
+    chooseTargets();
+    state.phase = 'ready';
+  } else if (state.phase === 'fail') {
+    resetLauncher();
+    if (state.lives <= 0) { gameOver(); return; }
+    chooseTargets();
+    state.phase = 'ready';
+    say('Relance !', '#fff', 0.9);
+  }
+}
+
+function starsFor(m) { return m === 0 ? 3 : m === 1 ? 2 : 1; }
+
+function stageComplete() {
+  state.phase = 'done';
+  var st = starsFor(state.mistakes);
+  var i = state.stage;
+  var prev = (save.stages[i] && save.stages[i].stars) || 0;
+  save.stages[i] = { stars: Math.max(prev, st) };
+  save.unlocked = Math.max(save.unlocked, Math.min(7, i + 2));
+  writeSave();
+  sfx.win();
+  for (var k = 0; k < 4; k++) burst(rand(200, 760), rand(120, 300), 20, ['#ffe27a', '#ff9f5a', '#5fd3c8'][k % 3], 260, true);
+  setTimeout(function () {
+    var last = i === 6;
+    showEnd(last ? 'Tu as terminé le belesset !' : 'Étape ' + (i + 1) + ' réussie !', st,
+      'Erreurs : ' + state.mistakes + ' — Temps : ' + state.stageTime.toFixed(1) + ' s', !last);
+  }, 900);
+}
+
+function gameOver() {
+  state.phase = 'done';
+  setTimeout(function () { showEnd('Plus de vies…', 0, 'Pas grave, réessaie ! Prends ton temps pour bien viser.', false); }, 300);
+}
+
+// ---------------------------------------------------------------------
+//  Particules (poussière, étincelles)
+// ---------------------------------------------------------------------
+function burst(x, y, n, col, speed, star) {
+  for (var i = 0; i < n; i++) {
+    var a = rand(0, Math.PI * 2), v = rand(0.3, 1) * speed;
+    state.particles.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * 0.3, life: rand(0.4, 0.9), max: 0.9, col: col, r: rand(2, 4.5), star: !!star });
+  }
+}
+
+// ---------------------------------------------------------------------
+//  Mise à jour (appelée 60 fois par seconde)
+// ---------------------------------------------------------------------
+function tick(dt) {
+  state.time += dt;
+  if (state.msgT > 0) state.msgT -= dt;
+  if (state.shake > 0) state.shake -= dt;
+
+  // Particules
+  for (var i = state.particles.length - 1; i >= 0; i--) {
+    var p = state.particles[i];
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 420 * dt; p.vx *= 0.98;
+    if (p.life <= 0) state.particles.splice(i, 1);
+  }
+
+  if (state.screen !== 'play') return;
+  state.stageTime += dt;
+  var cfg = state.cfg;
+
+  // Cailloux : glissement éventuel + animations de vol
+  state.stones.forEach(function (s) {
+    if (s.where === 'ground') {
+      if (cfg.drift) {
+        var tt = state.time * 0.9 + s.seed;
+        s.x = s.bx + Math.sin(tt) * 26 * cfg.drift;
+        s.y = s.by + Math.cos(tt * 0.8) * 12 * cfg.drift;
+      } else { s.x = s.bx; s.y = s.by; }
+    } else if (s.where === 'fly') {
+      s.ft += dt / 0.28;
+      var u = Math.min(1, s.ft);
+      s.x = s.fx + (s.tx - s.fx) * u;
+      s.y = s.fy + (s.ty - s.fy) * u - Math.sin(u * Math.PI) * 60;
+      if (u >= 1) { s.where = s.dest; s.x = s.tx; s.y = s.ty; }
+    }
+  });
+
+  var L = state.launcher;
+  if (state.phase === 'air') {
+    state.t += dt;
+    var T = cfg.air, u = state.t / T;
+    if (u <= 1) {
+      L.y = HAND.y - 16 - 4 * TOSS_HEIGHT * u * (1 - u);
+    } else {
+      L.y = HAND.y - 16 + (state.t - T) * 500;
+    }
+    L.x = HAND.x + Math.sin(u * Math.PI) * 10;
+    if (state.t > T + GRACE) fail('Raté ! Le caillou est tombé.');
+  } else if (state.phase === 'fail') {
+    // Le lanceur tombe et rebondit au sol
+    L.vy += 1400 * dt; L.y += L.vy * dt; L.x += 60 * dt;
+    if (L.y > HAND.y + 30) { L.y = HAND.y + 30; if (L.vy > 150) { burst(L.x, L.y + 6, 6, '#b8794c', 90); sfx.clack(); } L.vy = -L.vy * 0.35; }
+  }
+
+  if (state.phase === 'catch' || state.phase === 'fail') {
+    state.phaseT -= dt;
+    if (state.phaseT <= 0) afterPhase();
+  }
+  updateActionBtn();
+}
+
+// ---------------------------------------------------------------------
+//  Dessin du décor (une seule fois, dans un canvas caché)
+// ---------------------------------------------------------------------
+function buildBackground() {
+  bgCanvas.width = Math.round(W * S * DPR);
+  bgCanvas.height = Math.round(H * S * DPR);
+  var g = bgCanvas.getContext('2d');
+  g.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+  drawScenery(g);
+}
+
+function drawScenery(g) {
+  // Ciel de fin d'après-midi
+  var sky = g.createLinearGradient(0, 0, 0, 200);
+  sky.addColorStop(0, '#f7b267'); sky.addColorStop(0.6, '#fbd38d'); sky.addColorStop(1, '#fde8bf');
+  g.fillStyle = sky; g.fillRect(0, 0, W, 210);
+  // Soleil bas
+  var sun = g.createRadialGradient(780, 90, 10, 780, 90, 180);
+  sun.addColorStop(0, 'rgba(255,250,220,1)'); sun.addColorStop(0.2, 'rgba(255,230,160,.7)'); sun.addColorStop(1, 'rgba(255,200,120,0)');
+  g.fillStyle = sun; g.fillRect(560, 0, 400, 260);
+  // Nuages légers
+  g.fillStyle = 'rgba(255,255,255,.45)';
+  [[160, 60], [420, 40], [610, 75]].forEach(function (c) {
+    g.beginPath(); g.ellipse(c[0], c[1], 60, 12, 0, 0, 7); g.ellipse(c[0] + 35, c[1] - 8, 40, 12, 0, 0, 7); g.fill();
+  });
+  // Collines volcaniques au loin
+  g.fillStyle = '#7a9a5a';
+  g.beginPath(); g.moveTo(0, 170);
+  for (var x = 0; x <= W; x += 20) g.lineTo(x, 150 - Math.sin(x * 0.008) * 40 - Math.sin(x * 0.021 + 1) * 14);
+  g.lineTo(W, 200); g.lineTo(0, 200); g.fill();
+  g.fillStyle = '#5f8447';
+  g.beginPath(); g.moveTo(0, 185);
+  for (x = 0; x <= W; x += 20) g.lineTo(x, 172 - Math.sin(x * 0.013 + 2) * 18);
+  g.lineTo(W, 210); g.lineTo(0, 210); g.fill();
+  // Lagon turquoise
+  var lag = g.createLinearGradient(0, 178, 0, 205);
+  lag.addColorStop(0, '#3cc1c0'); lag.addColorStop(1, '#8fe0d2');
+  g.fillStyle = lag; g.fillRect(520, 180, 440, 24);
+  g.fillStyle = 'rgba(255,255,255,.7)';
+  for (var k = 0; k < 18; k++) g.fillRect(530 + k * 24 + (k % 3) * 5, 186 + (k % 4) * 4, 10, 1.5);
+
+  // Sol en terre rouge
+  var gr = g.createLinearGradient(0, 195, 0, H);
+  gr.addColorStop(0, '#c8774a'); gr.addColorStop(0.4, '#b9603a'); gr.addColorStop(1, '#9a4a2a');
+  g.fillStyle = gr; g.fillRect(0, 198, W, H - 198);
+
+  // Maisons au fond (murs crépis + toits en tôle)
+  drawHouse(g, 560, 128, 110, 70, '#f1e2c4', '#9aa3a8');
+  drawHouse(g, 690, 140, 90, 58, '#e8a87c', '#8d979c');
+  drawHouse(g, 830, 132, 100, 66, '#c9dbc1', '#a2a9ad');
+  // Case en torchis avec toit de palmes
+  drawBanga(g, 330, 150);
+
+  // Grand baobab à gauche
+  drawBaobab(g, 120, 300);
+
+  // Ombre du baobab sur la cour
+  g.fillStyle = 'rgba(60,20,5,.22)';
+  g.beginPath(); g.ellipse(210, 330, 240, 70, 0.1, 0, 7); g.fill();
+
+  // Texture du sol : petits grains et taches
+  for (k = 0; k < 700; k++) {
+    var px = Math.random() * W, py = 200 + Math.random() * (H - 200);
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(90,30,10,.18)' : 'rgba(255,210,160,.16)';
+    g.fillRect(px, py, rand(1, 3), rand(1, 2));
+  }
+  // Zone de jeu un peu plus claire (sable tassé)
+  var zone = g.createRadialGradient(470, 360, 30, 470, 360, 300);
+  zone.addColorStop(0, 'rgba(240,190,130,.35)'); zone.addColorStop(1, 'rgba(240,190,130,0)');
+  g.fillStyle = zone; g.beginPath(); g.ellipse(470, 365, 320, 120, 0, 0, 7); g.fill();
+
+  // Lumière chaude de l'après-midi
+  var warm = g.createLinearGradient(W, 0, 0, H);
+  warm.addColorStop(0, 'rgba(255,200,120,.18)'); warm.addColorStop(1, 'rgba(120,40,0,.12)');
+  g.fillStyle = warm; g.fillRect(0, 0, W, H);
+}
+
+function drawHouse(g, x, y, w, h, wall, roof) {
+  g.fillStyle = 'rgba(0,0,0,.15)'; g.fillRect(x + 6, y + h - 4, w, 8);
+  g.fillStyle = wall; g.fillRect(x, y, w, h);
+  g.fillStyle = 'rgba(0,0,0,.08)'; g.fillRect(x + w * 0.6, y, w * 0.4, h);
+  // porte et fenêtre
+  g.fillStyle = '#6b3d22'; g.fillRect(x + w * 0.18, y + h * 0.4, w * 0.18, h * 0.6);
+  g.fillStyle = '#3d6f8a'; g.fillRect(x + w * 0.55, y + h * 0.35, w * 0.22, h * 0.25);
+  // toit en tôle ondulée
+  g.fillStyle = roof;
+  g.beginPath(); g.moveTo(x - 8, y + 4); g.lineTo(x + w + 8, y - 6); g.lineTo(x + w + 8, y + 6); g.lineTo(x - 8, y + 14); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1;
+  for (var i = 0; i < w + 16; i += 6) { g.beginPath(); g.moveTo(x - 8 + i, y + 4 - i * 10 / (w + 16)); g.lineTo(x - 8 + i, y + 14 - i * 10 / (w + 16)); g.stroke(); }
+  g.fillStyle = 'rgba(150,70,30,.35)'; g.fillRect(x + w * 0.3, y + 2, 12, 5); // un peu de rouille
+}
+
+function drawBanga(g, x, y) {
+  g.fillStyle = 'rgba(0,0,0,.15)'; g.beginPath(); g.ellipse(x + 50, y + 62, 70, 8, 0, 0, 7); g.fill();
+  g.fillStyle = '#b77c4c'; g.fillRect(x, y, 100, 60);
+  g.fillStyle = '#9a6238'; g.fillRect(x + 40, y + 22, 22, 38);
+  g.strokeStyle = 'rgba(80,40,15,.4)'; g.lineWidth = 1.2;
+  for (var i = 6; i < 60; i += 9) { g.beginPath(); g.moveTo(x, y + i); g.lineTo(x + 100, y + i + 2); g.stroke(); }
+  // toit de palmes
+  g.fillStyle = '#c9a25a';
+  g.beginPath(); g.moveTo(x - 16, y + 6); g.lineTo(x + 50, y - 42); g.lineTo(x + 116, y + 6); g.fill();
+  g.strokeStyle = '#8e6a2e'; g.lineWidth = 1;
+  for (i = 0; i < 16; i++) { g.beginPath(); g.moveTo(x + 50, y - 40); g.lineTo(x - 14 + i * 8.5, y + 8); g.stroke(); }
+}
+
+function drawBaobab(g, x, y) {
+  // Tronc massif
+  var tr = g.createLinearGradient(x - 60, 0, x + 60, 0);
+  tr.addColorStop(0, '#7d6656'); tr.addColorStop(0.5, '#a08672'); tr.addColorStop(1, '#5e4a3d');
+  g.fillStyle = tr;
+  g.beginPath();
+  g.moveTo(x - 70, y + 20);
+  g.bezierCurveTo(x - 50, y - 60, x - 55, y - 150, x - 30, y - 220);
+  g.lineTo(x + 30, y - 220);
+  g.bezierCurveTo(x + 55, y - 150, x + 55, y - 60, x + 75, y + 20);
+  g.closePath(); g.fill();
+  // Branches
+  g.strokeStyle = '#6e5848'; g.lineCap = 'round';
+  [[-30, -215, -110, -270, 14], [0, -220, -20, -300, 13], [25, -215, 110, -280, 14], [10, -220, 180, -250, 9], [-20, -210, -170, -240, 9]].forEach(function (b) {
+    g.lineWidth = b[4]; g.beginPath(); g.moveTo(x + b[0], y + b[1]); g.quadraticCurveTo(x + b[0] + (b[2] - b[0]) * 0.4, y + b[3] + 30, x + b[2], y + b[3]); g.stroke();
+  });
+  // Feuillage en touffes
+  [[-110, -275, 50], [-20, -305, 55], [110, -285, 52], [180, -255, 38], [-170, -245, 38], [40, -270, 45]].forEach(function (c, i) {
+    var lg = g.createRadialGradient(x + c[0] - 10, y + c[1] - 10, 5, x + c[0], y + c[1], c[2]);
+    lg.addColorStop(0, '#7fae4e'); lg.addColorStop(1, '#3e6b2c');
+    g.fillStyle = lg; g.beginPath(); g.ellipse(x + c[0], y + c[1], c[2], c[2] * 0.55, 0, 0, 7); g.fill();
+  });
+  // Texture du tronc
+  g.strokeStyle = 'rgba(50,30,20,.25)'; g.lineWidth = 2;
+  for (var i = 0; i < 6; i++) { g.beginPath(); g.moveTo(x - 40 + i * 15, y + 10); g.quadraticCurveTo(x - 30 + i * 12, y - 100, x - 20 + i * 8, y - 200); g.stroke(); }
+}
+
+// ---------------------------------------------------------------------
+//  Dessin des éléments de jeu
+// ---------------------------------------------------------------------
+function drawStone(x, y, r, col, rot, squash, lift) {
+  lift = lift || 0;
+  // ombre au sol
+  ctx.fillStyle = 'rgba(40,10,0,' + (0.35 - Math.min(0.25, lift / 600)) + ')';
+  ctx.beginPath(); ctx.ellipse(x + 3, y + r * 0.55 + lift, r * 1.05, r * 0.38, 0, 0, 7); ctx.fill();
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(rot);
+  var gr = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r * 1.1);
+  gr.addColorStop(0, col[0]); gr.addColorStop(0.55, col[1]); gr.addColorStop(1, col[2]);
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.ellipse(0, 0, r, r * squash, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  ctx.beginPath(); ctx.ellipse(-r * 0.35, -r * 0.35 * squash, r * 0.3, r * 0.16, -0.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+var LAUNCH_COL = ['#ffffff', '#ece4d6', '#a99a85'];
+
+function drawHand() {
+  // bras
+  ctx.fillStyle = '#7a4a2c';
+  ctx.beginPath(); ctx.moveTo(HAND.x - 30, H + 10); ctx.quadraticCurveTo(HAND.x - 34, HAND.y + 30, HAND.x - 26, HAND.y + 6);
+  ctx.lineTo(HAND.x + 26, HAND.y + 6); ctx.quadraticCurveTo(HAND.x + 34, HAND.y + 30, HAND.x + 30, H + 10); ctx.fill();
+  // paume ouverte
+  var gr = ctx.createRadialGradient(HAND.x - 8, HAND.y - 4, 4, HAND.x, HAND.y, 44);
+  gr.addColorStop(0, '#b77a52'); gr.addColorStop(1, '#7e4a2b');
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.ellipse(HAND.x, HAND.y + 2, 40, 18, 0, 0, 7); ctx.fill();
+  // doigts
+  ctx.fillStyle = '#8b5533';
+  for (var i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(HAND.x - 27 + i * 18, HAND.y - 10, 7, 13, (i - 1.5) * 0.15, 0, 7); ctx.fill(); }
+  ctx.beginPath(); ctx.ellipse(HAND.x + 42, HAND.y + 2, 7, 13, 1.1, 0, 7); ctx.fill();
+}
+
+function drawChalkCircle() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,240,215,.85)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  for (var pass = 0; pass < 2; pass++) {
+    ctx.beginPath();
+    for (var a = 0; a <= Math.PI * 2 + 0.3; a += 0.15) {
+      var wob = Math.sin(a * 5 + pass * 2) * 3 + Math.sin(a * 11) * 1.5;
+      var px = CIRCLE.x + Math.cos(a) * (CIRCLE.r + wob + pass * 2), py = CIRCLE.y + Math.sin(a) * (CIRCLE.r * 0.55 + wob * 0.5);
+      if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.globalAlpha = pass ? 0.5 : 1; ctx.stroke();
+  }
+  ctx.restore();
+  if (state.holding) {
+    ctx.fillStyle = 'rgba(255,230,120,' + (0.25 + 0.15 * Math.sin(state.time * 8)) + ')';
+    ctx.beginPath(); ctx.ellipse(CIRCLE.x, CIRCLE.y, CIRCLE.r, CIRCLE.r * 0.55, 0, 0, 7); ctx.fill();
+    text('Pose ici !', CIRCLE.x, CIRCLE.y - 52, 20, '#fff3c4');
+  }
+}
+
+function text(str, x, y, size, col, align) {
+  ctx.font = '600 ' + size + 'px Fredoka, sans-serif';
+  ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = Math.max(3, size / 6); ctx.strokeStyle = 'rgba(60,20,5,.8)'; ctx.lineJoin = 'round';
+  ctx.strokeText(str, x, y);
+  ctx.fillStyle = col; ctx.fillText(str, x, y);
+}
+
+function sortedGround() { return groundStones().sort(function (a, b) { return a.bx - b.bx; }); }
+
+function drawHUD() {
+  var cfg = state.cfg;
+  // Panneau en haut à gauche (décalé pour le bouton son)
+  ctx.fillStyle = 'rgba(60,25,8,.55)';
+  roundRect(70, 10, 360, 66, 16); ctx.fill();
+  text('Étape ' + (state.stage + 1) + ' · ' + cfg.nom, 86, 30, 20, '#ffe27a', 'left');
+  // Vies (cœurs)
+  for (var i = 0; i < 3; i++) heart(96 + i * 30, 56, i < state.lives);
+  // Progression des lancers
+  for (i = 0; i < cfg.groups.length; i++) {
+    ctx.fillStyle = i < state.groupIdx ? '#5fd3c8' : i === state.groupIdx ? '#ffe27a' : 'rgba(255,255,255,.3)';
+    ctx.beginPath(); ctx.arc(210 + i * 22, 56, 7, 0, 7); ctx.fill();
+  }
+  // Consigne en bas à gauche
+  var hint = '';
+  if (state.phase === 'ready') hint = cfg.aide + ' — Lance !';
+  else if (state.phase === 'air') {
+    if (state.cfg.circle && state.holding) hint = 'Pose le caillou dans le cercle !';
+    else if (state.got < state.need) hint = 'Ramasse : ' + state.got + ' / ' + state.need;
+    else hint = 'Attrape le lanceur !';
+  }
+  if (hint) text(hint, 24, 520, 20, '#fff8ec', 'left');
+}
+
+function heart(x, y, full) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(1.1, 1.1);
+  ctx.fillStyle = full ? '#ff5a5a' : 'rgba(255,255,255,.25)';
+  ctx.beginPath(); ctx.moveTo(0, 7); ctx.bezierCurveTo(-14, -3, -7, -13, 0, -5); ctx.bezierCurveTo(7, -13, 14, -3, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+// ---------------------------------------------------------------------
+//  Rendu complet d'une image
+// ---------------------------------------------------------------------
+function render() {
+  ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+  ctx.save();
+  if (state.shake > 0) ctx.translate(rand(-1, 1) * state.shake * 18, rand(-1, 1) * state.shake * 18);
+  ctx.drawImage(bgCanvas, 0, 0, W, H);
+
+  // Feuilles qui bougent doucement (ombre animée sous le baobab)
+  ctx.fillStyle = 'rgba(40,15,0,.08)';
+  for (var k = 0; k < 5; k++) { ctx.beginPath(); ctx.ellipse(150 + k * 45 + Math.sin(state.time + k) * 6, 320 + (k % 2) * 25, 30, 10, 0, 0, 7); ctx.fill(); }
+
+  {
+    if (state.cfg.circle && state.screen !== 'menu') drawChalkCircle();
+
+    var playing = state.screen !== 'menu';
+    if (playing) {
+      var sorted = sortedGround();
+      // Cailloux au sol
+      state.stones.forEach(function (s) {
+        if (s.where === 'ground' || s.where === 'circle') drawStone(s.x, s.y, s.r, s.col, s.rot, s.squash);
+      });
+      // Repères : cailloux à ramasser
+      if (state.phase === 'air' || state.phase === 'ready') {
+        state.stones.forEach(function (s) {
+          if (s.where === 'ground' && s.target) {
+            var p = 0.5 + 0.5 * Math.sin(state.time * 7);
+            ctx.strokeStyle = 'rgba(255,220,80,' + (0.6 + 0.4 * p) + ')'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.ellipse(s.x, s.y + 2, s.r + 8 + p * 3, (s.r + 8 + p * 3) * 0.7, 0, 0, 7); ctx.stroke();
+            // petite flèche
+            ctx.fillStyle = '#ffe27a';
+            ctx.beginPath(); ctx.moveTo(s.x, s.y - s.r - 8 - p * 4); ctx.lineTo(s.x - 7, s.y - s.r - 18 - p * 4); ctx.lineTo(s.x + 7, s.y - s.r - 18 - p * 4); ctx.fill();
+          }
+        });
+        // Sélection clavier
+        if (state.kb && state.phase === 'air' && sorted.length) {
+          var ss = sorted[clamp(state.sel, 0, sorted.length - 1)];
+          ctx.save(); ctx.setLineDash([6, 5]); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.arc(ss.x, ss.y, ss.r + 16, 0, 7); ctx.stroke(); ctx.restore();
+        }
+      }
+      // Tas de cailloux gagnés
+      drawHand();
+      state.stones.forEach(function (s) {
+        if (s.where === 'hand' || s.where === 'held') drawStone(s.x, s.y, s.r * 0.9, s.col, s.rot, s.squash);
+      });
+      state.stones.forEach(function (s) {
+        if (s.where === 'fly') drawStone(s.x, s.y, s.r, s.col, s.rot + s.ft * 4, s.squash, 30);
+      });
+
+      // Lanceur + son ombre + anneau de timing
+      var L = state.launcher;
+      var h = Math.max(0, HAND.y - 16 - L.y);
+      if (state.phase === 'air') {
+        // ombre qui grandit quand il redescend
+        var sh = 1 - Math.min(1, h / TOSS_HEIGHT);
+        ctx.fillStyle = 'rgba(40,10,0,' + (0.15 + sh * 0.3) + ')';
+        ctx.beginPath(); ctx.ellipse(HAND.x, HAND.y + 14, 8 + sh * 14, 3 + sh * 5, 0, 0, 7); ctx.fill();
+        drawTimingRing();
+      }
+      drawStone(L.x, L.y, 15, LAUNCH_COL, 0.3 + (state.phase === 'air' ? state.t * 9 : 0), 0.85, state.phase === 'air' ? h : 0);
+      // traînée du lanceur
+      if (state.phase === 'air') {
+        ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(L.x, L.y + (state.t / state.cfg.air < 0.5 ? 14 : -14)); ctx.lineTo(L.x, L.y + (state.t / state.cfg.air < 0.5 ? 40 : -40)); ctx.stroke();
+      }
+    }
+  }
+
+  // Particules
+  state.particles.forEach(function (p) {
+    ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+    ctx.fillStyle = p.col;
+    if (p.star) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.life * 6); ctx.fillRect(-p.r, -p.r / 3, p.r * 2, p.r / 1.5); ctx.fillRect(-p.r / 3, -p.r, p.r / 1.5, p.r * 2); ctx.restore(); }
+    else { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
+  });
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  if (state.screen === 'play' || state.screen === 'pause' || state.screen === 'end') {
+    drawHUD();
+    if (state.msgT > 0 && state.msg) {
+      var a = Math.min(1, state.msgT * 3);
+      ctx.globalAlpha = a;
+      text(state.msg, W / 2, 120 - (1 - a) * 10, 44, state.msgCol);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// Anneau qui se resserre autour de la main : quand il est jaune, ATTRAPE !
+function drawTimingRing() {
+  var T = state.cfg.air, rest = T - state.t;
+  var inWin = rest <= state.cfg.win;
+  var r = 34 + Math.max(0, rest / T) * 150;
+  ctx.lineWidth = inWin ? 6 : 3;
+  ctx.strokeStyle = inWin ? 'rgba(255,220,60,.95)' : 'rgba(255,255,255,.55)';
+  ctx.beginPath(); ctx.ellipse(HAND.x, HAND.y - 6, r, r * 0.6, 0, 0, 7); ctx.stroke();
+  // cible fixe
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.4)';
+  ctx.beginPath(); ctx.ellipse(HAND.x, HAND.y - 6, 34, 20, 0, 0, 7); ctx.stroke();
+  if (inWin && tossDone()) {
+    var s = 1 + 0.08 * Math.sin(state.time * 20);
+    ctx.save(); ctx.translate(HAND.x, HAND.y - 70); ctx.scale(s, s);
+    text('ATTRAPE !', 0, 0, 38, '#ffe27a'); ctx.restore();
+  } else if (inWin && !tossDone()) {
+    text('Vite !', HAND.x, HAND.y - 70, 30, '#ff9f7a');
+  }
+}
+
+// ---------------------------------------------------------------------
+//  Boucle principale à pas fixe (60 Hz) avec accumulateur
+// ---------------------------------------------------------------------
+var STEP = 1 / 60, acc = 0, last = performance.now();
+function loop(now) {
+  var dt = Math.min(0.25, (now - last) / 1000); last = now;
+  if (state.screen !== 'pause') {
+    acc += dt;
+    while (acc >= STEP) { tick(STEP); acc -= STEP; }
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ---------------------------------------------------------------------
+//  Mise à l'échelle de la scène selon la fenêtre
+// ---------------------------------------------------------------------
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  S = Math.min(window.innerWidth / W, window.innerHeight / H);
+  stageEl.style.transform = 'translate(-50%,-50%) scale(' + S + ')';
+  cv.width = Math.round(W * S * DPR);
+  cv.height = Math.round(H * S * DPR);
+  ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+  buildBackground();
+}
+window.addEventListener('resize', resize);
+
+// ---------------------------------------------------------------------
+//  Entrées : souris / toucher
+// ---------------------------------------------------------------------
+function toVirtual(e) {
+  var r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+}
+cv.addEventListener('pointerdown', function (e) {
+  if (state.screen !== 'play') return;
+  e.preventDefault();
+  audio();
+  state.kb = false;
+  var p = toVirtual(e);
+  var tol = COARSE ? 30 : 18;
+  // Clic sur la main / le lanceur
+  var onHand = dist(p.x, p.y, HAND.x, HAND.y) < 70 || dist(p.x, p.y, state.launcher.x, state.launcher.y) < 45;
+  if (state.phase === 'ready') { if (onHand) toss(); return; }
+  if (state.phase !== 'air') return;
+  // Étape 6 : poser dans le cercle
+  if (state.cfg.circle && state.holding) {
+    if (dist(p.x, p.y, CIRCLE.x, CIRCLE.y) < CIRCLE.r + 30) placeInCircle();
+    return;
+  }
+  // Caillou le plus proche
+  var best = null, bd = 1e9;
+  groundStones().forEach(function (s) { var d = dist(p.x, p.y, s.x, s.y); if (d < s.r + tol && d < bd) { bd = d; best = s; } });
+  if (best) { pick(best); return; }
+  if (onHand && tossDone()) tryCatch();
+});
+
+// ---------------------------------------------------------------------
+//  Entrées : clavier
+// ---------------------------------------------------------------------
+function selectNextKeyboard() {
+  var list = sortedGround();
+  var idx = list.findIndex(function (s) { return s.target; });
+  state.sel = idx >= 0 ? idx : 0;
+}
+window.addEventListener('keydown', function (e) {
+  var k = e.key;
+  if (k === 'm' || k === 'M') { toggleMute(); return; }
+  if (k === 'Escape' || k === 'p' || k === 'P') {
+    if (state.screen === 'play') pauseGame(); else if (state.screen === 'pause') resumeGame();
+    return;
+  }
+  if (state.screen !== 'play') return;
+  if (k === ' ' || k === 'Enter') {
+    e.preventDefault();
+    if (e.repeat) return;
+    audio(); state.kb = true;
+    mainAction();
+    return;
+  }
+  var list = sortedGround();
+  if (!list.length) return;
+  if (k === 'ArrowRight' || k === 'ArrowDown') { state.kb = true; state.sel = (clamp(state.sel, 0, list.length - 1) + 1) % list.length; e.preventDefault(); }
+  if (k === 'ArrowLeft' || k === 'ArrowUp') { state.kb = true; state.sel = (clamp(state.sel, 0, list.length - 1) - 1 + list.length) % list.length; e.preventDefault(); }
+});
+
+// ---------------------------------------------------------------------
+//  Interface DOM : menus, pause, fin, son
+// ---------------------------------------------------------------------
+var OVERLAYS = ['menu', 'levels', 'rules', 'pause', 'end'];
+function showOverlay(id) {
+  OVERLAYS.forEach(function (o) { document.getElementById(o).classList.toggle('show', o === id); });
+  if (id === 'levels') buildLevels();
+  updateHudDom();
+}
+function updateHudDom() {
+  var playing = state.screen === 'play';
+  document.getElementById('hudBtns').style.display = playing ? 'flex' : 'none';
+  document.getElementById('action').style.display = playing ? 'block' : 'none';
+}
+function updateActionBtn() {
+  var b = document.getElementById('action'), label, cls;
+  if (state.phase === 'ready') { label = 'LANCER'; cls = ''; }
+  else if (state.phase === 'air') {
+    if (state.cfg.circle && state.holding) { label = 'Touche le cercle'; cls = 'wait'; }
+    else if (state.got < state.need) { label = 'Ramasse<br>' + state.got + ' / ' + state.need; cls = 'wait'; }
+    else { label = 'ATTRAPER'; cls = 'catch'; }
+  } else { label = '…'; cls = 'wait'; }
+  if (b._l !== label) { b.innerHTML = label; b._l = label; }
+  if (b.className !== cls) b.className = cls;
+}
+document.getElementById('action').addEventListener('pointerdown', function (e) {
+  e.preventDefault(); audio();
+  if (state.phase === 'air' && state.got < state.need && !(state.cfg.circle && state.holding)) return; // il faut toucher les cailloux
+  if (state.phase === 'air' && state.cfg.circle && state.holding) return;
+  mainAction();
+});
+
+function buildLevels() {
+  var grid = document.getElementById('levelsGrid');
+  grid.innerHTML = '';
+  STAGES.forEach(function (st, i) {
+    var b = document.createElement('button');
+    var locked = i >= save.unlocked;
+    var stars = (save.stages[i] && save.stages[i].stars) || 0;
+    b.className = 'lvl' + (locked ? ' locked' : (i % 2 ? ' alt' : ''));
+    b.innerHTML = locked ? '<b>🔒</b>Étape ' + (i + 1)
+      : '<b>' + (i + 1) + '</b>' + st.nom + '<span class="st">' + '★★★'.slice(0, stars) + '<span style="opacity:.3">' + '★★★'.slice(stars) + '</span></span>';
+    if (!locked) b.onclick = function () { sfx.click(); startStage(i); };
+    grid.appendChild(b);
+  });
+}
+
+function showEnd(title, stars, txt, canNext) {
+  state.screen = 'end';
+  document.getElementById('endTitle').textContent = title;
+  var h = '';
+  for (var i = 0; i < 3; i++) h += i < stars ? '★' : '<span class="off">★</span>';
+  document.getElementById('endStars').innerHTML = stars ? h : '';
+  document.getElementById('endText').textContent = txt;
+  document.getElementById('bNext').style.display = canNext ? '' : 'none';
+  showOverlay('end');
+}
+
+function pauseGame() { if (state.screen !== 'play') return; state.screen = 'pause'; showOverlay('pause'); }
+function resumeGame() { if (state.screen !== 'pause') return; state.screen = 'play'; showOverlay(null); last = performance.now(); }
+function goMenu() { state.screen = 'menu'; showOverlay('menu'); }
+
+function toggleMute() {
+  save.muted = !save.muted;
+  writeSave();
+  document.getElementById('muteBtn').textContent = save.muted ? '🔇' : '🔊';
+  if (!save.muted) sfx.click();
+}
+
+document.getElementById('muteBtn').onclick = function (e) { e.currentTarget.blur(); toggleMute(); };
+document.getElementById('pauseBtn').onclick = function (e) { e.currentTarget.blur(); pauseGame(); };
+document.getElementById('bPlay').onclick = function () { sfx.click(); startStage(Math.min(save.unlocked - 1, 6)); };
+document.getElementById('bLevels').onclick = function () { sfx.click(); showOverlay('levels'); };
+document.getElementById('bRules').onclick = function () { sfx.click(); showOverlay('rules'); };
+document.getElementById('bResume').onclick = resumeGame;
+document.getElementById('bRestart').onclick = function () { startStage(state.stage); };
+document.getElementById('bNext').onclick = function () { startStage(state.stage + 1); };
+document.getElementById('bAgain').onclick = function () { startStage(state.stage); };
+Array.prototype.forEach.call(document.querySelectorAll('[data-go]'), function (b) {
+  b.addEventListener('click', function () { sfx.click(); if (b.dataset.go === 'menu') goMenu(); else showOverlay(b.dataset.go); });
+});
+// Les boutons ne doivent pas garder le focus (sinon Espace les "clique")
+document.addEventListener('click', function (e) { if (e.target.tagName === 'BUTTON') e.target.blur(); });
+// Pause automatique si on quitte l'onglet
+document.addEventListener('visibilitychange', function () { if (document.hidden) pauseGame(); });
+
+// ---------------------------------------------------------------------
+//  Démarrage
+// ---------------------------------------------------------------------
+loadSave();
+document.getElementById('muteBtn').textContent = save.muted ? '🔇' : '🔊';
+state.stones = makeStones();
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

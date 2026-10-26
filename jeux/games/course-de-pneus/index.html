@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Course de pneus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; height:100%; background:#0d2a3a; overflow:hidden; font-family:'Fredoka', sans-serif; touch-action:none; user-select:none; -webkit-user-select:none; }
+  #stage { position:absolute; left:50%; top:50%; width:960px; height:540px; transform-origin:0 0; }
+  canvas { position:absolute; left:0; top:0; width:960px; height:540px; display:block; border-radius:10px; }
+  .overlay { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; background:rgba(8,30,45,.72); color:#fff; text-align:center; border-radius:10px; }
+  .overlay.on { display:flex; }
+  h1 { font-size:64px; margin:0 0 4px; color:#ffd23f; text-shadow:0 5px 0 #b5521b, 0 10px 18px rgba(0,0,0,.4); letter-spacing:1px; }
+  h2 { font-size:40px; margin:0 0 14px; color:#ffd23f; text-shadow:0 4px 0 #b5521b; }
+  p { margin:6px 0; font-size:18px; max-width:700px; line-height:1.4; }
+  .btn { font-family:inherit; font-size:24px; font-weight:700; padding:12px 30px; margin:7px; border:none; border-radius:16px; cursor:pointer; color:#3a1a00; background:#ffd23f; box-shadow:0 5px 0 #c27c0e; transition:transform .08s; }
+  .btn:hover { transform:translateY(-2px); }
+  .btn:active { transform:translateY(3px); box-shadow:0 2px 0 #c27c0e; }
+  .btn.alt { background:#4ec6c0; color:#06323a; box-shadow:0 5px 0 #23807b; }
+  .row { display:flex; flex-wrap:wrap; justify-content:center; }
+  .courses { display:grid; grid-template-columns:repeat(2, 300px); gap:14px; margin:10px 0; }
+  .course { font-family:inherit; background:#fff7e0; color:#3a1a00; border:none; border-radius:16px; padding:12px; cursor:pointer; text-align:left; box-shadow:0 5px 0 #c9a54c; font-size:16px; }
+  .course b { font-size:21px; display:block; }
+  .course.locked { opacity:.5; cursor:not-allowed; filter:grayscale(.8); }
+  .course .medal { float:right; font-size:28px; }
+  .small { font-size:15px; opacity:.85; }
+  table { border-collapse:collapse; margin:8px auto 14px; font-size:22px; }
+  td { padding:5px 18px; }
+  tr.me { background:rgba(255,210,63,.25); font-weight:700; }
+  #touch { position:absolute; inset:0; pointer-events:none; display:none; }
+  #touch.on { display:block; }
+  .tbtn { position:absolute; bottom:18px; width:150px; height:110px; border-radius:24px; border:4px solid rgba(255,255,255,.8); background:rgba(255,210,63,.55); color:#3a1a00; font-family:inherit; font-weight:700; font-size:24px; pointer-events:auto; touch-action:none; }
+  #tPush { right:18px; } #tJump { left:18px; background:rgba(78,198,192,.6); }
+  #tPause { position:absolute; top:10px; right:10px; width:52px; height:52px; border-radius:14px; border:none; background:rgba(0,0,0,.35); color:#fff; font-size:24px; pointer-events:auto; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+
+  <!-- Boutons tactiles (affichés seulement sur écran tactile) -->
+  <div id="touch">
+    <button class="tbtn" id="tJump">SAUTER</button>
+    <button class="tbtn" id="tPush">POUSSER</button>
+    <button id="tPause">II</button>
+  </div>
+
+  <!-- Menu principal -->
+  <div class="overlay on" id="menu">
+    <h1>Course de pneus</h1>
+    <p>Inspiré de la course de pneus, jeu d'enfants à Mayotte : on fait rouler un vieux pneu avec un bâton. Voici notre version.</p>
+    <div class="row">
+      <button class="btn" id="bPlay">Jouer</button>
+      <button class="btn alt" id="bCourses">Courses</button>
+      <button class="btn alt" id="bRules">Règles</button>
+    </div>
+    <p class="small">Espace : pousser · ↑ : sauter · P / Échap : pause · M : son</p>
+  </div>
+
+  <!-- Choix des courses -->
+  <div class="overlay" id="coursesScr">
+    <h2>Choisis ta course</h2>
+    <div class="courses" id="courseList"></div>
+    <button class="btn alt" data-back>Retour</button>
+  </div>
+
+  <!-- Règles -->
+  <div class="overlay" id="rules">
+    <h2>Règles</h2>
+    <p>Fais rouler ton pneu avec le bâton jusqu'à la ligne d'arrivée, avant les 3 autres enfants.</p>
+    <p><b>Pousser (Espace / POUSSER)</b> : appuie en rythme ! Quand l'aiguille de la jauge est dans la <span style="color:#7dff8a">zone verte</span>, le bâton touche bien le pneu : grosse accélération.</p>
+    <p>Si tu appuies trop vite, le pneu <b>tremble</b>… et finit par tomber. Attends un peu, puis pousse pour le relever.</p>
+    <p><b>Sauter (↑ / SAUTER)</b> : saute par-dessus les trous, poules, chèvres, dos-d'âne et flaques (les flaques te ralentissent).</p>
+    <p>Finis sur le podium (🥇🥈🥉) pour débloquer la course suivante.</p>
+    <button class="btn alt" data-back>Retour</button>
+  </div>
+
+  <!-- Pause -->
+  <div class="overlay" id="pause">
+    <h2>Pause</h2>
+    <div class="row">
+      <button class="btn" id="bResume">Reprendre</button>
+      <button class="btn alt" id="bRestart">Recommencer</button>
+      <button class="btn alt" id="bQuit">Menu</button>
+    </div>
+  </div>
+
+  <!-- Résultats -->
+  <div class="overlay" id="results">
+    <h2 id="resTitle">Arrivée !</h2>
+    <div id="resMedal" style="font-size:64px;line-height:1"></div>
+    <table id="resTable"></table>
+    <p id="resMsg"></p>
+    <div class="row">
+      <button class="btn" id="bNext">Course suivante</button>
+      <button class="btn alt" id="bAgain">Rejouer</button>
+      <button class="btn alt" id="bMenu">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+//  COURSE DE PNEUS — jeu d'arcade en un seul fichier
+//  Écran virtuel 960x540, boucle fixe à 60 images/seconde.
+// =====================================================================
+
+const W = 960, H = 540;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const stage = document.getElementById('stage');
+let S = 1; // échelle d'affichage
+
+// ---------- Mise à l'échelle (garde le format 16:9, net sur écrans HD) ----------
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  S = Math.min(window.innerWidth / W, window.innerHeight / H);
+  stage.style.transform = `translate(${-W * S / 2}px, ${-H * S / 2}px) scale(${S})`;
+  canvas.width = Math.round(W * S * dpr);
+  canvas.height = Math.round(H * S * dpr);
+  ctx.setTransform(S * dpr, 0, 0, S * dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- Sauvegarde ----------
+const SAVE_KEY = 'pneus-v1';
+let save = { unlocked: 1, best: {}, muted: false };
+function loadSave() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s) save = Object.assign(save, s);
+  } catch (e) {}
+}
+function writeSave() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+}
+loadSave();
+
+// ---------- Les courses ----------
+// length : longueur (pixels du monde), aiSpeed : vitesse des adversaires,
+// gap : espace moyen entre obstacles, types : obstacles possibles,
+// window : largeur de la zone verte de poussée (plus petite = plus dur)
+const COURSES = [
+  { name: 'Rue du village', desc: 'Facile · pour apprendre', theme: 'village', length: 6500, aiSpeed: 255, gap: 620,
+    types: ['trou', 'poule', 'dosdane'], window: [0.24, 0.62], slope: false },
+  { name: 'La route qui monte', desc: 'Moyen · ça grimpe !', theme: 'colline', length: 8000, aiSpeed: 285, gap: 520,
+    types: ['trou', 'chevre', 'dosdane', 'poule'], window: [0.27, 0.58], slope: true },
+  { name: 'Route du lagon', desc: 'Difficile · flaques et chèvres', theme: 'plage', length: 9000, aiSpeed: 310, gap: 450,
+    types: ['flaque', 'chevre', 'poule', 'trou'], window: [0.29, 0.56], slope: false },
+  { name: 'La grande finale', desc: 'Expert · tout à la fois !', theme: 'finale', length: 10500, aiSpeed: 335, gap: 400,
+    types: ['trou', 'poule', 'chevre', 'flaque', 'dosdane', 'troupeau'], window: [0.31, 0.53], slope: true }
+];
+
+// Taille des obstacles : w = largeur, h = hauteur à sauter (0 = flaque qui ralentit)
+const OBST = {
+  trou:     { w: 46, h: 10 },
+  poule:    { w: 30, h: 34 },
+  chevre:   { w: 56, h: 52 },
+  dosdane:  { w: 60, h: 18 },
+  flaque:   { w: 90, h: 0 },
+  troupeau: { w: 96, h: 34 }
+};
+
+// ---------- Petit générateur aléatoire "graine" (même parcours à chaque fois) ----------
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+// Hachage simple pour placer arbres et maisons de façon stable
+function hash(n) { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+
+// ---------- État global (accessible dans la console) ----------
+const state = {
+  mode: 'menu',        // menu | countdown | race | paused | finish | results
+  courseIndex: 0,
+  course: COURSES[0],
+  time: 0,
+  countdown: 0,
+  cam: 0,
+  player: null,
+  ais: [],
+  obstacles: [],
+  particles: [],
+  popups: [],
+  finishers: [],       // ordre d'arrivée
+  finishTimer: 0,
+  shake: 0,
+  flash: 0
+};
+
+const PLAYER_SX = 230;                    // position écran du joueur
+const LANES = [446, 466, 486, 512];       // lignes de course (y des pieds) : 3 IA puis joueur
+const TIRE_OFF = 46;                      // le pneu roule devant l'enfant
+
+function makeRacer(name, shirt, skin, lane, isPlayer) {
+  return { name, shirt, skin, lane, isPlayer, x: 0, v: 0, jy: 0, jv: 0, wobble: 0, fallen: false, fallT: 0,
+    sinceP: 1, rot: 0, run: 0, stick: 0, finished: false, finishTime: 0, rank: 0,
+    skill: 1, nextPush: 0.4, stumble: 0, seen: new Set(), hitSet: new Set() };
+}
+
+// ---------- Démarrer une course ----------
+function startCourse(i) {
+  i = Math.max(0, Math.min(COURSES.length - 1, i | 0));
+  state.courseIndex = i;
+  state.course = COURSES[i];
+  state.time = 0;
+  state.countdown = 3.99;
+  state.cam = 0;
+  state.particles = [];
+  state.popups = [];
+  state.finishers = [];
+  state.finishTimer = 0;
+  state.player = makeRacer('Toi', '#ff4f4f', '#7a4a2a', 3, true);
+  const names = [['Ali', '#3fa9f5', '#5c3a1e'], ['Fatima', '#b06cff', '#8a5632'], ['Saïd', '#2fbf71', '#6b4024']];
+  state.ais = names.map((n, k) => {
+    const r = makeRacer(n[0], n[1], n[2], k, false);
+    r.skill = [0.93, 0.98, 1.03][k] + (i * 0.01);
+    return r;
+  });
+  // Génération des obstacles
+  const c = state.course, R = rng(1234 + i * 99);
+  state.obstacles = [];
+  let x = 900;
+  while (x < c.length - 400) {
+    const type = c.types[Math.floor(R() * c.types.length)];
+    state.obstacles.push({ type, x, w: OBST[type].w, h: OBST[type].h, anim: R() * 6 });
+    x += c.gap * (0.7 + R() * 0.8);
+  }
+  state.mode = 'countdown';
+  lastCount = 4;
+  hideAll();
+  showTouch(true);
+  Audio.ensure();
+}
+
+// ---------- Pente (course de la colline et finale) ----------
+// Renvoie une valeur entre -1 (descente) et 1 (montée)
+function slopeAt(x) {
+  if (!state.course.slope) return 0;
+  return Math.sin(x / 900) * 0.8;
+}
+
+// ---------- Actions du joueur ----------
+function push() {
+  const p = state.player;
+  if (state.mode !== 'race' || !p || p.finished) return;
+  if (p.fallen) {
+    if (p.fallT <= 0) { // on relève le pneu
+      p.fallen = false; p.wobble = 0.3; p.sinceP = 0; p.v = 60;
+      popup('Relevé !', '#fff'); Audio.tap(500);
+    }
+    return;
+  }
+  const s = p.sinceP, win = state.course.window;
+  p.stick = 1;
+  if (s < win[0]) {
+    // Trop tôt : le bâton tape mal, le pneu tremble
+    p.wobble += 0.34;
+    p.v += 10;
+    Audio.tap(220);
+    if (p.wobble >= 1) fall(p, 'Le pneu est tombé !');
+    else popup('Trop vite !', '#ffb04f');
+  } else if (s <= win[1]) {
+    // Bon timing ! Bonus si on est pile au milieu
+    const mid = (win[0] + win[1]) / 2;
+    const perfect = Math.abs(s - mid) < (win[1] - win[0]) * 0.2;
+    p.v += perfect ? 85 : 65;
+    p.wobble = Math.max(0, p.wobble - 0.15);
+    Audio.tap(perfect ? 880 : 660);
+    if (perfect) { popup('Parfait !', '#7dff8a'); dust(p, 8); }
+  } else {
+    // Trop tard : petite poussée quand même
+    p.v += 40;
+    Audio.tap(440);
+  }
+  p.v = Math.min(p.v, 470);
+  p.sinceP = 0;
+}
+
+function jump() {
+  const p = state.player;
+  if (state.mode !== 'race' || !p || p.fallen || p.finished) return;
+  if (p.jy <= 0.01) { p.jv = 560; p.jy = 0.1; Audio.jump(); }
+}
+
+function fall(r, msg) {
+  r.fallen = true; r.fallT = 0.9; r.wobble = 0;
+  if (r.isPlayer) { popup(msg, '#ff6b6b'); Audio.crash(); state.shake = 10; }
+}
+
+// ---------- Particules et messages ----------
+function dust(r, n) {
+  for (let i = 0; i < n; i++) state.particles.push({
+    x: r.x + TIRE_OFF - 10, y: LANES[r.lane] - 4, vx: -40 - Math.random() * 80, vy: -30 - Math.random() * 60,
+    life: 0.6 + Math.random() * 0.4, max: 1, size: 3 + Math.random() * 5, col: 'rgba(205,160,110,' });
+}
+function splash(r) {
+  for (let i = 0; i < 18; i++) state.particles.push({
+    x: r.x + TIRE_OFF, y: LANES[r.lane] - 6, vx: (Math.random() - 0.5) * 220, vy: -80 - Math.random() * 160,
+    life: 0.7, max: 0.7, size: 3 + Math.random() * 3, col: 'rgba(120,200,240,', grav: true });
+}
+function feathers(x, y) {
+  for (let i = 0; i < 12; i++) state.particles.push({
+    x, y, vx: (Math.random() - 0.5) * 200, vy: -60 - Math.random() * 120,
+    life: 1, max: 1, size: 4, col: 'rgba(255,255,255,', grav: true });
+}
+function popup(text, col) { state.popups.push({ text, col, t: 1.1 }); }
+
+// ---------- Mise à jour d'un coureur (joueur ou IA) ----------
+function updateRacer(r, dt) {
+  const c = state.course;
+  // Frottement + pente
+  r.v -= (r.v * 0.33 + 18) * dt;
+  r.v -= slopeAt(r.x) * 110 * dt;
+  if (r.fallen) { r.v *= Math.pow(0.05, dt); r.fallT -= dt; }
+  if (r.v < 0) r.v = 0;
+  r.sinceP += dt;
+  r.wobble = Math.max(0, r.wobble - dt * 0.35);
+  r.stick = Math.max(0, r.stick - dt * 5);
+
+  // Saut (gravité)
+  if (r.jy > 0) {
+    r.jy += r.jv * dt; r.jv -= 1700 * dt;
+    if (r.jy <= 0) { r.jy = 0; r.jv = 0; if (r.isPlayer) dust(r, 6); }
+  }
+
+  r.x += r.v * dt;
+  r.rot += r.v * dt / 18;           // rotation du pneu (rayon 18)
+  r.run += (r.v * dt) / 22;         // animation des jambes
+  if (r.v > 120 && Math.random() < r.v / 2000) dust(r, 1);
+
+  // Collisions avec les obstacles (devant le pneu)
+  const tx = r.x + TIRE_OFF;
+  for (const o of state.obstacles) {
+    if (r.hitSet.has(o)) continue;
+    if (Math.abs(o.x - tx) < o.w / 2 + 16) {
+      if (o.h === 0) {                       // flaque : ralentit
+        if (r.jy < 6) { r.hitSet.add(o); r.v *= 0.55; if (r.isPlayer) { splash(r); Audio.splash(); popup('Splash !', '#9fe3ff'); } }
+      } else if (r.jy < o.h) {               // choc !
+        r.hitSet.add(o);
+        r.v *= 0.2;
+        if (r.isPlayer) {
+          if (o.type === 'poule' || o.type === 'troupeau') feathers(PLAYER_SX + (o.x - state.cam), LANES[3] - 20);
+          fall(r, 'Aïe ! Obstacle !');
+        } else { r.fallen = true; r.fallT = 0.7; }
+      }
+    }
+  }
+
+  // Ligne d'arrivée
+  if (!r.finished && r.x >= c.length) {
+    r.finished = true; r.finishTime = state.time;
+    state.finishers.push(r); r.rank = state.finishers.length;
+    if (r.isPlayer) { Audio.win(r.rank); state.flash = 1; state.mode = 'finish'; state.finishTimer = 0; }
+  }
+}
+
+// ---------- Intelligence des adversaires ----------
+function updateAI(r, dt) {
+  const c = state.course, p = state.player;
+  if (r.fallen && r.fallT <= 0) { r.fallen = false; r.v = 50; }
+  if (!r.fallen && !r.finished) {
+    // Effet "élastique" léger pour garder la course serrée
+    const diff = p.x - r.x;
+    const rubber = Math.max(-0.12, Math.min(0.12, diff / 3000));
+    const target = c.aiSpeed * r.skill * (1 + rubber) * (1 - slopeAt(r.x) * 0.25);
+    r.nextPush -= dt;
+    if (r.nextPush <= 0 && r.v < target + 40) {
+      r.v += 55 + Math.random() * 20; r.stick = 1; r.sinceP = 0;
+      r.nextPush = 0.36 + Math.random() * 0.12;
+    }
+    // Les IA sautent les obstacles (pas toujours parfaitement)
+    for (const o of state.obstacles) {
+      if (r.seen.has(o)) continue;
+      const d = o.x - (r.x + TIRE_OFF);
+      if (d > 0 && d < 70 + r.v * 0.12) {
+        r.seen.add(o);
+        const success = 0.82 + state.courseIndex * 0.03 + (r.skill - 1);
+        if (Math.random() < success && r.jy <= 0) { r.jv = 560; r.jy = 0.1; }
+      }
+    }
+  }
+  if (r.finished) r.v = Math.max(0, r.v - 200 * dt);
+  updateRacer(r, dt);
+}
+
+// ---------- Boucle de jeu : tick(dt) = une étape de 1/60 s ----------
+let lastCount = 4;
+function tick(dt) {
+  // Particules et messages vivent dans tous les modes de jeu
+  for (const pt of state.particles) {
+    pt.life -= dt; pt.x += pt.vx * dt; pt.y += pt.vy * dt;
+    if (pt.grav) pt.vy += 500 * dt; else pt.vy *= 0.96;
+  }
+  state.particles = state.particles.filter(pt => pt.life > 0);
+  for (const m of state.popups) m.t -= dt;
+  state.popups = state.popups.filter(m => m.t > 0);
+  state.shake = Math.max(0, state.shake - dt * 30);
+  state.flash = Math.max(0, state.flash - dt * 1.5);
+  for (const o of state.obstacles) o.anim += dt;
+
+  if (state.mode === 'countdown') {
+    state.countdown -= dt;
+    const n = Math.ceil(state.countdown);
+    if (n !== lastCount) { lastCount = n; if (n > 0) Audio.count(false); else Audio.count(true); }
+    if (state.countdown <= 0) { state.mode = 'race'; popup('Partez !', '#ffd23f'); }
+    return;
+  }
+  if (state.mode === 'race' || state.mode === 'finish') {
+    state.time += dt;
+    const p = state.player;
+    if (p.finished) p.v = Math.max(0, p.v - 150 * dt);
+    updateRacer(p, dt);
+    for (const a of state.ais) updateAI(a, dt);
+    state.cam += (p.x - state.cam) * Math.min(1, dt * 8);
+    Audio.roll(p.fallen ? 0 : p.v);
+    if (state.mode === 'finish') {
+      state.finishTimer += dt;
+      if (state.finishTimer > 2.2) showResults();
+    }
+  }
+}
+
+// ---------- Classement en direct ----------
+function ranking() {
+  const all = [state.player, ...state.ais];
+  return all.slice().sort((a, b) => {
+    if (a.finished && b.finished) return a.rank - b.rank;
+    if (a.finished) return -1;
+    if (b.finished) return 1;
+    return b.x - a.x;
+  });
+}
+
+// =====================================================================
+//  DESSIN
+// =====================================================================
+const THEMES = {
+  village: { sky: ['#5fc1f0', '#bfe9ff'], hill1: '#4f8f7a', hill2: '#2f7a3e', ground: '#c49a6c', road: '#a87a50', sun: '#fff3a8', lagoon: true },
+  colline: { sky: ['#78b8e8', '#d9f1ff'], hill1: '#5b8e86', hill2: '#3b7a32', ground: '#b98a5a', road: '#9c6f45', sun: '#fff6c0', lagoon: false },
+  plage:   { sky: ['#3fb0ec', '#a8e6ff'], hill1: '#5aa08e', hill2: '#2e8a4e', ground: '#e8d29a', road: '#cdb27a', sun: '#fffbd0', lagoon: true },
+  finale:  { sky: ['#ff8a5c', '#ffd48a'], hill1: '#7a5a7a', hill2: '#3e5a35', ground: '#b88458', road: '#946640', sun: '#ffe08a', lagoon: true }
+};
+
+function render() {
+  const th = THEMES[state.course.theme];
+  const cam = state.cam;
+  ctx.save();
+  if (state.shake > 0) ctx.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
+
+  // Ciel
+  const g = ctx.createLinearGradient(0, 0, 0, 330);
+  g.addColorStop(0, th.sky[0]); g.addColorStop(1, th.sky[1]);
+  ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+  // Soleil
+  ctx.fillStyle = th.sun; ctx.globalAlpha = 0.35;
+  ctx.beginPath(); ctx.arc(770, 90, 70, 0, 7); ctx.fill();
+  ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(770, 90, 44, 0, 7); ctx.fill();
+  // Nuages
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  for (let k = 0; k < 6; k++) {
+    const x = ((k * 230 - cam * 0.05 - state.time * 8) % 1200 + 1200) % 1200 - 120;
+    const y = 50 + hash(k) * 90;
+    cloud(x, y, 0.7 + hash(k + 9) * 0.6);
+  }
+
+  // Collines lointaines (volcaniques)
+  hills(cam * 0.08, 290, 110, th.hill1, 0.004, 1);
+  // Lagon et îlots
+  if (th.lagoon) {
+    const big = state.course.theme === 'plage';
+    const ly = big ? 300 : 318;
+    const lg = ctx.createLinearGradient(0, ly, 0, 400);
+    lg.addColorStop(0, '#2fc4d6'); lg.addColorStop(1, '#0f8fb0');
+    ctx.fillStyle = lg; ctx.fillRect(0, ly, W, 110);
+    // Reflets
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+    for (let k = 0; k < 14; k++) {
+      const x = ((k * 97 - cam * 0.15 + Math.sin(state.time + k) * 6) % 1000 + 1000) % 1000 - 20;
+      const y = ly + 10 + (k * 13) % 70;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 18, y); ctx.stroke();
+    }
+    // Îlots
+    for (let k = 0; k < 3; k++) {
+      const x = ((k * 420 + 200 - cam * 0.12) % 1260 + 1260) % 1260 - 150;
+      ctx.fillStyle = '#3f8f5a';
+      ctx.beginPath(); ctx.ellipse(x, ly + 4, 60 + k * 15, 18, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#f2e2a8';
+      ctx.fillRect(x - 60 - k * 15, ly + 2, 120 + k * 30, 3);
+    }
+  }
+  // Collines proches
+  if (state.course.theme !== 'plage') hills(cam * 0.25, 340, 70, th.hill2, 0.008, 2);
+
+  // Décor : arbres et maisons (parallaxe 0.6)
+  scenery(cam * 0.6, th);
+
+  // Sol + route
+  ctx.fillStyle = th.ground; ctx.fillRect(0, 400, W, 140);
+  if (state.course.theme === 'plage') { ctx.fillStyle = '#f3e3b0'; ctx.fillRect(0, 398, W, 30); }
+  ctx.fillStyle = th.road; ctx.fillRect(0, 430, W, 100);
+  // Petits cailloux qui défilent
+  ctx.fillStyle = 'rgba(80,50,30,0.35)';
+  for (let k = 0; k < 40; k++) {
+    const x = ((k * 53 - cam) % 1060 + 1060) % 1060 - 50;
+    ctx.fillRect(x, 434 + (k * 37) % 92, 4, 2);
+  }
+  // Panneau montée/descente
+  if (state.course.slope) {
+    const sl = slopeAt(cam + 300);
+    if (Math.abs(sl) > 0.4) {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; roundRect(820, 140, 120, 40, 10); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '700 20px Fredoka'; ctx.textAlign = 'center';
+      ctx.fillText(sl > 0 ? '⬈ Montée' : '⬊ Descente', 880, 167);
+    }
+  }
+
+  // Ligne de départ et d'arrivée
+  drawLine(0 - cam + PLAYER_SX + TIRE_OFF, false);
+  drawLine(state.course.length - cam + PLAYER_SX + TIRE_OFF, true);
+
+  // Obstacles (dessinés sur chaque ligne pour que tout le monde les voie)
+  for (const o of state.obstacles) {
+    const sx = o.x - cam + PLAYER_SX;
+    if (sx < -120 || sx > W + 120) continue;
+    for (let l = 0; l < 4; l++) drawObstacle(o, sx, LANES[l], l === 3 ? 1 : 0.82);
+  }
+
+  // Coureurs (de l'arrière vers l'avant)
+  for (const a of state.ais) drawRacer(a, a.x - cam + PLAYER_SX, 0.85);
+  drawRacer(state.player, PLAYER_SX + (state.player.x - cam), 1);
+
+  // Particules
+  for (const pt of state.particles) {
+    ctx.fillStyle = pt.col + Math.max(0, pt.life / pt.max) + ')';
+    ctx.beginPath(); ctx.arc(pt.x - cam + PLAYER_SX, pt.y, pt.size, 0, 7); ctx.fill();
+  }
+
+  // Lignes de vitesse
+  const v = state.player.v;
+  if (v > 330) {
+    ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.5, (v - 330) / 250)})`; ctx.lineWidth = 2;
+    for (let k = 0; k < 10; k++) {
+      const y = 60 + hash(k + Math.floor(state.time * 12)) * 380;
+      const x = hash(k * 3 + Math.floor(state.time * 20)) * W;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 80, y); ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  if (state.mode !== 'menu') drawHUD();
+  if (state.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${state.flash * 0.5})`; ctx.fillRect(0, 0, W, H); }
+}
+
+function cloud(x, y, s) {
+  ctx.beginPath();
+  ctx.arc(x, y, 22 * s, 0, 7); ctx.arc(x + 25 * s, y - 10 * s, 28 * s, 0, 7);
+  ctx.arc(x + 55 * s, y, 22 * s, 0, 7); ctx.rect(x, y, 55 * s, 20 * s);
+  ctx.fill();
+}
+
+// Collines en vagues (somme de sinus)
+function hills(off, base, amp, col, freq, seed) {
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.moveTo(0, H);
+  for (let x = 0; x <= W; x += 8) {
+    const wx = x + off;
+    const y = base - amp * (0.5 + 0.35 * Math.sin(wx * freq + seed) + 0.25 * Math.sin(wx * freq * 2.7 + seed * 3)
+      + 0.2 * Math.max(0, Math.sin(wx * freq * 0.5 + seed)) ** 6);
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+}
+
+// Arbres (cocotiers, manguiers, baobabs) et maisons à toit de tôle
+function scenery(off, th) {
+  const step = 150;
+  const first = Math.floor(off / step) - 1;
+  for (let k = first; k < first + 9; k++) {
+    const x = k * step - off;
+    const r = hash(k);
+    const y = 404;
+    const theme = state.course.theme;
+    if (theme === 'plage') {
+      if (r < 0.6) palm(x + 40, y, 0.9 + hash(k + 3) * 0.3); else if (r < 0.75) baobab(x + 60, y);
+    } else if (theme === 'colline') {
+      if (r < 0.4) mango(x + 50, y); else if (r < 0.65) baobab(x + 70, y); else if (r < 0.85) house(x + 30, y, k); else palm(x + 50, y, 0.8);
+    } else {
+      if (r < 0.45) house(x + 20, y, k); else if (r < 0.7) palm(x + 60, y, 1); else if (r < 0.88) mango(x + 60, y); else baobab(x + 60, y);
+    }
+  }
+}
+function palm(x, y, s) {
+  ctx.strokeStyle = '#8a6239'; ctx.lineWidth = 8 * s; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 18 * s, y - 70 * s, x + 8 * s, y - 130 * s); ctx.stroke();
+  const tx = x + 8 * s, ty = y - 130 * s;
+  ctx.fillStyle = '#2f9a4a';
+  for (let a = 0; a < 6; a++) {
+    const ang = -Math.PI / 2 + (a - 2.5) * 0.55 + Math.sin(state.time * 1.5 + x) * 0.05;
+    ctx.save(); ctx.translate(tx, ty); ctx.rotate(ang);
+    ctx.beginPath(); ctx.ellipse(0, -32 * s, 9 * s, 36 * s, 0, 0, 7); ctx.fill(); ctx.restore();
+  }
+  ctx.fillStyle = '#6b4a1f';
+  ctx.beginPath(); ctx.arc(tx - 4, ty + 6, 5 * s, 0, 7); ctx.arc(tx + 5, ty + 7, 5 * s, 0, 7); ctx.fill();
+}
+function mango(x, y) {
+  ctx.fillStyle = '#6b4424'; ctx.fillRect(x - 7, y - 60, 14, 60);
+  ctx.fillStyle = '#2b7a3a';
+  ctx.beginPath(); ctx.arc(x, y - 85, 46, 0, 7); ctx.arc(x - 34, y - 64, 30, 0, 7); ctx.arc(x + 34, y - 64, 30, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3d9a4c'; ctx.beginPath(); ctx.arc(x - 12, y - 98, 22, 0, 7); ctx.fill();
+}
+function baobab(x, y) {
+  ctx.fillStyle = '#9a7a62';
+  ctx.beginPath(); ctx.moveTo(x - 22, y); ctx.lineTo(x - 15, y - 90); ctx.lineTo(x + 15, y - 90); ctx.lineTo(x + 22, y); ctx.fill();
+  ctx.strokeStyle = '#9a7a62'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  for (let a = -2; a <= 2; a++) { ctx.beginPath(); ctx.moveTo(x, y - 88); ctx.lineTo(x + a * 18, y - 115 - Math.abs(a) * -4); ctx.stroke(); }
+  ctx.fillStyle = '#5a8a3a';
+  for (let a = -2; a <= 2; a++) { ctx.beginPath(); ctx.arc(x + a * 18, y - 118, 10, 0, 7); ctx.fill(); }
+}
+function house(x, y, k) {
+  const cols = ['#f6c85f', '#f28c8c', '#8fd3f4', '#b8e08a', '#f5f0e0', '#e9a3d8'];
+  const c = cols[Math.floor(hash(k + 7) * cols.length)];
+  const w = 80 + hash(k + 2) * 30, h = 50;
+  ctx.fillStyle = c; ctx.fillRect(x, y - h, w, h);
+  // Toit en tôle (ondulé, gris argenté)
+  ctx.fillStyle = '#9aa3a8';
+  ctx.beginPath(); ctx.moveTo(x - 8, y - h); ctx.lineTo(x + w / 2, y - h - 26); ctx.lineTo(x + w + 8, y - h); ctx.fill();
+  ctx.strokeStyle = 'rgba(60,70,75,0.4)'; ctx.lineWidth = 1;
+  for (let i = 0; i < w + 16; i += 7) { ctx.beginPath(); ctx.moveTo(x - 8 + i, y - h); ctx.lineTo(x + w / 2, y - h - 26); ctx.stroke(); }
+  // Porte et fenêtre
+  ctx.fillStyle = '#6b3d1e'; ctx.fillRect(x + 12, y - 32, 16, 32);
+  ctx.fillStyle = '#2d5d7a'; ctx.fillRect(x + w - 34, y - 38, 20, 16);
+}
+
+function drawLine(sx, finish) {
+  if (sx < -60 || sx > W + 60) return;
+  for (let i = 0; i < 10; i++) for (let j = 0; j < 2; j++) {
+    ctx.fillStyle = ((i + j) % 2 === 0) ? '#fff' : (finish ? '#222' : '#ddd');
+    ctx.fillRect(sx + j * 10, 430 + i * 10, 10, 10);
+  }
+  if (finish) {
+    ctx.fillStyle = '#7a4a2a'; ctx.fillRect(sx - 4, 300, 6, 130); ctx.fillRect(sx + 18, 300, 6, 130);
+    ctx.fillStyle = '#ffd23f'; roundRect(sx - 60, 290, 144, 34, 8); ctx.fill();
+    ctx.fillStyle = '#3a1a00'; ctx.font = '700 20px Fredoka'; ctx.textAlign = 'center'; ctx.fillText('ARRIVÉE', sx + 12, 314);
+  }
+}
+
+function drawObstacle(o, sx, y, s) {
+  ctx.save(); ctx.translate(sx, y); ctx.scale(s, s);
+  const t = o.anim;
+  switch (o.type) {
+    case 'trou':
+      ctx.fillStyle = '#5a3a20'; ctx.beginPath(); ctx.ellipse(0, -2, 24, 7, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#3a2412'; ctx.beginPath(); ctx.ellipse(0, -1, 18, 4, 0, 0, 7); ctx.fill(); break;
+    case 'flaque':
+      ctx.fillStyle = 'rgba(80,170,220,0.8)'; ctx.beginPath(); ctx.ellipse(0, -2, 46, 8, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fillRect(-20 + Math.sin(t * 3) * 4, -4, 14, 2); break;
+    case 'dosdane':
+      ctx.fillStyle = '#d9d0b8'; ctx.beginPath(); ctx.ellipse(0, 0, 30, 16, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#e8b830'; for (let i = -2; i <= 2; i++) ctx.fillRect(i * 11 - 3, -12 + Math.abs(i) * 3, 6, 6); break;
+    case 'poule': chicken(0, 0, t); break;
+    case 'troupeau': chicken(-30, 0, t); chicken(0, 0, t + 1); chicken(30, 0, t + 2); break;
+    case 'chevre': goat(0, 0, t); break;
+  }
+  ctx.restore();
+}
+function chicken(x, y, t) {
+  const b = Math.abs(Math.sin(t * 8)) * 3;
+  ctx.fillStyle = '#f2ead8'; ctx.beginPath(); ctx.ellipse(x, y - 16 - b, 13, 10, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#c96a2a'; ctx.beginPath(); ctx.ellipse(x + 4, y - 18 - b, 7, 5, 0.4, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f2ead8'; ctx.beginPath(); ctx.arc(x - 11, y - 28 - b, 6, 0, 7); ctx.fill();
+  ctx.fillStyle = '#e03a3a'; ctx.beginPath(); ctx.arc(x - 11, y - 35 - b, 3, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f0a020'; ctx.beginPath(); ctx.moveTo(x - 17, y - 29 - b); ctx.lineTo(x - 22, y - 27 - b); ctx.lineTo(x - 17, y - 25 - b); ctx.fill();
+  ctx.fillStyle = '#222'; ctx.fillRect(x - 13, y - 30 - b, 2, 2);
+  ctx.strokeStyle = '#f0a020'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x - 3, y - 7 - b); ctx.lineTo(x - 3 + Math.sin(t * 8) * 3, y); ctx.moveTo(x + 3, y - 7 - b); ctx.lineTo(x + 3 - Math.sin(t * 8) * 3, y); ctx.stroke();
+}
+function goat(x, y, t) {
+  const b = Math.sin(t * 3) * 1.5;
+  ctx.fillStyle = '#e9e1d0'; ctx.beginPath(); ctx.ellipse(x, y - 32, 26, 13, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#7a5a40'; ctx.beginPath(); ctx.ellipse(x + 8, y - 34, 10, 7, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#4a3a2a'; ctx.lineWidth = 4;
+  for (const lx of [-16, -8, 10, 18]) { ctx.beginPath(); ctx.moveTo(x + lx, y - 22); ctx.lineTo(x + lx, y); ctx.stroke(); }
+  ctx.fillStyle = '#e9e1d0'; ctx.beginPath(); ctx.ellipse(x - 28, y - 44 + b, 9, 7, -0.4, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x - 26, y - 50 + b); ctx.quadraticCurveTo(x - 20, y - 62 + b, x - 14, y - 56 + b); ctx.stroke();
+  ctx.fillStyle = '#222'; ctx.fillRect(x - 32, y - 46 + b, 2, 2);
+  ctx.fillStyle = '#d8d0c0'; ctx.beginPath(); ctx.moveTo(x - 32, y - 38 + b); ctx.lineTo(x - 30, y - 30 + b); ctx.lineTo(x - 27, y - 38 + b); ctx.fill();
+}
+
+// Un enfant qui court avec son bâton et son pneu
+function drawRacer(r, sx, s) {
+  if (sx < -150 || sx > W + 150) return;
+  const y = LANES[r.lane];
+  ctx.save(); ctx.translate(sx, y); ctx.scale(s, s);
+  const jy = r.jy;
+  const moving = r.v > 15 && !r.fallen;
+  const ph = r.run;
+  // Ombres
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 20, 5, 0, 0, 7); ctx.ellipse(TIRE_OFF, 0, 18 - Math.min(10, jy / 8), 4, 0, 0, 7); ctx.fill();
+
+  // ---- Pneu ----
+  const tx = TIRE_OFF, ty = -18 - jy;
+  ctx.save();
+  if (r.fallen) {
+    ctx.translate(tx + 8, -6);
+    ctx.fillStyle = '#1e1e1e'; ctx.beginPath(); ctx.ellipse(0, 0, 22, 7, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#555'; ctx.beginPath(); ctx.ellipse(0, -1, 10, 3, 0, 0, 7); ctx.fill();
+  } else {
+    const wob = r.wobble * Math.sin(state.time * 30) * 0.25;
+    ctx.translate(tx, ty); ctx.rotate(wob);
+    ctx.scale(1 - r.wobble * 0.25 * Math.abs(Math.sin(state.time * 18)), 1);
+    ctx.fillStyle = '#1e1e1e'; ctx.beginPath(); ctx.arc(0, 0, 18, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#3c3c3c'; ctx.lineWidth = 3;
+    for (let i = 0; i < 10; i++) {           // sculptures du pneu qui tournent
+      const a = r.rot + i * Math.PI / 5;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a) * 13, Math.sin(a) * 13); ctx.lineTo(Math.cos(a) * 18, Math.sin(a) * 18); ctx.stroke();
+    }
+    ctx.fillStyle = r.isPlayer ? '#b05050' : '#6a6a6a'; ctx.beginPath(); ctx.arc(0, 0, 9, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+
+  // ---- Enfant ----
+  const bob = moving ? Math.abs(Math.sin(ph)) * 3 : 0;
+  const by = -jy * 0.6 - bob;
+  ctx.lineCap = 'round';
+  // Jambes
+  ctx.strokeStyle = r.skin; ctx.lineWidth = 6;
+  const l1 = moving ? Math.sin(ph) * 10 : 0, l2 = -l1;
+  ctx.beginPath(); ctx.moveTo(0, -24 + by); ctx.lineTo(l1, -2 + by * 0.3); ctx.moveTo(0, -24 + by); ctx.lineTo(l2, -2 + by * 0.3); ctx.stroke();
+  // Short
+  ctx.fillStyle = '#2b3a67'; roundRect(-8, -32 + by, 16, 11, 4); ctx.fill();
+  // T-shirt
+  ctx.fillStyle = r.shirt; roundRect(-9, -52 + by, 18, 22, 6); ctx.fill();
+  // Tête
+  ctx.fillStyle = r.skin; ctx.beginPath(); ctx.arc(2, -62 + by, 10, 0, 7); ctx.fill();
+  ctx.fillStyle = '#1a1008'; ctx.beginPath(); ctx.arc(1, -66 + by, 9, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillRect(6, -64 + by, 3, 3); ctx.fillStyle = '#111'; ctx.fillRect(7, -63 + by, 2, 2);
+  // Bras + bâton (le bâton va toucher le pneu quand on pousse)
+  const reach = r.stick;  // 1 juste après une poussée
+  const hx = 12 + reach * 6, hy = -42 + by;
+  ctx.strokeStyle = r.skin; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(2, -48 + by); ctx.lineTo(hx, hy); ctx.stroke();
+  ctx.strokeStyle = '#8b5a2b'; ctx.lineWidth = 4;
+  const sEndX = r.fallen ? hx + 20 : tx - 14 + reach * 10, sEndY = r.fallen ? -4 : ty + 2;
+  ctx.beginPath(); ctx.moveTo(hx - 4, hy - 4); ctx.lineTo(sEndX, sEndY); ctx.stroke();
+  // Nom
+  if (!r.isPlayer) {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = '600 13px Fredoka'; ctx.textAlign = 'center';
+    ctx.fillText(r.name, 2, -78 + by);
+  } else {
+    ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.moveTo(-5, -84 + by); ctx.lineTo(9, -84 + by); ctx.lineTo(2, -76 + by); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+// ---------- Interface en jeu (HUD) ----------
+function drawHUD() {
+  const p = state.player, c = state.course;
+  ctx.textAlign = 'left';
+  // Position
+  const rk = ranking().indexOf(p) + 1;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; roundRect(14, 12, 150, 62, 14); ctx.fill();
+  ctx.fillStyle = '#ffd23f'; ctx.font = '700 40px Fredoka'; ctx.fillText(rk + (rk === 1 ? 'er' : 'e'), 28, 58);
+  ctx.fillStyle = '#fff'; ctx.font = '600 20px Fredoka'; ctx.fillText('/ 4', 100, 58);
+  // Barre de progression avec les têtes des coureurs
+  const bx = 190, bw = 520, byy = 36;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; roundRect(bx - 10, 14, bw + 20, 44, 14); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(bx, byy - 2, bw, 4);
+  ctx.fillStyle = '#fff'; ctx.fillRect(bx + bw - 2, byy - 10, 4, 20);
+  for (const r of [...state.ais, p]) {
+    const f = Math.min(1, r.x / c.length);
+    ctx.fillStyle = r.shirt; ctx.beginPath(); ctx.arc(bx + f * bw, byy, r.isPlayer ? 10 : 7, 0, 7); ctx.fill();
+    if (r.isPlayer) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+  }
+  // Temps
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; roundRect(744, 12, 130, 44, 14); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = '600 22px Fredoka'; ctx.textAlign = 'center';
+  ctx.fillText('⏱ ' + state.time.toFixed(1) + ' s', 809, 42);
+  ctx.font = '700 22px Fredoka'; ctx.fillText(save.muted ? '🔇' : '🔊', 905, 42);
+
+  // Jauge de rythme (pousser au bon moment)
+  const mx = 330, my = 92, mw = 300;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; roundRect(mx - 10, my - 12, mw + 20, 36, 12); ctx.fill();
+  const maxT = 0.8, win = c.window;
+  ctx.fillStyle = '#ffb04f'; ctx.fillRect(mx, my, mw * win[0] / maxT, 12);
+  ctx.fillStyle = '#5fdc6a'; ctx.fillRect(mx + mw * win[0] / maxT, my, mw * (win[1] - win[0]) / maxT, 12);
+  ctx.fillStyle = '#7fb0c8'; ctx.fillRect(mx + mw * win[1] / maxT, my, mw * (1 - win[1] / maxT), 12);
+  const nx = mx + mw * Math.min(1, p.sinceP / maxT);
+  ctx.fillStyle = '#fff'; ctx.fillRect(nx - 3, my - 6, 6, 24);
+  // Jauge de tremblement
+  if (p.wobble > 0.05 && !p.fallen) {
+    ctx.fillStyle = '#ff6b6b'; ctx.fillRect(mx, my + 16, mw * Math.min(1, p.wobble), 4);
+  }
+  if (p.fallen && state.mode === 'race') {
+    ctx.fillStyle = '#fff'; ctx.font = '700 26px Fredoka'; ctx.textAlign = 'center';
+    ctx.fillText(p.fallT > 0 ? 'Oups…' : 'Pousse pour relever le pneu !', W / 2, 160);
+  }
+  // Compteur de vitesse
+  ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = '600 18px Fredoka';
+  ctx.fillText('Vitesse ' + Math.round(p.v / 20) + ' km/h', 14, 100);
+
+  // Messages
+  ctx.textAlign = 'center';
+  let k = 0;
+  for (const m of state.popups) {
+    const a = Math.min(1, m.t * 2);
+    ctx.globalAlpha = a; ctx.font = '700 34px Fredoka';
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    const y = 220 - (1.1 - m.t) * 40 - k * 36;
+    ctx.strokeText(m.text, W / 2, y); ctx.fillStyle = m.col; ctx.fillText(m.text, W / 2, y);
+    k++;
+  }
+  ctx.globalAlpha = 1;
+
+  // Compte à rebours
+  if (state.mode === 'countdown') {
+    const n = Math.ceil(state.countdown);
+    const f = state.countdown - Math.floor(state.countdown);
+    ctx.font = `700 ${100 + f * 60}px Fredoka`;
+    ctx.lineWidth = 10; ctx.strokeStyle = '#b5521b';
+    const txt = n > 0 ? String(n) : 'Partez !';
+    ctx.strokeText(txt, W / 2, 300); ctx.fillStyle = '#ffd23f'; ctx.fillText(txt, W / 2, 300);
+    ctx.font = '600 22px Fredoka'; ctx.fillStyle = '#fff';
+    ctx.fillText(c.name, W / 2, 360);
+  }
+  if (state.mode === 'finish') {
+    ctx.font = '700 60px Fredoka'; ctx.lineWidth = 10; ctx.strokeStyle = '#b5521b';
+    ctx.strokeText('Arrivée !', W / 2, 280); ctx.fillStyle = '#ffd23f'; ctx.fillText('Arrivée !', W / 2, 280);
+  }
+}
+
+// =====================================================================
+//  SONS (WebAudio, tout est synthétisé)
+// =====================================================================
+const Audio = {
+  ac: null, rollGain: null,
+  ensure() {
+    if (this.ac) { if (this.ac.state === 'suspended') this.ac.resume(); return; }
+    try {
+      this.ac = new (window.AudioContext || window.webkitAudioContext)();
+      // Bruit continu filtré pour le roulement du pneu
+      const len = this.ac.sampleRate * 2, buf = this.ac.createBuffer(1, len, this.ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const src = this.ac.createBufferSource(); src.buffer = buf; src.loop = true;
+      const f = this.ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 300;
+      this.rollGain = this.ac.createGain(); this.rollGain.gain.value = 0;
+      src.connect(f); f.connect(this.rollGain); this.rollGain.connect(this.ac.destination); src.start();
+      this.rollFilter = f;
+    } catch (e) { this.ac = null; }
+  },
+  tone(freq, dur, type = 'square', vol = 0.15, slide = 0) {
+    if (!this.ac || save.muted) return;
+    const t = this.ac.currentTime, o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(this.ac.destination); o.start(t); o.stop(t + dur + 0.02);
+  },
+  noise(dur, vol, freq = 1000) {
+    if (!this.ac || save.muted) return;
+    const t = this.ac.currentTime, len = Math.floor(this.ac.sampleRate * dur);
+    const buf = this.ac.createBuffer(1, len, this.ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const s = this.ac.createBufferSource(); s.buffer = buf;
+    const f = this.ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq;
+    const g = this.ac.createGain(); g.gain.value = vol;
+    s.connect(f); f.connect(g); g.connect(this.ac.destination); s.start(t);
+  },
+  tap(f) { this.tone(f, 0.07, 'triangle', 0.2); this.noise(0.04, 0.2, 3000); },
+  jump() { this.tone(300, 0.2, 'square', 0.1, 500); },
+  crash() { this.noise(0.4, 0.5, 600); this.tone(160, 0.3, 'sawtooth', 0.15, -100); },
+  splash() { this.noise(0.35, 0.35, 2500); },
+  count(go) { this.tone(go ? 880 : 440, go ? 0.45 : 0.18, 'square', 0.15); },
+  win(rank) {
+    const notes = rank <= 3 ? [523, 659, 784, 1046] : [392, 349, 330];
+    notes.forEach((n, i) => setTimeout(() => this.tone(n, 0.25, 'triangle', 0.2), i * 140));
+  },
+  roll(v) {
+    if (!this.rollGain) return;
+    const target = save.muted || state.mode !== 'race' ? 0 : Math.min(0.12, v / 3000);
+    this.rollGain.gain.setTargetAtTime(target, this.ac.currentTime, 0.05);
+    this.rollFilter.frequency.setTargetAtTime(150 + v * 1.2, this.ac.currentTime, 0.05);
+  }
+};
+
+function toggleMute() {
+  save.muted = !save.muted; writeSave();
+  if (save.muted && Audio.rollGain) Audio.rollGain.gain.value = 0;
+}
+
+// =====================================================================
+//  ÉCRANS (menu, pause, résultats)
+// =====================================================================
+const $ = id => document.getElementById(id);
+const screens = ['menu', 'coursesScr', 'rules', 'pause', 'results'];
+function hideAll() { screens.forEach(s => $(s).classList.remove('on')); }
+function show(id) { hideAll(); $(id).classList.add('on'); }
+const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+function showTouch(on) { $('touch').classList.toggle('on', on && coarse); }
+const MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+function buildCourseList() {
+  const list = $('courseList'); list.innerHTML = '';
+  COURSES.forEach((c, i) => {
+    const b = document.createElement('button');
+    const locked = i >= save.unlocked;
+    b.className = 'course' + (locked ? ' locked' : '');
+    const best = save.best[i];
+    b.innerHTML = `<span class="medal">${locked ? '🔒' : (MEDALS[best] || '')}</span><b>${i + 1}. ${c.name}</b>${c.desc}`;
+    b.onclick = () => { if (!locked) startCourse(i); };
+    list.appendChild(b);
+  });
+}
+
+function goMenu() {
+  state.mode = 'menu'; showTouch(false); Audio.roll(0);
+  show('menu');
+}
+
+function showResults() {
+  state.mode = 'results'; showTouch(false); Audio.roll(0);
+  const rk = ranking();
+  rk.forEach((r, i) => { if (!r.finished) r.rank = i + 1; });
+  const me = state.player.rank, i = state.courseIndex;
+  // Sauvegarde : meilleure place et déblocage
+  if (!save.best[i] || me < save.best[i]) save.best[i] = me;
+  if (me <= 3 && save.unlocked < Math.min(COURSES.length, i + 2)) save.unlocked = i + 2;
+  writeSave();
+  $('resTitle').textContent = me === 1 ? 'Victoire !' : me <= 3 ? 'Sur le podium !' : 'Raté de peu…';
+  $('resMedal').textContent = MEDALS[me] || '😅';
+  $('resTable').innerHTML = rk.map((r, k) =>
+    `<tr class="${r.isPlayer ? 'me' : ''}"><td>${MEDALS[k + 1] || (k + 1) + 'e'}</td><td>${r.name}</td><td>${r.finished ? r.finishTime.toFixed(1) + ' s' : '—'}</td></tr>`).join('');
+  let msg = me <= 3 ? 'Bravo !' : 'Finis dans les 3 premiers pour débloquer la suite.';
+  if (me <= 3 && i < COURSES.length - 1) msg += ' Course suivante débloquée !';
+  if (me <= 3 && i === COURSES.length - 1) msg = 'Tu as fini la grande finale. Champion·ne du pneu !';
+  $('resMsg').textContent = msg;
+  $('bNext').style.display = (i < COURSES.length - 1 && save.unlocked > i + 1) ? '' : 'none';
+  show('results');
+}
+
+function togglePause() {
+  if (state.mode === 'race' || state.mode === 'countdown') { state.prevMode = state.mode; state.mode = 'paused'; Audio.roll(0); show('pause'); }
+  else if (state.mode === 'paused') { state.mode = state.prevMode || 'race'; hideAll(); }
+}
+
+$('bPlay').onclick = () => { Audio.ensure(); startCourse(Math.max(0, save.unlocked - 1)); };
+$('bCourses').onclick = () => { Audio.ensure(); buildCourseList(); show('coursesScr'); };
+$('bRules').onclick = () => show('rules');
+document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => show('menu'));
+$('bResume').onclick = togglePause;
+$('bRestart').onclick = () => startCourse(state.courseIndex);
+$('bQuit').onclick = goMenu;
+$('bNext').onclick = () => startCourse(state.courseIndex + 1);
+$('bAgain').onclick = () => startCourse(state.courseIndex);
+$('bMenu').onclick = goMenu;
+
+// ---------- Clavier ----------
+window.addEventListener('keydown', e => {
+  const k = e.key;
+  if (k === ' ' || k === 'ArrowUp' || k === 'ArrowDown') e.preventDefault();
+  if (k === 'm' || k === 'M') { toggleMute(); return; }
+  if (k === 'Escape' || k === 'p' || k === 'P') { togglePause(); return; }
+  if (e.repeat) return; // pas de répétition automatique : il faut taper en rythme !
+  if (k === ' ') push();
+  if (k === 'ArrowUp' || k === 'w' || k === 'W' || k === 'z' || k === 'Z') jump();
+  if (k === 'Enter' && state.mode === 'menu') $('bPlay').click();
+});
+
+// ---------- Tactile ----------
+function bindTouch(id, fn) {
+  $(id).addEventListener('pointerdown', e => { e.preventDefault(); Audio.ensure(); fn(); });
+}
+bindTouch('tPush', push);
+bindTouch('tJump', jump);
+bindTouch('tPause', togglePause);
+
+// =====================================================================
+//  BOUCLE PRINCIPALE (pas fixe de 1/60 s avec accumulateur)
+// =====================================================================
+const STEP = 1 / 60;
+let acc = 0, last = performance.now();
+startCourse(0); state.mode = 'menu'; hideAll(); show('menu'); showTouch(false); // décor de fond du menu
+function frame(now) {
+  let dt = (now - last) / 1000; last = now;
+  if (dt > 0.25) dt = 0.25;           // évite les sauts après un onglet en pause
+  acc += dt;
+  while (acc >= STEP) {
+    if (state.mode !== 'paused') tick(STEP);
+    if (state.mode === 'menu') state.cam += 60 * STEP; // le décor défile doucement dans le menu
+    acc -= STEP;
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

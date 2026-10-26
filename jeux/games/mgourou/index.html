@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Mgourou – Tir à la corde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;background:#1a0f1f;overflow:hidden;font-family:'Fredoka',sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+  #stage{position:absolute;left:0;top:0;width:960px;height:540px;transform-origin:0 0;overflow:hidden;border-radius:6px}
+  #cv{position:absolute;left:0;top:0;width:960px;height:540px;display:block}
+  .ov{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(30,12,30,.72);color:#fff;text-align:center}
+  .ov.on{display:flex}
+  h1{font-size:76px;margin:0;color:#ffd166;text-shadow:0 5px 0 #c2410c,0 10px 20px rgba(0,0,0,.5);letter-spacing:2px}
+  h2{font-size:42px;margin:0 0 12px;color:#ffd166;text-shadow:0 3px 0 #9a3412}
+  p{margin:6px 0;font-size:19px;max-width:700px;line-height:1.35}
+  .sub{font-size:20px;opacity:.9;margin-bottom:22px}
+  button{font-family:inherit;font-size:24px;font-weight:600;color:#3b1d0a;background:#ffd166;border:none;border-radius:16px;padding:12px 28px;margin:7px;cursor:pointer;box-shadow:0 5px 0 #c2410c;transition:transform .08s}
+  button:hover{transform:translateY(-2px)} button:active{transform:translateY(3px);box-shadow:0 2px 0 #c2410c}
+  button.sec{background:#fde7c4;font-size:19px;padding:9px 20px}
+  #levels{display:grid;grid-template-columns:repeat(3,220px);gap:14px;margin:8px 0 16px}
+  .lv{margin:0;padding:12px;font-size:19px;display:flex;flex-direction:column;align-items:center;min-height:92px;justify-content:center}
+  .lv small{font-size:14px;font-weight:400;opacity:.8}
+  .lv .st{font-size:22px;color:#c2410c;letter-spacing:3px}
+  .lv.lock{background:#6b5b6e;color:#cbbccc;box-shadow:0 5px 0 #3b2d3e;cursor:not-allowed}
+  .rules{text-align:left;max-width:760px}
+  .rules p{font-size:17px}
+  #hint{position:absolute;right:10px;top:8px;color:#fff;font-size:14px;opacity:.75;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div id="hint">Échap/P : pause · M : son</div>
+
+  <!-- Menu principal -->
+  <div class="ov on" id="ovMenu">
+    <h1>MGOUROU</h1>
+    <div class="sub">Inspiré du mgourou, le tir à la corde pratiqué à Mayotte. Voici notre version.</div>
+    <button onclick="showLevels()">Contre l'ordinateur</button>
+    <button onclick="startDuo()">À deux</button>
+    <button class="sec" onclick="showOv('ovRules')">Règles</button>
+    <button class="sec" id="btnMute" onclick="toggleMute()">Son : oui</button>
+  </div>
+
+  <!-- Choix du niveau -->
+  <div class="ov" id="ovLevels">
+    <h2>Choisis ton adversaire</h2>
+    <div id="levels"></div>
+    <button class="sec" onclick="showOv('ovMenu')">Retour</button>
+  </div>
+
+  <!-- Règles -->
+  <div class="ov" id="ovRules">
+    <h2>Règles</h2>
+    <div class="rules">
+      <p>Inspiré du mgourou, le tir à la corde pratiqué à Mayotte. Voici notre version.</p>
+      <p>• Tire au <b>bon rythme</b> : appuie quand le curseur passe sur la zone dorée. <b>Parfait !</b> tire fort, <b>Bien</b> tire moyennement, <b>Raté</b> presque rien.</p>
+      <p>• Appuyer n'importe comment <b>fatigue ton équipe</b> (barre d'énergie). Une équipe fatiguée tire moins fort.</p>
+      <p>• <b>« Tous ensemble ! »</b> : tape le plus vite possible, le rythme ne compte plus.</p>
+      <p>• <b>« Ils poussent ! »</b> : l'adversaire force d'un coup. <b>Maintiens</b> ta touche appuyée pour résister.</p>
+      <p>• Amène le drapeau du milieu jusqu'à <b>ta marque</b>. Le premier à 2 manches gagne.</p>
+      <p>Touches : Joueur 1 = <b>A</b> (ou Espace en solo, ou moitié gauche de l'écran). Joueur 2 = <b>L</b> (ou moitié droite).</p>
+    </div>
+    <button class="sec" onclick="showOv('ovMenu')">Retour</button>
+  </div>
+
+  <!-- Pause -->
+  <div class="ov" id="ovPause">
+    <h2>Pause</h2>
+    <button onclick="resume()">Reprendre</button>
+    <button class="sec" onclick="restartMatch()">Recommencer</button>
+    <button class="sec" onclick="goMenu()">Menu</button>
+  </div>
+
+  <!-- Fin de manche -->
+  <div class="ov" id="ovRound">
+    <h2 id="roundTitle">Manche gagnée !</h2>
+    <p id="roundInfo"></p>
+    <button onclick="nextRound()">Manche suivante</button>
+  </div>
+
+  <!-- Fin de match -->
+  <div class="ov" id="ovMatch">
+    <h2 id="matchTitle">Victoire !</h2>
+    <div id="matchStars" style="font-size:52px;color:#ffd166;letter-spacing:8px;margin:4px 0"></div>
+    <p id="matchInfo"></p>
+    <div>
+      <button id="btnNext" onclick="startLevel(state.level+1)">Niveau suivant</button>
+      <button class="sec" onclick="restartMatch()">Rejouer</button>
+      <button class="sec" onclick="goMenu()">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================
+//  MGOUROU – tir à la corde rythmique
+//  Tout le jeu tient dans ce fichier.
+// =====================================================
+
+const W = 960, H = 540;            // taille virtuelle du canvas
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const stage = document.getElementById('stage');
+let S = 1;                          // échelle d'affichage
+
+// ---------- Mise à l'échelle (garde le format 960x540) ----------
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  S = Math.min(window.innerWidth / W, window.innerHeight / H);
+  stage.style.transform = 'scale(' + S + ')';
+  stage.style.left = ((window.innerWidth - W * S) / 2) + 'px';
+  stage.style.top = ((window.innerHeight - H * S) / 2) + 'px';
+  cv.width = Math.round(W * S * dpr);
+  cv.height = Math.round(H * S * dpr);
+  ctx.setTransform(S * dpr, 0, 0, S * dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- Niveaux (adversaires de plus en plus forts) ----------
+// bpm = vitesse du rythme ; acc = précision de l'ordi ; force = puissance ; events = fréquence des événements
+const LEVELS = [
+  { name: 'Les Copains',      bpm: 80,  acc: 0.35, force: 0.70, color: '#60a5fa' },
+  { name: 'Les Pêcheurs',     bpm: 88,  acc: 0.50, force: 0.80, color: '#34d399' },
+  { name: 'Les Cousins',      bpm: 96,  acc: 0.60, force: 0.88, color: '#a78bfa' },
+  { name: 'Le Quartier d\'en face', bpm: 104, acc: 0.70, force: 0.95, color: '#f472b6' },
+  { name: 'Les Costauds',     bpm: 112, acc: 0.80, force: 1.03, color: '#f87171' },
+  { name: 'Les Champions',    bpm: 120, acc: 0.88, force: 1.12, color: '#1f2937' }
+];
+
+// ---------- Sauvegarde ----------
+const SAVE_KEY = 'mgourou-v1';
+let save = { unlocked: 1, levels: {}, muted: false };
+function loadSave() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s && typeof s === 'object') {
+      save.unlocked = Math.max(1, s.unlocked | 0);
+      save.levels = s.levels || {};
+      save.muted = !!s.muted;
+    }
+  } catch (e) {}
+}
+function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+loadSave();
+
+// ---------- Sons (WebAudio, tout est synthétisé) ----------
+let AC = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+// Petit son : fréquence, durée, type d'onde, volume, glissement de fréquence
+function tone(f, dur, type, vol, slide) {
+  if (save.muted) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime, o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f * slide), t + dur);
+  g.gain.setValueAtTime(vol || 0.2, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+// Bruit filtré (foule, souffle)
+function noise(dur, vol, freq) {
+  if (save.muted) return;
+  const a = audio(); if (!a) return;
+  const n = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / n);
+  const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  src.buffer = b; f.type = 'bandpass'; f.frequency.value = freq || 900; f.Q.value = 0.7;
+  g.gain.value = vol || 0.2;
+  src.connect(f); f.connect(g); g.connect(a.destination); src.start();
+}
+const SFX = {
+  tick:    (strong) => tone(strong ? 1100 : 800, 0.05, 'square', 0.05),
+  perfect: () => { tone(660, 0.12, 'triangle', 0.18); tone(990, 0.15, 'triangle', 0.12); tone(140, 0.18, 'sawtooth', 0.12, 0.6); },
+  good:    () => { tone(520, 0.1, 'triangle', 0.15); tone(120, 0.15, 'sawtooth', 0.1, 0.6); },
+  miss:    () => tone(180, 0.15, 'square', 0.08, 0.6),
+  grunt:   () => tone(110 + Math.random() * 30, 0.2, 'sawtooth', 0.1, 0.7),
+  crowd:   () => noise(0.9, 0.25, 700),
+  event:   () => { tone(440, 0.12, 'square', 0.12); setTimeout(() => tone(660, 0.18, 'square', 0.12), 120); },
+  win:     () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.25, 'triangle', 0.18), i * 130)),
+  lose:    () => [392, 330, 262, 196].forEach((f, i) => setTimeout(() => tone(f, 0.3, 'sine', 0.18), i * 160))
+};
+function toggleMute() {
+  save.muted = !save.muted; writeSave();
+  document.getElementById('btnMute').textContent = 'Son : ' + (save.muted ? 'non' : 'oui');
+}
+document.getElementById('btnMute').textContent = 'Son : ' + (save.muted ? 'non' : 'oui');
+
+// ---------- État du jeu ----------
+const MARK = 130;     // distance (px) entre le centre et chaque marque de victoire
+const CX = 480;       // centre du terrain
+const GROUND = 418;   // hauteur des pieds
+
+// Crée une équipe : side = -1 (gauche, tire vers la gauche) ou +1 (droite)
+function makeTeam(side, color, isAI) {
+  return {
+    side, color, isAI,
+    stamina: 1,          // énergie (0..1)
+    lastBeatHit: -1,     // dernier temps sur lequel on a appuyé (anti-matraquage)
+    holding: false,      // touche maintenue ?
+    pullAnim: 0,         // animation d'effort
+    feedback: null,      // { text, color, t }
+    combo: 0,
+    perfects: 0
+  };
+}
+
+let state = {
+  screen: 'menu',      // 'menu' | 'play' | 'pause' | 'round' | 'match'
+  mode: 'ai',          // 'ai' | 'duo'
+  level: 0,
+  time: 0,             // temps de jeu de la manche (s)
+  countdown: 0,        // compte à rebours avant la manche
+  rope: 0,             // position du drapeau central (px, négatif = côté gauche)
+  ropeV: 0,            // vitesse de la corde
+  bpm: 80,
+  beat: 0,             // temps musical écoulé (en battements)
+  lastTick: -1,
+  event: null,         // { type:'ensemble'|'surge', t, dur, target }
+  nextEvent: 8,
+  roundsL: 0, roundsR: 0, round: 1,
+  teams: [makeTeam(-1, '#f59e0b', false), makeTeam(1, '#60a5fa', true)],
+  particles: [],
+  popups: [],
+  shake: 0,
+  crowdHype: 0
+};
+
+// ---------- Overlays DOM ----------
+const OVS = ['ovMenu', 'ovLevels', 'ovRules', 'ovPause', 'ovRound', 'ovMatch'];
+function showOv(id) { OVS.forEach(o => document.getElementById(o).classList.toggle('on', o === id)); }
+
+function showLevels() {
+  const box = document.getElementById('levels');
+  box.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement('button');
+    const locked = i >= save.unlocked;
+    const st = (save.levels[i] && save.levels[i].stars) || 0;
+    b.className = 'lv' + (locked ? ' lock' : '');
+    b.innerHTML = locked
+      ? '🔒<br>Niveau ' + (i + 1)
+      : 'Niveau ' + (i + 1) + '<small>' + L.name + '</small><span class="st">' + '★'.repeat(st) + '☆'.repeat(3 - st) + '</span>';
+    if (!locked) b.onclick = () => startLevel(i);
+    box.appendChild(b);
+  });
+  showOv('ovLevels');
+}
+
+// ---------- Démarrage ----------
+function startLevel(i) {
+  if (i >= LEVELS.length) { goMenu(); return; }
+  if (i >= save.unlocked) i = save.unlocked - 1;
+  audio();
+  state.mode = 'ai';
+  state.level = i;
+  state.bpm = LEVELS[i].bpm;
+  state.teams = [makeTeam(-1, '#f59e0b', false), makeTeam(1, LEVELS[i].color, true)];
+  state.roundsL = state.roundsR = 0; state.round = 1;
+  startRound();
+}
+function startDuo() {
+  audio();
+  state.mode = 'duo';
+  state.bpm = 92;
+  state.teams = [makeTeam(-1, '#f59e0b', false), makeTeam(1, '#60a5fa', false)];
+  state.roundsL = state.roundsR = 0; state.round = 1;
+  startRound();
+}
+function startRound() {
+  state.rope = 0; state.ropeV = 0; state.time = 0; state.beat = 0; state.lastTick = -1;
+  state.countdown = 3; state.event = null; state.nextEvent = 7 + Math.random() * 4;
+  state.teams.forEach(t => { t.stamina = 1; t.lastBeatHit = -1; t.feedback = null; t.combo = 0; t.holding = false; });
+  state.particles = []; state.popups = [];
+  state.screen = 'play';
+  showOv(null);
+}
+function restartMatch() { state.mode === 'duo' ? startDuo() : startLevel(state.level); }
+function nextRound() { state.round++; startRound(); }
+function resume() { if (state.screen === 'pause') { state.screen = 'play'; showOv(null); } }
+function pause() { if (state.screen === 'play') { state.screen = 'pause'; showOv('ovPause'); } }
+function goMenu() { state.screen = 'menu'; showOv('ovMenu'); }
+
+// ---------- Appui d'un joueur ----------
+// idx = 0 (gauche) ou 1 (droite)
+function press(idx) {
+  if (state.screen !== 'play' || state.countdown > 0) return;
+  const t = state.teams[idx];
+  if (t.isAI) return;
+  t.pullAnim = 1;
+
+  // Pendant « Tous ensemble ! » : chaque appui tire, peu importe le rythme
+  if (state.event && state.event.type === 'ensemble') {
+    pull(t, 9 * (0.5 + t.stamina * 0.5));
+    t.stamina = Math.max(0, t.stamina - 0.006);
+    spawnDust(t, 2);
+    if (Math.random() < 0.3) SFX.grunt();
+    return;
+  }
+
+  // Distance au battement le plus proche (en secondes)
+  const nearest = Math.round(state.beat);
+  const diff = Math.abs(state.beat - nearest) * 60 / state.bpm;
+
+  // Déjà appuyé sur ce battement ? => matraquage : fatigue
+  if (t.lastBeatHit === nearest) {
+    t.stamina = Math.max(0, t.stamina - 0.07);
+    setFeedback(t, 'Trop vite !', '#fca5a5');
+    pull(t, 2);
+    t.combo = 0;
+    return;
+  }
+  t.lastBeatHit = nearest;
+  judge(t, diff);
+}
+
+// Évalue un appui selon l'écart au rythme
+function judge(t, diff) {
+  const tired = 0.45 + 0.55 * t.stamina;    // une équipe fatiguée tire moins
+  if (diff < 0.07) {
+    t.combo++; t.perfects++;
+    pull(t, 34 * tired * (1 + Math.min(t.combo, 8) * 0.04));
+    t.stamina = Math.min(1, t.stamina + 0.02);
+    setFeedback(t, 'Parfait !', '#fde047');
+    spawnDust(t, 8); state.shake = Math.max(state.shake, 4);
+    if (!t.isAI) SFX.perfect();
+  } else if (diff < 0.14) {
+    t.combo = 0;
+    pull(t, 20 * tired);
+    setFeedback(t, 'Bien', '#86efac');
+    spawnDust(t, 4);
+    if (!t.isAI) SFX.good();
+  } else {
+    t.combo = 0;
+    pull(t, 4 * tired);
+    t.stamina = Math.max(0, t.stamina - 0.05);
+    setFeedback(t, 'Raté', '#fca5a5');
+    if (!t.isAI) SFX.miss();
+  }
+}
+
+// Ajoute une impulsion à la corde dans la direction de l'équipe
+function pull(t, amount) {
+  state.ropeV += t.side * amount;
+  t.pullAnim = 1;
+}
+function setFeedback(t, text, color) {
+  t.feedback = { text, color, t: 0.6 };
+  state.popups.push({ x: CX + t.side * 300, y: 150, text, color, t: 0.8 });
+}
+
+// ---------- Ordinateur ----------
+function aiBeat(t) {
+  const L = LEVELS[state.level];
+  // Le jeu est plus doux au niveau 1 et quand l'ordi gagne déjà
+  const r = Math.random();
+  let diff;
+  if (r < L.acc * 0.6) diff = 0.03;
+  else if (r < L.acc) diff = 0.1;
+  else diff = 0.2;
+  t.lastBeatHit = Math.round(state.beat);
+  // Pas d'effet visuel « Parfait » au-dessus de l'ordi, juste la force
+  const before = state.ropeV;
+  judge(t, diff);
+  state.ropeV = before + (state.ropeV - before) * L.force;
+  t.feedback = null; state.popups.pop();
+  t.stamina = Math.min(1, t.stamina + 0.01);
+}
+
+// ---------- Événements spéciaux ----------
+function startEvent() {
+  const solo = state.mode === 'ai';
+  const type = (solo && Math.random() < 0.5) ? 'surge' : 'ensemble';
+  state.event = { type, t: 0, dur: type === 'surge' ? 2.6 : 3 };
+  SFX.event();
+  state.popups.push({ x: CX, y: 110, text: type === 'surge' ? 'Ils poussent ! MAINTIENS !' : 'Tous ensemble !', color: '#fff', t: 1.6, big: true });
+}
+
+// ---------- Boucle de mise à jour (60 Hz) ----------
+function tick(dt) {
+  // Particules et popups vivent même hors partie
+  updateFx(dt);
+  if (state.screen !== 'play') return;
+
+  if (state.countdown > 0) {
+    const before = Math.ceil(state.countdown);
+    state.countdown -= dt;
+    if (Math.ceil(state.countdown) !== before) {
+      if (state.countdown > 0) tone(500, 0.12, 'square', 0.12); else { tone(900, 0.3, 'square', 0.15); SFX.crowd(); }
+    }
+    return;
+  }
+
+  state.time += dt;
+  state.beat += dt * state.bpm / 60;
+
+  // Tic du métronome à chaque battement
+  const b = Math.floor(state.beat);
+  if (b !== state.lastTick) {
+    state.lastTick = b;
+    SFX.tick(b % 4 === 0);
+    // L'ordinateur tire sur le temps (pas pendant « Tous ensemble »)
+    state.teams.forEach(t => { if (t.isAI && !(state.event && state.event.type === 'ensemble')) aiBeat(t); });
+  }
+
+  // Ordinateur pendant « Tous ensemble ! » : il tape vite lui aussi
+  if (state.event && state.event.type === 'ensemble') {
+    state.teams.forEach(t => {
+      if (t.isAI && Math.random() < dt * (5 + state.level * 1.3)) pull(t, 9 * LEVELS[state.level].force);
+    });
+  }
+
+  // Gestion des événements
+  if (state.event) {
+    const e = state.event;
+    e.t += dt;
+    if (e.type === 'surge') {
+      // L'adversaire force ; maintenir la touche réduit fortement l'effet
+      const me = state.teams[0];
+      const push = (40 + state.level * 8) * dt * (me.holding ? 0.15 : 1);
+      state.ropeV += 60 * push * 0.02 + push;   // vers la droite
+      if (me.holding) me.stamina = Math.max(0, me.stamina - 0.12 * dt);
+      if (me.holding) { me.pullAnim = 1; if (Math.random() < dt * 8) spawnDust(me, 1); }
+    }
+    if (e.t >= e.dur) { state.event = null; state.nextEvent = state.time + 9 + Math.random() * 6; }
+  } else if (state.time >= state.nextEvent) {
+    startEvent();
+  }
+
+  // Récupération d'énergie
+  state.teams.forEach(t => {
+    t.stamina = Math.min(1, t.stamina + 0.06 * dt);
+    t.pullAnim = Math.max(0, t.pullAnim - dt * 3);
+    if (t.feedback) { t.feedback.t -= dt; if (t.feedback.t <= 0) t.feedback = null; }
+  });
+
+  // Physique de la corde : vitesse + frottement
+  state.ropeV *= Math.pow(0.04, dt);
+  state.rope += state.ropeV * dt;
+  state.crowdHype = Math.min(1, Math.abs(state.rope) / MARK);
+
+  // Victoire de manche ?
+  if (state.rope <= -MARK) endRound(0);
+  else if (state.rope >= MARK) endRound(1);
+}
+
+function updateFx(dt) {
+  state.particles.forEach(p => { p.t -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 400 * dt; });
+  state.particles = state.particles.filter(p => p.t > 0);
+  state.popups.forEach(p => { p.t -= dt; p.y -= 30 * dt; });
+  state.popups = state.popups.filter(p => p.t > 0);
+  state.shake = Math.max(0, state.shake - dt * 20);
+}
+
+// Poussière/sable sous les pieds d'une équipe
+function spawnDust(t, n) {
+  for (let i = 0; i < n; i++) {
+    const fx = CX + state.rope + t.side * (120 + Math.random() * 200);
+    state.particles.push({ x: fx, y: GROUND, vx: t.side * (40 + Math.random() * 80), vy: -60 - Math.random() * 120, t: 0.6 + Math.random() * 0.4, r: 2 + Math.random() * 3 });
+  }
+}
+
+// ---------- Fin de manche / match ----------
+function endRound(winner) {
+  if (winner === 0) state.roundsL++; else state.roundsR++;
+  SFX.crowd();
+  const isAI = state.mode === 'ai';
+  const youWin = winner === 0;
+  for (let i = 0; i < 30; i++) state.particles.push({ x: CX + state.rope, y: 250, vx: (Math.random() - 0.5) * 400, vy: -200 - Math.random() * 200, t: 1.2, r: 3, col: ['#fde047', '#f472b6', '#60a5fa', '#34d399'][i % 4] });
+
+  if (state.roundsL >= 2 || state.roundsR >= 2) { endMatch(); return; }
+  state.screen = 'round';
+  let title;
+  if (isAI) title = youWin ? 'Manche gagnée !' : 'Manche perdue…';
+  else title = (youWin ? 'Joueur 1' : 'Joueur 2') + ' gagne la manche !';
+  (isAI ? (youWin ? SFX.win : SFX.lose) : SFX.win)();
+  document.getElementById('roundTitle').textContent = title;
+  document.getElementById('roundInfo').textContent = 'Score : ' + state.roundsL + ' – ' + state.roundsR + ' (premier à 2 manches)';
+  setTimeout(() => showOv('ovRound'), 600);
+}
+
+function endMatch() {
+  state.screen = 'match';
+  const youWin = state.roundsL > state.roundsR;
+  const btnNext = document.getElementById('btnNext');
+  let stars = 0;
+  if (state.mode === 'ai') {
+    if (youWin) {
+      // Étoiles : 3 = 2-0 avec beaucoup de Parfait, 2 = 2-0, 1 = 2-1
+      stars = state.roundsR === 0 ? 2 : 1;
+      if (state.roundsR === 0 && state.teams[0].perfects >= 25) stars = 3;
+      const old = (save.levels[state.level] && save.levels[state.level].stars) || 0;
+      save.levels[state.level] = { stars: Math.max(old, stars) };
+      save.unlocked = Math.max(save.unlocked, Math.min(LEVELS.length, state.level + 2));
+      writeSave();
+      SFX.win();
+    } else SFX.lose();
+    document.getElementById('matchTitle').textContent = youWin ? 'Victoire !' : 'Défaite…';
+    document.getElementById('matchStars').textContent = youWin ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : '';
+    document.getElementById('matchInfo').textContent = 'Contre ' + LEVELS[state.level].name + ' : ' + state.roundsL + ' – ' + state.roundsR + ' · « Parfait ! » : ' + state.teams[0].perfects;
+    btnNext.style.display = (youWin && state.level < LEVELS.length - 1) ? '' : 'none';
+  } else {
+    SFX.win();
+    document.getElementById('matchTitle').textContent = (youWin ? 'Joueur 1' : 'Joueur 2') + ' gagne le match !';
+    document.getElementById('matchStars').textContent = '';
+    document.getElementById('matchInfo').textContent = 'Score : ' + state.roundsL + ' – ' + state.roundsR;
+    btnNext.style.display = 'none';
+  }
+  setTimeout(() => showOv('ovMatch'), 700);
+}
+
+// ---------- Entrées clavier ----------
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'escape' || k === 'p') { state.screen === 'play' ? pause() : resume(); return; }
+  if (k === 'm') { toggleMute(); return; }
+  if (e.repeat) return;
+  if (k === 'a' || (k === ' ' && state.mode === 'ai')) { state.teams[0].holding = true; press(0); e.preventDefault(); }
+  if (k === 'l' && state.mode === 'duo') { state.teams[1].holding = true; press(1); }
+  if (k === ' ') e.preventDefault();
+});
+window.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'a' || k === ' ') state.teams[0].holding = false;
+  if (k === 'l') state.teams[1].holding = false;
+});
+
+// ---------- Entrées tactiles / souris (moitié gauche / droite) ----------
+const activePointers = {};
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * W;
+  let idx = 0;
+  if (state.mode === 'duo' && x > W / 2) idx = 1;
+  activePointers[e.pointerId] = idx;
+  state.teams[idx].holding = true;
+  press(idx);
+});
+function releasePointer(e) {
+  const idx = activePointers[e.pointerId];
+  if (idx === undefined) return;
+  delete activePointers[e.pointerId];
+  if (!Object.values(activePointers).includes(idx)) state.teams[idx].holding = false;
+}
+cv.addEventListener('pointerup', releasePointer);
+cv.addEventListener('pointercancel', releasePointer);
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+
+// =====================================================
+//  DESSIN
+// =====================================================
+let animT = 0; // horloge visuelle
+
+// Décor fixe (ciel, lagon, îlots) dessiné une fois puis réutilisé
+const bg = document.createElement('canvas');
+bg.width = W; bg.height = H;
+(function drawBackground() {
+  const g = bg.getContext('2d');
+  // Ciel de coucher de soleil
+  let gr = g.createLinearGradient(0, 0, 0, 300);
+  gr.addColorStop(0, '#3b1f5c'); gr.addColorStop(0.45, '#c2417a'); gr.addColorStop(0.8, '#f59e0b'); gr.addColorStop(1, '#fcd34d');
+  g.fillStyle = gr; g.fillRect(0, 0, W, 300);
+  // Soleil
+  gr = g.createRadialGradient(480, 255, 10, 480, 255, 160);
+  gr.addColorStop(0, 'rgba(255,240,180,1)'); gr.addColorStop(0.25, 'rgba(255,200,90,.9)'); gr.addColorStop(1, 'rgba(255,160,60,0)');
+  g.fillStyle = gr; g.fillRect(300, 100, 360, 220);
+  g.fillStyle = '#fff3c4'; g.beginPath(); g.arc(480, 262, 42, Math.PI, 0); g.fill();
+  // Îlots lointains
+  g.fillStyle = '#4a2a55';
+  g.beginPath(); g.moveTo(40, 265); g.quadraticCurveTo(140, 200, 260, 265); g.fill();
+  g.beginPath(); g.moveTo(640, 265); g.quadraticCurveTo(720, 225, 790, 245); g.quadraticCurveTo(850, 215, 940, 265); g.fill();
+  g.fillStyle = '#5e3466';
+  g.beginPath(); g.moveTo(330, 265); g.quadraticCurveTo(380, 245, 420, 265); g.fill();
+  // Lagon
+  gr = g.createLinearGradient(0, 262, 0, 340);
+  gr.addColorStop(0, '#f6a35c'); gr.addColorStop(0.3, '#2a9d8f'); gr.addColorStop(1, '#1b7f86');
+  g.fillStyle = gr; g.fillRect(0, 262, W, 80);
+  // Reflet du soleil
+  g.fillStyle = 'rgba(255,230,160,.55)';
+  for (let i = 0; i < 9; i++) { const w = 70 - i * 6; g.fillRect(480 - w / 2 + (i % 2) * 6, 268 + i * 7, w, 2); }
+  // Sable
+  gr = g.createLinearGradient(0, 330, 0, H);
+  gr.addColorStop(0, '#f3d19c'); gr.addColorStop(1, '#d9a96a');
+  g.fillStyle = gr;
+  g.beginPath(); g.moveTo(0, 345); g.quadraticCurveTo(480, 320, W, 345); g.lineTo(W, H); g.lineTo(0, H); g.fill();
+  // Écume
+  g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(0, 343); g.quadraticCurveTo(480, 318, W, 343); g.stroke();
+  // Grains de sable
+  for (let i = 0; i < 400; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(160,110,60,.25)' : 'rgba(255,240,210,.35)'; g.fillRect(Math.random() * W, 350 + Math.random() * 190, 2, 2); }
+  // Pirogue sur le sable (à gauche)
+  g.save(); g.translate(95, 372);
+  g.fillStyle = '#7c3f1d'; g.beginPath(); g.moveTo(-60, 0); g.quadraticCurveTo(0, 22, 60, 0); g.quadraticCurveTo(0, 8, -60, 0); g.fill();
+  g.fillStyle = '#a0522d'; g.beginPath(); g.moveTo(-60, 0); g.quadraticCurveTo(0, 14, 60, 0); g.lineTo(55, -3); g.quadraticCurveTo(0, 6, -55, -3); g.fill();
+  g.strokeStyle = '#5b2c12'; g.lineWidth = 3; g.beginPath(); g.moveTo(-30, -2); g.lineTo(-30, -16); g.lineTo(-10, -16); g.moveTo(-30, -16); g.lineTo(-30, 18); g.stroke();
+  g.restore();
+})();
+
+// Palmier qui se balance
+function palm(x, y, h, lean) {
+  const sway = Math.sin(animT * 1.2 + x) * 4;
+  ctx.strokeStyle = '#4a2c17'; ctx.lineWidth = 9; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + lean * 0.4, y - h * 0.6, x + lean + sway, y - h); ctx.stroke();
+  const tx = x + lean + sway, ty = y - h;
+  ctx.fillStyle = '#1f3d2b';
+  for (let i = 0; i < 7; i++) {
+    const a = -Math.PI + i * (Math.PI / 6) + Math.sin(animT * 1.5 + i) * 0.06;
+    ctx.save(); ctx.translate(tx, ty); ctx.rotate(a);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(35, -16, 72, 10); ctx.quadraticCurveTo(35, -4, 0, 0); ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle = '#3b2a12'; ctx.beginPath(); ctx.arc(tx, ty + 4, 6, 0, 7); ctx.fill();
+}
+
+// Foule en silhouettes qui saute selon l'ambiance
+function crowd() {
+  const hype = state.screen === 'play' ? 0.3 + state.crowdHype * 0.7 : 0.25;
+  for (let i = 0; i < 34; i++) {
+    const x = 20 + i * 28 + (i % 3) * 5;
+    if (x > 380 && x < 580) continue; // laisse voir le soleil au centre
+    const jump = Math.max(0, Math.sin(animT * (5 + (i % 4)) + i * 1.7)) * 10 * hype;
+    const y = 352 - jump + (i % 2) * 6;
+    ctx.fillStyle = i % 2 ? '#3a1d3f' : '#2c1530';
+    ctx.beginPath(); ctx.arc(x, y - 30, 7, 0, 7); ctx.fill();
+    ctx.fillRect(x - 7, y - 23, 14, 24);
+    // bras levés
+    ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 4;
+    const arm = Math.sin(animT * 6 + i) * 6 * hype;
+    ctx.beginPath(); ctx.moveTo(x - 6, y - 20); ctx.lineTo(x - 12, y - 36 - arm); ctx.moveTo(x + 6, y - 20); ctx.lineTo(x + 12, y - 36 + arm); ctx.stroke();
+  }
+  // Fanions
+  ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, 300); ctx.quadraticCurveTo(200, 330, 400, 300); ctx.moveTo(560, 300); ctx.quadraticCurveTo(760, 330, 960, 300); ctx.stroke();
+  const cols = ['#ef4444', '#fde047', '#22c55e', '#3b82f6', '#f472b6'];
+  for (let i = 0; i < 20; i++) {
+    const seg = i < 10 ? 0 : 560, u = (i % 10 + 0.5) / 10;
+    const fx = seg + u * 400, fy = 300 + 4 * u * (1 - u) * 30 * 0.5 * 2;
+    ctx.fillStyle = cols[i % 5];
+    ctx.beginPath(); ctx.moveTo(fx - 8, fy); ctx.lineTo(fx + 8, fy); ctx.lineTo(fx + Math.sin(animT * 3 + i) * 2, fy + 16); ctx.fill();
+  }
+}
+
+// Un personnage qui tire : x = position des pieds, side = sens de traction
+function puller(x, side, color, lean, effort, tired, idx) {
+  const y = GROUND;
+  const bob = Math.sin(animT * 14 + idx) * effort * 2;
+  const a = side * (0.35 + lean * 0.35 + effort * 0.12);   // inclinaison du corps
+  ctx.save(); ctx.translate(x, y);
+  // ombre
+  ctx.fillStyle = 'rgba(80,40,10,.25)'; ctx.beginPath(); ctx.ellipse(0, 4, 26, 6, 0, 0, 7); ctx.fill();
+  // jambes (une en avant, une en arrière)
+  ctx.strokeStyle = '#5b3a24'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+  const hipX = Math.sin(a) * 34, hipY = -Math.cos(a) * 34 + bob;
+  ctx.beginPath(); ctx.moveTo(-side * 14, 0); ctx.lineTo(hipX, hipY); ctx.lineTo(side * 18, 0); ctx.stroke();
+  // corps
+  const nx = hipX + Math.sin(a) * 36, ny = hipY - Math.cos(a) * 36;
+  ctx.strokeStyle = color; ctx.lineWidth = 16;
+  ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(nx, ny); ctx.stroke();
+  // tête
+  ctx.fillStyle = '#6b4226';
+  ctx.beginPath(); ctx.arc(nx + Math.sin(a) * 12, ny - Math.cos(a) * 12, 11, 0, 7); ctx.fill();
+  // visage crispé
+  ctx.fillStyle = '#fff';
+  const hx = nx + Math.sin(a) * 12, hy = ny - Math.cos(a) * 12;
+  ctx.fillRect(hx - side * 5 - 1.5, hy - 3, 3, effort > 0.3 ? 1.5 : 3);
+  // sueur si fatigué
+  if (tired > 0.4) {
+    ctx.fillStyle = 'rgba(160,220,255,.9)';
+    const s = (animT * 2 + idx) % 1;
+    ctx.beginPath(); ctx.arc(hx + side * 10, hy - 6 + s * 16, 2.5, 0, 7); ctx.fill();
+  }
+  // bras tendus vers la corde (vers le centre = -side)
+  ctx.strokeStyle = '#6b4226'; ctx.lineWidth = 6;
+  const shX = nx - Math.sin(a) * 4, shY = ny + 4;
+  ctx.beginPath(); ctx.moveTo(shX, shY); ctx.lineTo(-side * 22, -46); ctx.stroke();
+  ctx.restore();
+  return { hx: x - side * 22, hy: y - 46 };
+}
+
+// Barre de rythme pour une équipe
+function rhythmBar(t, x, y, w, label) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(30,12,30,.65)';
+  roundRect(x - 10, y - 30, w + 20, 76, 14); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = '600 16px Fredoka'; ctx.textAlign = 'left';
+  ctx.fillText(label, x, y - 12);
+  // énergie
+  ctx.fillStyle = 'rgba(255,255,255,.2)'; roundRect(x + w - 130, y - 24, 130, 12, 6); ctx.fill();
+  ctx.fillStyle = t.stamina > 0.5 ? '#4ade80' : t.stamina > 0.25 ? '#facc15' : '#ef4444';
+  roundRect(x + w - 130, y - 24, 130 * t.stamina, 12, 6); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = '13px Fredoka'; ctx.textAlign = 'right'; ctx.fillText('énergie', x + w - 136, y - 13);
+
+  // piste
+  ctx.fillStyle = 'rgba(255,255,255,.15)'; roundRect(x, y, w, 30, 10); ctx.fill();
+  const ens = state.event && state.event.type === 'ensemble';
+  const surge = state.event && state.event.type === 'surge';
+  if (ens) {
+    ctx.fillStyle = `rgba(253,224,71,${0.5 + 0.4 * Math.sin(animT * 20)})`; roundRect(x, y, w, 30, 10); ctx.fill();
+    ctx.fillStyle = '#3b1d0a'; ctx.font = '700 18px Fredoka'; ctx.textAlign = 'center'; ctx.fillText('TAPE VITE !', x + w / 2, y + 21);
+  } else if (surge && t === state.teams[0]) {
+    ctx.fillStyle = t.holding ? '#4ade80' : `rgba(239,68,68,${0.6 + 0.4 * Math.sin(animT * 20)})`; roundRect(x, y, w, 30, 10); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '700 18px Fredoka'; ctx.textAlign = 'center'; ctx.fillText(t.holding ? 'TIENS BON !' : 'MAINTIENS !', x + w / 2, y + 21);
+  } else {
+    // zone cible au centre, battements qui arrivent de la droite vers la cible
+    const tx = x + 40;
+    ctx.fillStyle = 'rgba(253,224,71,.35)'; ctx.fillRect(tx - 14, y + 2, 28, 26);
+    ctx.fillStyle = '#fde047'; ctx.fillRect(tx - 2, y, 4, 30);
+    const px = (w - 50) / 3; // pixels par battement
+    const frac = state.beat - Math.floor(state.beat);
+    for (let i = 0; i < 4; i++) {
+      const bx = tx + (i + 1 - frac) * px - px;
+      if (bx < x + 4 || bx > x + w - 6) continue;
+      const near = Math.abs(bx - tx) < 12;
+      ctx.fillStyle = near ? '#fff' : '#fb923c';
+      ctx.beginPath(); ctx.arc(bx, y + 15, near ? 11 : 9, 0, 7); ctx.fill();
+    }
+  }
+  // feedback
+  if (t.feedback) {
+    ctx.globalAlpha = Math.min(1, t.feedback.t * 3);
+    ctx.fillStyle = t.feedback.color; ctx.font = '700 18px Fredoka'; ctx.textAlign = 'right';
+    ctx.fillText(t.feedback.text + (t.combo > 2 ? '  x' + t.combo : ''), x + w, y + 46 + 0);
+  }
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r) {
+  r = Math.min(r, h / 2, Math.abs(w) / 2 || 0.01);
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+function render() {
+  ctx.save();
+  if (state.shake > 0) ctx.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
+  ctx.drawImage(bg, 0, 0, W, H);
+
+  // vaguelettes sur le lagon
+  ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2;
+  for (let i = 0; i < 6; i++) {
+    const wx = (i * 170 + animT * 20) % (W + 100) - 50, wy = 290 + (i % 3) * 14;
+    ctx.beginPath(); ctx.moveTo(wx, wy); ctx.quadraticCurveTo(wx + 15, wy - 4, wx + 30, wy); ctx.stroke();
+  }
+  crowd();
+  palm(30, 420, 210, 30);
+  palm(925, 410, 230, -40);
+
+  // Ligne centrale et marques de victoire tracées dans le sable
+  ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 3; ctx.setLineDash([10, 8]);
+  ctx.beginPath(); ctx.moveTo(CX, 370); ctx.lineTo(CX, 470); ctx.stroke();
+  ctx.setLineDash([]);
+  [[-1, state.teams[0].color], [1, state.teams[1].color]].forEach(([s, c]) => {
+    ctx.strokeStyle = c; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(CX + s * MARK, 375); ctx.lineTo(CX + s * MARK, 465); ctx.stroke();
+  });
+
+  // Personnages : 3 par équipe, toute l'équipe glisse avec la corde
+  const off = state.rope;
+  const tension = Math.min(1, Math.abs(state.ropeV) / 120);
+  const hands = [[], []];
+  state.teams.forEach((t, ti) => {
+    const lean = t.side * off / MARK > 0 ? 0.5 : 0.2;   // plus penché quand on gagne du terrain
+    for (let i = 2; i >= 0; i--) {
+      const fx = CX + off + t.side * (150 + i * 62);
+      const p = puller(fx, t.side, t.color, lean, Math.max(t.pullAnim, tension * 0.5), 1 - t.stamina, i + ti * 3);
+      hands[ti].push(p);
+    }
+  });
+
+  // Corde avec un léger affaissement (moins quand elle est tendue)
+  const lH = hands[0][2], rH = hands[1][2];      // mains les plus proches du centre (i=0 est dessiné en dernier)
+  const farL = { hx: CX + off - 150 - 2 * 62 - 50, hy: GROUND - 40 }, farR = { hx: CX + off + 150 + 2 * 62 + 50, hy: GROUND - 40 };
+  const sag = 16 - tension * 12 + Math.sin(animT * 3) * 1.5;
+  ctx.strokeStyle = '#8b6b3e'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(farL.hx, farL.hy);
+  ctx.quadraticCurveTo(CX + off, GROUND - 46 + sag, farR.hx, farR.hy); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,230,180,.5)'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+  ctx.beginPath(); ctx.moveTo(farL.hx, farL.hy - 1);
+  ctx.quadraticCurveTo(CX + off, GROUND - 47 + sag, farR.hx, farR.hy - 1); ctx.stroke(); ctx.setLineDash([]);
+
+  // Drapeau au milieu de la corde
+  const fx = CX + off, fy = GROUND - 46 + sag * 0.5;
+  ctx.strokeStyle = '#3b2a12'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy + 30); ctx.stroke();
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath(); ctx.moveTo(fx, fy + 4); ctx.lineTo(fx + 18 + Math.sin(animT * 8) * 3, fy + 12); ctx.lineTo(fx, fy + 22); ctx.fill();
+
+  // Particules
+  state.particles.forEach(p => {
+    ctx.globalAlpha = Math.min(1, p.t * 2);
+    ctx.fillStyle = p.col || '#e8c07d';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // ----- Interface -----
+  if (state.screen === 'play' || state.screen === 'pause' || state.screen === 'round' || state.screen === 'match') {
+    const duo = state.mode === 'duo';
+    const nameR = duo ? 'Joueur 2 (L)' : LEVELS[state.level].name;
+    rhythmBar(state.teams[0], 30, 50, 330, duo ? 'Joueur 1 (A)' : 'Toi (Espace / A)');
+    if (duo) rhythmBar(state.teams[1], 590, 50, 330, nameR);
+    else {
+      // Panneau adversaire
+      ctx.fillStyle = 'rgba(30,12,30,.65)'; roundRect(640, 20, 290, 50, 14); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '600 17px Fredoka'; ctx.textAlign = 'left'; ctx.fillText(nameR, 655, 50);
+      ctx.fillStyle = 'rgba(255,255,255,.2)'; roundRect(800, 38, 115, 12, 6); ctx.fill();
+      ctx.fillStyle = '#93c5fd'; roundRect(800, 38, 115 * state.teams[1].stamina, 12, 6); ctx.fill();
+    }
+    // Score des manches
+    ctx.fillStyle = 'rgba(30,12,30,.7)'; roundRect(CX - 70, 14, 140, 44, 14); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '700 26px Fredoka'; ctx.textAlign = 'center';
+    ctx.fillText(state.roundsL + ' – ' + state.roundsR, CX, 45);
+    ctx.font = '13px Fredoka'; ctx.fillText('Manche ' + state.round, CX, 74);
+
+    // Zones tactiles (indication discrète)
+    if (state.screen === 'play') {
+      ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = '600 15px Fredoka';
+      if (duo) { ctx.textAlign = 'left'; ctx.fillText('◀ tape ici (J1)', 16, 528); ctx.textAlign = 'right'; ctx.fillText('tape ici (J2) ▶', 944, 528); }
+      else { ctx.textAlign = 'center'; ctx.fillText('Tape en rythme (Espace, A ou écran)', CX, 528); }
+    }
+    // Compte à rebours
+    if (state.countdown > 0 && state.screen === 'play') {
+      const n = Math.ceil(state.countdown);
+      const f = state.countdown - Math.floor(state.countdown);
+      ctx.fillStyle = '#ffd166'; ctx.strokeStyle = '#9a3412'; ctx.lineWidth = 8;
+      ctx.font = `700 ${90 + f * 40}px Fredoka`; ctx.textAlign = 'center';
+      ctx.strokeText(n, CX, 240); ctx.fillText(n, CX, 240);
+    }
+  }
+
+  // Popups (Parfait!, événements)
+  state.popups.forEach(p => {
+    ctx.globalAlpha = Math.min(1, p.t * 2);
+    ctx.font = `700 ${p.big ? 38 : 28}px Fredoka`; ctx.textAlign = 'center';
+    ctx.strokeStyle = 'rgba(40,10,30,.8)'; ctx.lineWidth = 6;
+    ctx.strokeText(p.text, p.x, p.y); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y);
+  });
+  ctx.globalAlpha = 1;
+}
+
+// ---------- Boucle principale à pas fixe (60 Hz) ----------
+const STEP = 1 / 60;
+let acc = 0, last = performance.now();
+function frame(now) {
+  let d = (now - last) / 1000; last = now;
+  if (d > 0.25) d = 0.25;           // évite un grand saut après un onglet en arrière-plan
+  acc += d; animT += d;
+  while (acc >= STEP) { tick(STEP); acc -= STEP; }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

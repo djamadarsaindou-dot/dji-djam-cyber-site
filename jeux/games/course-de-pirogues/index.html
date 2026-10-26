@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Course de pirogues</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #062a3a; font-family: 'Fredoka', sans-serif; color: #fff; user-select: none; touch-action: none; }
+  #stage { position: absolute; left: 0; top: 0; width: 960px; height: 540px; transform-origin: 0 0; overflow: hidden; border-radius: 6px; }
+  #cv { position: absolute; left: 0; top: 0; width: 960px; height: 540px; }
+  .overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: rgba(4, 40, 60, 0.72); backdrop-filter: blur(3px); text-align: center; padding: 20px; }
+  .overlay.show { display: flex; }
+  .panel { background: linear-gradient(160deg, #0d6f86, #0a4e66); border: 3px solid #7fe7e0; border-radius: 22px; padding: 22px 30px; box-shadow: 0 12px 40px rgba(0,0,0,.4); max-width: 760px; }
+  h1 { font-size: 54px; font-weight: 700; color: #ffe27a; text-shadow: 0 4px 0 #c0702a, 0 8px 18px rgba(0,0,0,.4); letter-spacing: 1px; }
+  h2 { font-size: 32px; color: #ffe27a; margin-bottom: 10px; }
+  p { font-size: 18px; line-height: 1.4; margin: 6px 0; }
+  .sub { color: #c9f6f2; font-size: 18px; margin: 6px 0 14px; }
+  button { font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 20px; color: #083a4a; background: #ffe27a; border: none; border-radius: 14px; padding: 10px 22px; margin: 6px; cursor: pointer; box-shadow: 0 4px 0 #c0902a; transition: transform .08s; }
+  button:hover { transform: translateY(-2px); }
+  button:active { transform: translateY(2px); box-shadow: 0 2px 0 #c0902a; }
+  button.sec { background: #bff3ee; box-shadow: 0 4px 0 #5fb3ad; }
+  button:disabled { background: #6d8a92; box-shadow: 0 4px 0 #44606a; color: #2c434a; cursor: not-allowed; transform: none; }
+  #courses { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+  .ccard { background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.2); border-radius: 14px; padding: 10px; cursor: pointer; text-align: left; font-size: 18px; }
+  .ccard.sel { border-color: #ffe27a; background: rgba(255,226,122,.18); }
+  .ccard.lock { opacity: .5; cursor: not-allowed; }
+  .ccard b { font-size: 20px; display: block; }
+  .ccard small { color: #c9f6f2; font-size: 14px; }
+  #rules p { text-align: left; font-size: 17px; }
+  #countdown { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; font-size: 140px; font-weight: 700; color: #ffe27a; text-shadow: 0 6px 0 #c0702a, 0 10px 30px rgba(0,0,0,.5); pointer-events: none; }
+  #countdown.show { display: flex; }
+  table { margin: 10px auto; border-collapse: collapse; font-size: 20px; }
+  td { padding: 5px 14px; }
+  tr.me { background: rgba(255,226,122,.25); }
+  .touch { position: absolute; bottom: 14px; width: 170px; height: 110px; border-radius: 24px; background: rgba(255,255,255,.18); border: 3px solid rgba(255,255,255,.5); display: none; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; text-align: center; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.5); }
+  .touch.on { display: flex; }
+  .touch.press { background: rgba(255,226,122,.45); }
+  #tl { left: 14px; } #tr { right: 14px; }
+  #btnPause { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: none; font-size: 16px; padding: 4px 14px; }
+  #btnPause.on { display: block; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv"></canvas>
+
+  <!-- Boutons tactiles -->
+  <div class="touch" id="tl">◀<br>PAGAIE<br>GAUCHE</div>
+  <div class="touch" id="tr">▶<br>PAGAIE<br>DROITE</div>
+  <button id="btnPause" class="sec">❚❚ Pause</button>
+
+  <div id="countdown">3</div>
+
+  <!-- Menu principal -->
+  <div class="overlay show" id="menu">
+    <div class="panel">
+      <h1>Course de pirogues</h1>
+      <p class="sub">Course de pirogues à balancier dans le lagon de Mayotte. Voici notre version.</p>
+      <div id="courses"></div>
+      <button id="btnPlay">▶ Jouer</button>
+      <button class="sec" id="btnRules">Règles</button>
+      <button class="sec" id="btnMute">🔊 Son</button>
+    </div>
+  </div>
+
+  <!-- Règles -->
+  <div class="overlay" id="rules">
+    <div class="panel">
+      <h2>Règles</h2>
+      <p>🛶 Pagaie en <b>alternant</b> gauche / droite (← →, ou Q / D, ou les gros boutons tactiles). Un bon rythme régulier = la pirogue file !</p>
+      <p>↩️ Pour <b>tourner</b>, pagaie plusieurs fois du même côté : ← ← ← vire à gauche, → → → vire à droite.</p>
+      <p>💪 Attention à l'<b>endurance</b> : taper trop vite fatigue et la pirogue avance moins.</p>
+      <p>🟠 Passe entre chaque paire de <b>bouées</b>, dans l'ordre. La flèche indique la suivante.</p>
+      <p>🪸 Évite les <b>patates de corail</b>, les <b>tortues</b>, les <b>bateaux de pêche</b> et les îlots. Les zones de <b>courant</b> te poussent sur le côté.</p>
+      <p>🌊 Attrape les <b>vagues parfaites</b> dorées pour un coup de turbo !</p>
+      <p>🏅 Finis sur le podium pour débloquer la course suivante. Échap / P = pause, M = son.</p>
+      <button id="btnRulesBack">Retour</button>
+    </div>
+  </div>
+
+  <!-- Pause -->
+  <div class="overlay" id="pause">
+    <div class="panel">
+      <h2>Pause</h2>
+      <button id="btnResume">Reprendre</button>
+      <button class="sec" id="btnRestart">Recommencer</button>
+      <button class="sec" id="btnQuit">Menu</button>
+    </div>
+  </div>
+
+  <!-- Résultats -->
+  <div class="overlay" id="results">
+    <div class="panel">
+      <h2 id="resTitle">Arrivée !</h2>
+      <p id="resMsg"></p>
+      <table id="resTable"></table>
+      <button id="btnNext">Course suivante ▶</button>
+      <button class="sec" id="btnAgain">Rejouer</button>
+      <button class="sec" id="btnMenu">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+//  COURSE DE PIROGUES — jeu en un seul fichier
+//  Dimensions virtuelles : 960 x 540. Boucle fixe 60 Hz.
+// =====================================================================
+
+const W = 960, H = 540;
+const STEP = 1 / 60;                // pas de temps fixe (60 Hz)
+const SAVE_KEY = 'pirogues-v1';
+
+const stage = document.getElementById('stage');
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+
+// ---------- Mise à l'échelle (S = facteur d'échelle, DPR = densité d'écran) ----------
+let S = 1, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  S = Math.min(window.innerWidth / W, window.innerHeight / H);
+  stage.style.transform = 'scale(' + S + ')';
+  stage.style.left = ((window.innerWidth - W * S) / 2) + 'px';
+  stage.style.top = ((window.innerHeight - H * S) / 2) + 'px';
+  cv.width = Math.round(W * S * DPR);
+  cv.height = Math.round(H * S * DPR);
+  ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- Sauvegarde ----------
+let save = { unlocked: 0, best: {}, muted: false };
+function loadSave() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s) save = { unlocked: s.unlocked || 0, best: s.best || {}, muted: !!s.muted };
+  } catch (e) {}
+}
+function writeSave() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+}
+loadSave();
+
+// ---------- Outils ----------
+// Générateur aléatoire "à graine" : la même course est toujours identique
+function makeRng(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
+function angleDiff(a, b) { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
+
+// =====================================================================
+//  SONS (WebAudio, tout est synthétisé)
+// =====================================================================
+let AC = null, master = null, ambGain = null;
+function audioInit() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain();
+    master.gain.value = save.muted ? 0 : 0.6;
+    master.connect(AC.destination);
+    // Ambiance de vagues : bruit filtré dont le volume ondule doucement
+    const buf = noiseBuffer(2);
+    const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
+    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500;
+    ambGain = AC.createGain(); ambGain.gain.value = 0.0;
+    const lfo = AC.createOscillator(); lfo.frequency.value = 0.15;
+    const lfoG = AC.createGain(); lfoG.gain.value = 0.05;
+    lfo.connect(lfoG); lfoG.connect(ambGain.gain);
+    src.connect(lp); lp.connect(ambGain); ambGain.connect(master);
+    src.start(); lfo.start();
+  } catch (e) { AC = null; }
+}
+function noiseBuffer(sec) {
+  const b = AC.createBuffer(1, AC.sampleRate * sec, AC.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return b;
+}
+let _noise = null;
+// Plouf de pagaie
+function sndSplash(power) {
+  if (!AC) return;
+  if (!_noise) _noise = noiseBuffer(0.5);
+  const s = AC.createBufferSource(); s.buffer = _noise;
+  const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900 + Math.random() * 600; f.Q.value = 0.8;
+  const g = AC.createGain(); const t = AC.currentTime;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.25 * power + 0.05, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+  s.connect(f); f.connect(g); g.connect(master);
+  s.start(t); s.stop(t + 0.3);
+}
+// Petit son simple (bip, choc, etc.)
+function tone(freq, dur, type, vol, slide) {
+  if (!AC) return;
+  const o = AC.createOscillator(); const g = AC.createGain(); const t = AC.currentTime;
+  o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+  g.gain.setValueAtTime(vol || 0.2, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+}
+function sndBump() { tone(140, 0.25, 'sine', 0.4, 50); tone(90, 0.2, 'triangle', 0.2, 40); }
+function sndBeep(hi) { tone(hi ? 880 : 520, hi ? 0.5 : 0.18, 'square', 0.12); }
+function sndGate() { tone(660, 0.12, 'triangle', 0.15); setTimeout(() => tone(990, 0.15, 'triangle', 0.12), 70); }
+function sndBoost() { tone(300, 0.5, 'sawtooth', 0.08, 1200); }
+function sndWin() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.35, 'triangle', 0.18), i * 140)); }
+function sndLose() { [440, 392, 330].forEach((f, i) => setTimeout(() => tone(f, 0.35, 'triangle', 0.15), i * 180)); }
+function setMuted(m) {
+  save.muted = m; writeSave();
+  if (master) master.gain.value = m ? 0 : 0.6;
+  $('btnMute').textContent = m ? '🔇 Muet' : '🔊 Son';
+}
+
+// =====================================================================
+//  LES COURSES (difficulté croissante)
+// =====================================================================
+const COURSES = [
+  { name: 'Lagon calme', desc: 'Eau plate, idéal pour apprendre', seed: 11, gates: 9, spacing: 520, amp: 160, gateW: 230,
+    islets: 4, corals: 5, turtles: 3, boats: 0, currents: 0, waves: 0, rings: 3, ai: [0.62, 0.70, 0.78], passe: false },
+  { name: 'Passe entre les îlots', desc: 'Îlots serrés et courants', seed: 27, gates: 11, spacing: 520, amp: 260, gateW: 200,
+    islets: 9, corals: 10, turtles: 4, boats: 1, currents: 3, waves: 0, rings: 3, ai: [0.74, 0.82, 0.88], passe: true },
+  { name: 'Mer agitée', desc: 'Houle, courants et bateaux de pêche', seed: 43, gates: 12, spacing: 540, amp: 280, gateW: 190,
+    islets: 7, corals: 12, turtles: 4, boats: 3, currents: 3, waves: 1, rings: 4, ai: [0.86, 0.92, 0.98], passe: false },
+  { name: 'Grande finale', desc: 'Tout le lagon contre toi !', seed: 71, gates: 14, spacing: 540, amp: 320, gateW: 175,
+    islets: 10, corals: 16, turtles: 5, boats: 4, currents: 4, waves: 1.4, rings: 4, ai: [0.95, 1.02, 1.08], passe: true },
+];
+
+// Les 4 pirogues (couleurs peintes)
+const CREWS = [
+  { name: 'Toi', hull: '#e8463a', stripe: '#ffd23f', shirt: '#ffffff' },
+  { name: 'Pirogue verte', hull: '#2fa84f', stripe: '#ffffff', shirt: '#ffe27a' },
+  { name: 'Pirogue bleue', hull: '#2f5fd0', stripe: '#ffd23f', shirt: '#ff9f43' },
+  { name: 'Pirogue violette', hull: '#9b45c9', stripe: '#7fe7e0', shirt: '#ffffff' },
+];
+
+// =====================================================================
+//  ÉTAT GLOBAL DU JEU
+// =====================================================================
+let state = {
+  screen: 'menu',        // 'menu' | 'game'
+  paused: false,
+  phase: 'countdown',    // 'countdown' | 'race' | 'done'
+  courseIndex: 0,
+  t: 0,                  // temps qui passe (animations)
+  raceTime: 0,
+  countdown: 0,
+  boats: [], player: null,
+  gates: [], islets: [], corals: [], turtles: [], dolphins: [], fishers: [], currents: [], rings: [], deeps: [],
+  particles: [],
+  cam: { x: 0, y: 0 },
+  msg: { text: '', t: 0 },
+  finishOrder: [],
+  endTimer: 0,
+  input: [],             // coups de pagaie en attente ('L' ou 'R')
+};
+let selectedCourse = Math.min(save.unlocked, COURSES.length - 1);
+
+// ---------- Construction d'une course ----------
+function buildCourse(c) {
+  const rnd = makeRng(c.seed);
+  const gates = [];
+  const phase = rnd() * 6;
+  // Les bouées forment un chemin sinueux qui monte vers le nord (y négatif)
+  for (let i = 0; i < c.gates; i++) {
+    const y = -300 - i * c.spacing;
+    const x = Math.sin(i * 0.9 + phase) * c.amp + Math.sin(i * 2.3 + phase * 2) * c.amp * 0.3;
+    gates.push({ x, y, w: i === c.gates - 1 ? c.gateW + 60 : c.gateW, dirX: 0, dirY: -1 });
+  }
+  // Direction de chaque porte = direction moyenne du chemin à cet endroit
+  for (let i = 0; i < gates.length; i++) {
+    const a = i > 0 ? gates[i - 1] : { x: 0, y: 0 };
+    const b = i < gates.length - 1 ? gates[i + 1] : { x: gates[i].x, y: gates[i].y - 300 };
+    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy);
+    gates[i].dirX = dx / L; gates[i].dirY = dy / L;
+  }
+  const path = [{ x: 0, y: 200 }, { x: 0, y: 0 }].concat(gates.map(g => ({ x: g.x, y: g.y })));
+  path.push({ x: gates[gates.length - 1].x, y: gates[gates.length - 1].y - 400 });
+
+  // Distance d'un point au chemin (pour placer les obstacles intelligemment)
+  function distPath(px, py) {
+    let best = 1e9;
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
+      const vx = b.x - a.x, vy = b.y - a.y;
+      const t = clamp(((px - a.x) * vx + (py - a.y) * vy) / (vx * vx + vy * vy), 0, 1);
+      best = Math.min(best, dist(px, py, a.x + vx * t, a.y + vy * t));
+    }
+    return best;
+  }
+  const totalLen = c.gates * c.spacing;
+
+  // Îlots de sable avec palmiers, sur les côtés du parcours
+  const islets = [];
+  let tries = 0;
+  while (islets.length < c.islets && tries++ < 600) {
+    const r = 55 + rnd() * 80;
+    const y = -200 - rnd() * totalLen;
+    // On prend la position x du chemin à cette hauteur, puis on décale sur un côté
+    const gi = clamp(Math.round((-y - 300) / c.spacing), 0, gates.length - 1);
+    const side = rnd() < 0.5 ? -1 : 1;
+    const off = c.passe ? c.gateW * 0.5 + r + 50 + rnd() * 60 : c.gateW * 0.5 + r + 120 + rnd() * 260;
+    const x = gates[gi].x + side * off;
+    if (distPath(x, y) < r + c.gateW * 0.45 + 30) continue;
+    if (islets.some(o => dist(o.x, o.y, x, y) < o.r + r + 40)) continue;
+    const palms = [];
+    const np = 1 + Math.floor(rnd() * 3 + r / 60);
+    for (let k = 0; k < np; k++) palms.push({ a: rnd() * 6.28, d: rnd() * r * 0.45, s: 0.8 + rnd() * 0.5, rot: rnd() * 6.28 });
+    islets.push({ x, y, r, palms, wob: rnd() * 10 });
+  }
+  // Îlots décoratifs lointains
+  for (let k = 0; k < 8; k++) {
+    const y = -rnd() * totalLen;
+    const x = (rnd() < 0.5 ? -1 : 1) * (c.amp + 600 + rnd() * 300);
+    const r = 70 + rnd() * 90;
+    islets.push({ x, y, r, palms: [{ a: 0, d: 0, s: 1.1, rot: rnd() * 6 }, { a: 2, d: r * 0.3, s: 0.9, rot: rnd() * 6 }], wob: rnd() * 10 });
+  }
+
+  // Patates de corail : près du chemin, mais pas au centre des portes
+  const corals = [];
+  tries = 0;
+  while (corals.length < c.corals && tries++ < 1000) {
+    const gi = 1 + Math.floor(rnd() * (gates.length - 1));
+    const a = gates[gi - 1], b = gates[gi];
+    const t = 0.25 + rnd() * 0.5;
+    const x = a.x + (b.x - a.x) * t + (rnd() - 0.5) * c.gateW * 1.2;
+    const y = a.y + (b.y - a.y) * t;
+    if (gates.some(g => dist(g.x, g.y, x, y) < 110)) continue;
+    if (corals.some(o => dist(o.x, o.y, x, y) < 70)) continue;
+    if (islets.some(o => dist(o.x, o.y, x, y) < o.r + 40)) continue;
+    const blobs = [];
+    for (let k = 0; k < 6; k++) blobs.push({ a: rnd() * 6.28, d: rnd() * 10, r: 6 + rnd() * 8, col: ['#ff7f7f', '#ffb36b', '#d97be0', '#f7e27a', '#7fd48f'][Math.floor(rnd() * 5)] });
+    corals.push({ x, y, r: 20 + rnd() * 10, blobs });
+  }
+  // Coraux décoratifs (sans collision) un peu partout au fond
+  const deco = [];
+  for (let k = 0; k < 60; k++) {
+    const y = 200 - rnd() * (totalLen + 400);
+    const x = (rnd() - 0.5) * (c.amp * 2 + 1200);
+    if (distPath(x, y) < c.gateW * 0.6) continue;
+    deco.push({ x, y, r: 6 + rnd() * 14, col: ['#ff9a9a', '#ffc48b', '#e19ae8', '#9ee6a9'][Math.floor(rnd() * 4)] });
+  }
+
+  // Zones profondes (bleu foncé) ; dans les passes, une bande profonde suit le chemin
+  const deeps = [];
+  for (let k = 0; k < 10; k++) deeps.push({ x: (rnd() < 0.5 ? -1 : 1) * (c.amp + 350 + rnd() * 500), y: -rnd() * totalLen, r: 250 + rnd() * 250 });
+  if (c.passe) for (let i = 1; i < gates.length; i += 2) deeps.push({ x: gates[i].x, y: gates[i].y, r: 200 });
+
+  // Tortues : nagent lentement autour d'un point
+  const turtles = [];
+  for (let k = 0; k < c.turtles; k++) {
+    const gi = 1 + Math.floor(rnd() * (gates.length - 1));
+    const g = gates[gi];
+    turtles.push({ cx: g.x + (rnd() - 0.5) * 200, cy: g.y + 150 + rnd() * 200, x: 0, y: 0, a: rnd() * 6.28, ph: rnd() * 6.28, sp: 0.25 + rnd() * 0.2, rad: 60 + rnd() * 60, r: 13, hit: 0 });
+  }
+  // Dauphins : décoratifs, ils sautent en groupe sur les côtés
+  const dolphins = [];
+  for (let k = 0; k < 3; k++) dolphins.push({ x: (rnd() < 0.5 ? -1 : 1) * (c.amp + 250), y: -rnd() * totalLen, vy: -60 - rnd() * 40, ph: rnd() * 6 });
+
+  // Bateaux de pêche qui traversent le parcours
+  const fishers = [];
+  for (let k = 0; k < c.boats; k++) {
+    const gi = 2 + Math.floor(rnd() * (gates.length - 3));
+    const y = (gates[gi].y + gates[gi - 1].y) / 2;
+    fishers.push({ y, x: gates[gi].x + (rnd() - 0.5) * 600, vx: (rnd() < 0.5 ? -1 : 1) * (70 + rnd() * 50), cx: gates[gi].x, span: 700, r: 28, col: ['#ffffff', '#ffd23f', '#7fe7e0'][k % 3] });
+  }
+
+  // Zones de courant qui poussent sur le côté
+  const currents = [];
+  for (let k = 0; k < c.currents; k++) {
+    const gi = 2 + Math.floor(rnd() * (gates.length - 3));
+    const a = gates[gi - 1], b = gates[gi];
+    currents.push({ x: (a.x + b.x) / 2 - 300, y: (a.y + b.y) / 2 - 110, w: 600, h: 220, fx: (rnd() < 0.5 ? -1 : 1) * (45 + rnd() * 30) });
+  }
+
+  // Vagues parfaites (bonus turbo)
+  const rings = [];
+  for (let k = 0; k < c.rings; k++) {
+    const gi = 1 + Math.floor((k + 0.5) / c.rings * (gates.length - 1));
+    const a = gates[gi - 1], b = gates[gi];
+    rings.push({ x: (a.x + b.x) / 2 + (rnd() - 0.5) * 80, y: (a.y + b.y) / 2, taken: {} });
+  }
+
+  return { gates, islets, corals, deco, deeps, turtles, dolphins, fishers, currents, rings, path };
+}
+
+// ---------- Création d'une pirogue ----------
+function makeBoat(i, x, y, skill) {
+  return {
+    id: i, crew: CREWS[i], ai: i !== 0, skill: skill || 1,
+    x, y, a: 0,            // a = cap (0 = vers le haut)
+    v: 0, w: 0,            // vitesse et vitesse de rotation
+    dx: 0, dy: 0,          // dérive (chocs, courants)
+    stamina: 1,
+    lastSide: null, lastStroke: -9,
+    stroke: { side: 'L', t: 1 },   // animation de pagaie
+    gate: 0, prevS: -1,
+    finished: false, finishTime: 0,
+    boost: 0, bumpCd: 0,
+    trail: [],
+    aiTimer: 0.5 + Math.random() * 0.3,
+    quality: 0,
+  };
+}
+
+// =====================================================================
+//  DÉMARRER UNE COURSE
+// =====================================================================
+function startCourse(i) {
+  i = clamp(i | 0, 0, COURSES.length - 1);
+  audioInit();
+  const c = COURSES[i];
+  const world = buildCourse(c);
+  Object.assign(state, world);
+  state.courseIndex = i;
+  state.course = c;
+  state.screen = 'game';
+  state.paused = false;
+  state.phase = 'countdown';
+  state.countdown = 3.0001;
+  state.raceTime = 0;
+  state.particles = [];
+  state.finishOrder = [];
+  state.endTimer = 0;
+  state.input = [];
+  state.msg = { text: '', t: 0 };
+  state.boats = [];
+  // Ligne de départ : 4 pirogues côte à côte (le joueur en 2e position)
+  const xs = [-45, -135, 45, 135];
+  const order = [0, 1, 2, 3];
+  order.forEach((k, j) => state.boats.push(makeBoat(k, xs[j], 150, k ? c.ai[k - 1] : 1)));
+  state.player = state.boats[0];
+  state.cam.x = state.player.x; state.cam.y = state.player.y - 90;
+  hideAll();
+  // boutons de pagaie seulement sur écran tactile
+  if (window.matchMedia('(pointer: coarse)').matches) { $('tl').classList.add('on'); $('tr').classList.add('on'); }
+  $('btnPause').classList.add('on');
+  if (ambGain) ambGain.gain.value = 0.08 + c.waves * 0.04;
+}
+
+// =====================================================================
+//  COUP DE PAGAIE (même règle pour le joueur et l'ordinateur)
+// =====================================================================
+function doStroke(b, side) {
+  const now = state.raceTime;
+  const dt = now - b.lastStroke;
+  const same = side === b.lastSide;
+  // 1) Qualité du rythme
+  let q;
+  if (same) q = 0.45;                       // même côté : on tourne surtout
+  else if (dt < 0.16) q = 0.35;             // trop vite : gaspillage
+  else if (dt < 0.24) q = 0.75;
+  else if (dt <= 0.55) q = 1;               // rythme parfait
+  else if (dt <= 0.9) q = 0.85;
+  else q = 0.65;                            // reprise après une pause
+  // 2) Endurance : chaque coup coûte, encore plus si trop rapide
+  b.stamina -= 0.05 + (dt < 0.18 ? 0.07 : 0);
+  b.stamina = clamp(b.stamina, 0, 1);
+  const sf = 0.3 + 0.7 * b.stamina;
+  // 3) Poussée vers l'avant
+  b.v += 40 * q * sf * (b.ai ? b.skill : 1);
+  // 4) Rotation : ← fait virer à gauche, → à droite. Fort si on répète le même côté.
+  const turn = same ? 1.25 : 0.3;
+  b.w += (side === 'L' ? -1 : 1) * turn;
+  b.lastSide = side; b.lastStroke = now;
+  b.stroke = { side, t: 0 };
+  b.quality = same ? -1 : q;
+  // Éclaboussures
+  const hx = Math.sin(b.a), hy = -Math.cos(b.a);   // vecteur avant
+  const px = Math.cos(b.a), py = Math.sin(b.a);    // vecteur droite
+  const s = side === 'L' ? -1 : 1;
+  const sx = b.x + px * s * 22 - hx * 4, sy = b.y + py * s * 22 - hy * 4;
+  for (let k = 0; k < 7; k++) spawnParticle(sx, sy, -hx * 60 + (Math.random() - 0.5) * 70, -hy * 60 + (Math.random() - 0.5) * 70, 0.5, 'splash');
+  if (!b.ai) sndSplash(q * sf);
+  else if (dist(b.x, b.y, state.player.x, state.player.y) < 300 && Math.random() < 0.3) sndSplash(0.15);
+}
+
+function spawnParticle(x, y, vx, vy, life, kind) {
+  if (state.particles.length > 400) return;
+  state.particles.push({ x, y, vx, vy, life, max: life, kind });
+}
+function showMsg(text, t) { state.msg = { text, t: t || 1.5 }; }
+
+// ---------- Intelligence des pirogues adverses ----------
+function aiThink(b, dt) {
+  if (b.finished) { b.v *= 0.98; return; }
+  const g = state.gates[Math.min(b.gate, state.gates.length - 1)];
+  // Point visé : un peu avant le centre de la porte suivante
+  let tx = g.x, ty = g.y;
+  // Évitement simple des obstacles devant
+  const hx = Math.sin(b.a), hy = -Math.cos(b.a);
+  let avoid = 0;
+  const check = (o, r) => {
+    const rx = o.x - b.x, ry = o.y - b.y;
+    const ahead = rx * hx + ry * hy;
+    if (ahead < 0 || ahead > 160) return;
+    const lat = rx * Math.cos(b.a) + ry * Math.sin(b.a);
+    if (Math.abs(lat) < r + 25) avoid += lat > 0 ? -1 : 1;
+  };
+  state.corals.forEach(o => check(o, o.r));
+  state.turtles.forEach(o => check(o, o.r));
+  state.islets.forEach(o => check(o, o.r * 0.9));
+  const desired = Math.atan2(tx - b.x, -(ty - b.y)) + avoid * 0.6;
+  const diff = angleDiff(b.a, desired);
+  b.aiTimer -= dt;
+  if (b.aiTimer <= 0) {
+    // Rythme : plus l'IA est forte, plus elle pagaie vite et régulièrement
+    // Petit "élastique" : un adversaire très loin devant ralentit un peu, très loin derrière accélère
+    const gap = progress(b) - progress(state.player);
+    const rubber = clamp(1 - gap / 6000, 0.85, 1.12);
+    let interval = 0.36 / (b.skill * rubber) + (Math.random() - 0.5) * 0.08;
+    if (b.stamina < 0.3) interval += 0.15;
+    b.aiTimer = interval;
+    let side;
+    if (Math.abs(diff) > 0.22) side = diff < 0 ? 'L' : 'R';   // virage : même côté
+    else side = b.lastSide === 'L' ? 'R' : 'L';               // tout droit : alternance
+    doStroke(b, side);
+  }
+}
+
+// Avancement d'une pirogue (pour le classement)
+function progress(b) {
+  if (b.finished) return 1e7 - b.finishTime;
+  const g = state.gates[Math.min(b.gate, state.gates.length - 1)];
+  return b.gate * 100000 - dist(b.x, b.y, g.x, g.y);
+}
+function ranking() { return state.boats.slice().sort((a, b) => progress(b) - progress(a)); }
+
+// =====================================================================
+//  MISE À JOUR (appelée 60 fois par seconde)
+// =====================================================================
+function tick(dt) {
+  state.t += dt;
+  if (state.screen !== 'game' || state.paused) return;
+
+  // Compte à rebours 3-2-1
+  if (state.phase === 'countdown') {
+    const before = Math.ceil(state.countdown);
+    state.countdown -= dt;
+    const after = Math.ceil(state.countdown);
+    const cd = $('countdown');
+    if (state.countdown > 0) {
+      cd.classList.add('show'); cd.textContent = after;
+      if (after !== before) sndBeep(false);
+    } else {
+      state.phase = 'race';
+      cd.textContent = 'Partez !'; sndBeep(true);
+      setTimeout(() => cd.classList.remove('show'), 700);
+      state.input = [];
+    }
+    updateWorld(dt, false);
+    return;
+  }
+
+  state.raceTime += dt;
+  if (state.raceTime > 0.8) $('countdown').classList.remove('show');   // cache « Partez ! »
+
+  // Coups de pagaie du joueur
+  const p = state.player;
+  while (state.input.length) { const s = state.input.shift(); if (!p.finished) doStroke(p, s); }
+  // IA
+  state.boats.forEach(b => { if (b.ai) aiThink(b, dt); });
+
+  updateWorld(dt, true);
+
+  // Fin de course
+  if (state.phase === 'race') {
+    if (p.finished) endRace();
+    else if (state.finishOrder.length >= 3) {
+      state.endTimer += dt;
+      if (state.endTimer > 25) endRace();   // on n'attend pas éternellement
+    }
+  }
+  if (state.msg.t > 0) state.msg.t -= dt;
+}
+
+function updateWorld(dt, racing) {
+  const t = state.t;
+  // Animaux et bateaux
+  state.turtles.forEach(o => {
+    o.ph += o.sp * dt;
+    o.x = o.cx + Math.cos(o.ph) * o.rad; o.y = o.cy + Math.sin(o.ph * 1.3) * o.rad * 0.6;
+    o.a = Math.atan2(-Math.sin(o.ph) * o.rad, -(Math.cos(o.ph * 1.3) * 1.3 * o.rad * 0.6)) + Math.PI;
+    if (o.hit > 0) o.hit -= dt;
+  });
+  state.dolphins.forEach(o => {
+    o.y += o.vy * dt; o.ph += dt;
+    const top = state.gates[state.gates.length - 1].y - 600;
+    if (o.y < top) o.y = 400;
+  });
+  state.fishers.forEach(o => {
+    o.x += o.vx * dt;
+    if (o.x > o.cx + o.span) o.vx = -Math.abs(o.vx);
+    if (o.x < o.cx - o.span) o.vx = Math.abs(o.vx);
+    if (Math.random() < 0.3) spawnParticle(o.x - Math.sign(o.vx) * 30, o.y + (Math.random() - 0.5) * 10, -o.vx * 0.2, (Math.random() - 0.5) * 20, 1.2, 'foam');
+  });
+
+  state.boats.forEach(b => {
+    // Endurance qui revient doucement
+    b.stamina = clamp(b.stamina + 0.22 * dt, 0, 1);
+    if (b.stroke.t < 1) b.stroke.t += dt * 3.2;
+    if (!racing) return;
+
+    // Turbo "vague parfaite"
+    if (b.boost > 0) { b.boost -= dt; b.v += 160 * dt; if (Math.random() < 0.5) spawnParticle(b.x + (Math.random() - 0.5) * 20, b.y + (Math.random() - 0.5) * 20, 0, 0, 0.6, 'gold'); }
+    // Frottement de l'eau
+    b.v *= Math.exp(-0.45 * dt);
+    b.v = clamp(b.v, 0, b.boost > 0 ? 360 : 290);
+    b.a += b.w * dt;
+    b.w *= Math.exp(-3.5 * dt);
+    b.dx *= Math.exp(-2 * dt); b.dy *= Math.exp(-2 * dt);
+    const hx = Math.sin(b.a), hy = -Math.cos(b.a);
+    let mx = hx * b.v + b.dx, my = hy * b.v + b.dy;
+    // Courants
+    state.currents.forEach(c => { if (b.x > c.x && b.x < c.x + c.w && b.y > c.y && b.y < c.y + c.h) mx += c.fx; });
+    // Houle (mer agitée)
+    if (state.course.waves) mx += Math.sin(t * 1.2 + b.y * 0.006) * 30 * state.course.waves;
+    b.x += mx * dt; b.y += my * dt;
+    if (b.bumpCd > 0) b.bumpCd -= dt;
+
+    // ---- Collisions ----
+    const bump = (ox, oy, r, label, soft) => {
+      const d = dist(b.x, b.y, ox, oy);
+      if (d < r + 14 && d > 0) {
+        const nx = (b.x - ox) / d, ny = (b.y - oy) / d;
+        b.x = ox + nx * (r + 14); b.y = oy + ny * (r + 14);
+        if (b.bumpCd <= 0) {
+          b.v *= soft ? 0.6 : 0.35; b.dx += nx * 90; b.dy += ny * 90; b.bumpCd = 0.6;
+          for (let k = 0; k < 10; k++) spawnParticle(b.x - nx * 14, b.y - ny * 14, (Math.random() - 0.5) * 120, (Math.random() - 0.5) * 120, 0.5, 'splash');
+          if (!b.ai) { sndBump(); if (label) showMsg(label, 1.6); }
+        }
+        return true;
+      }
+      return false;
+    };
+    state.islets.forEach(o => bump(o.x, o.y, o.r * 0.82, 'Ouch, du sable !', true));
+    state.corals.forEach(o => bump(o.x, o.y, o.r, 'Aïe, le corail !'));
+    state.turtles.forEach(o => { if (bump(o.x, o.y, o.r, 'Attention aux tortues !')) o.hit = 1; });
+    state.fishers.forEach(o => bump(o.x, o.y, o.r, 'Gare au bateau de pêche !'));
+    // Entre pirogues : on se repousse doucement
+    state.boats.forEach(o => {
+      if (o === b) return;
+      const d = dist(b.x, b.y, o.x, o.y);
+      if (d < 30 && d > 0) { const nx = (b.x - o.x) / d, ny = (b.y - o.y) / d; b.x += nx * (30 - d) / 2; b.y += ny * (30 - d) / 2; b.v *= 0.98; }
+    });
+    // Vagues parfaites
+    state.rings.forEach(r => {
+      if (!r.taken[b.id] && dist(b.x, b.y, r.x, r.y) < 38) {
+        r.taken[b.id] = true; b.boost = 2.2;
+        if (!b.ai) { sndBoost(); showMsg('Vague parfaite ! Turbo !', 1.5); }
+      }
+    });
+
+    // ---- Passage des portes (bouées) ----
+    if (b.gate < state.gates.length) {
+      const g = state.gates[b.gate];
+      const s = (b.x - g.x) * g.dirX + (b.y - g.y) * g.dirY;          // devant/derrière la porte
+      const lat = (b.x - g.x) * -g.dirY + (b.y - g.y) * g.dirX;       // écart latéral
+      if (b.prevS < 0 && s >= 0 && Math.abs(lat) < g.w / 2) {
+        b.gate++;
+        if (b.gate >= state.gates.length) {
+          b.finished = true; b.finishTime = state.raceTime;
+          state.finishOrder.push(b);
+          if (!b.ai) {} else if (state.finishOrder.length === 1) showMsg(b.crew.name + ' a fini !', 1.5);
+        } else if (!b.ai) sndGate();
+        b.prevS = -1;
+      } else b.prevS = s;
+    }
+
+    // Sillage
+    b.trail.push({ x: b.x - hx * 22, y: b.y - hy * 22, a: b.a, life: 1.2, v: b.v });
+    if (b.trail.length > 70) b.trail.shift();
+  });
+  state.boats.forEach(b => b.trail.forEach(p => p.life -= dt));
+
+  // Particules
+  state.particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.94; p.vy *= 0.94; p.life -= dt; });
+  state.particles = state.particles.filter(p => p.life > 0);
+
+  // Caméra : suit le joueur en regardant un peu devant lui
+  const p = state.player;
+  const tx = p.x + Math.sin(p.a) * 80, ty = p.y - Math.cos(p.a) * 80 - 40;
+  state.cam.x += (tx - state.cam.x) * Math.min(1, dt * 3);
+  state.cam.y += (ty - state.cam.y) * Math.min(1, dt * 3);
+}
+
+// ---------- Fin de course ----------
+function endRace() {
+  state.phase = 'done';
+  const rank = ranking();
+  // Ceux qui ont fini d'abord (dans l'ordre), puis les autres selon leur avancement
+  const order = state.finishOrder.slice();
+  rank.forEach(b => { if (!order.includes(b)) order.push(b); });
+  const pos = order.indexOf(state.player) + 1;
+  const i = state.courseIndex;
+  if (!save.best[i] || pos < save.best[i]) save.best[i] = pos;
+  let unlockedNew = false;
+  if (pos <= 3 && i + 1 < COURSES.length && save.unlocked < i + 1) { save.unlocked = i + 1; unlockedNew = true; }
+  writeSave();
+  pos <= 3 ? sndWin() : sndLose();
+
+  const medals = ['🥇', '🥈', '🥉', ''];
+  $('resTitle').textContent = pos === 1 ? '🥇 Victoire !' : pos <= 3 ? medals[pos - 1] + ' Sur le podium !' : 'Raté de peu…';
+  let m = 'Tu termines ' + (pos === 1 ? '1er' : pos + 'e') + ' sur 4.';
+  if (unlockedNew) m += ' Nouvelle course débloquée : ' + COURSES[i + 1].name + ' !';
+  else if (pos > 3) m += ' Finis dans les 3 premiers pour débloquer la suite.';
+  $('resMsg').textContent = m;
+  $('resTable').innerHTML = order.map((b, k) =>
+    '<tr class="' + (b.ai ? '' : 'me') + '"><td>' + (medals[k] || (k + 1) + 'e') + '</td><td style="color:' + b.crew.hull + ';font-weight:700">■</td><td>' + b.crew.name +
+    '</td><td>' + (b.finished ? fmtTime(b.finishTime) : '—') + '</td></tr>').join('');
+  $('btnNext').disabled = !(i + 1 < COURSES.length && save.unlocked >= i + 1);
+  $('btnNext').style.display = i + 1 < COURSES.length ? '' : 'none';
+  setTimeout(() => { $('results').classList.add('show'); hideTouch(); }, 900);
+}
+function fmtTime(s) { const m = Math.floor(s / 60); const r = s - m * 60; return m + ':' + (r < 10 ? '0' : '') + r.toFixed(2); }
+
+// =====================================================================
+//  DESSIN
+// =====================================================================
+// Motif de caustiques (reflets lumineux au fond de l'eau), dessiné une seule fois
+const caustic = document.createElement('canvas');
+caustic.width = caustic.height = 256;
+(function () {
+  const c = caustic.getContext('2d'); const r = makeRng(5);
+  c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineCap = 'round';
+  for (let k = 0; k < 70; k++) {
+    const x = r() * 256, y = r() * 256, rad = 10 + r() * 22;
+    c.lineWidth = 1 + r() * 2;
+    c.beginPath();
+    for (let a = 0; a <= 6.3; a += 0.5) {
+      const rr = rad * (0.7 + 0.3 * Math.sin(a * 3 + k));
+      const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
+      a === 0 ? c.moveTo(px, py) : c.lineTo(px, py);
+    }
+    c.stroke();
+    // On répète sur les bords pour que le motif se raccorde
+    if (x < 40 || y < 40) { c.save(); c.translate(x < 40 ? 256 : 0, y < 40 ? 256 : 0); c.stroke(); c.restore(); }
+  }
+})();
+
+function render() {
+  ctx.save();
+  if (state.screen !== 'game') { renderMenuBg(); ctx.restore(); return; }
+  const cam = state.cam, t = state.t;
+  const ox = W / 2 - cam.x, oy = H / 2 - cam.y + 60;   // décalage monde -> écran
+
+  // Fond : lagon turquoise
+  const grd = ctx.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, '#13a6bd'); grd.addColorStop(1, '#22c3c8');
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(ox, oy);
+  // Zones profondes (bleu foncé)
+  state.deeps.forEach(d => {
+    if (!onScreen(d.x, d.y, d.r, ox, oy)) return;
+    const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.r);
+    g.addColorStop(0, 'rgba(8,60,120,0.75)'); g.addColorStop(1, 'rgba(8,60,120,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 7); ctx.fill();
+  });
+  // Hauts-fonds de sable clair autour des îlots
+  state.islets.forEach(o => {
+    if (!onScreen(o.x, o.y, o.r * 1.9, ox, oy)) return;
+    const g = ctx.createRadialGradient(o.x, o.y, o.r * 0.8, o.x, o.y, o.r * 1.9);
+    g.addColorStop(0, 'rgba(190,245,225,0.9)'); g.addColorStop(1, 'rgba(120,230,215,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(o.x, o.y, o.r * 1.9, 0, 7); ctx.fill();
+  });
+  // Coraux décoratifs au fond
+  state.deco.forEach(d => {
+    if (!onScreen(d.x, d.y, d.r, ox, oy)) return;
+    ctx.globalAlpha = 0.35; ctx.fillStyle = d.col;
+    ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 7); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Caustiques animées (deux couches qui glissent)
+  drawCaustics(ox, oy, t);
+
+  ctx.save();
+  ctx.translate(ox, oy);
+
+  // Ligne de départ
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.setLineDash([12, 10]); ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-200, 185); ctx.lineTo(200, 185); ctx.stroke(); ctx.setLineDash([]);
+
+  // Courants : bandes avec flèches qui défilent
+  state.currents.forEach(c => {
+    if (!onScreen(c.x + c.w / 2, c.y + c.h / 2, c.w, ox, oy)) return;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(c.x, c.y, c.w, c.h);
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3;
+    const dir = Math.sign(c.fx);
+    for (let row = 0; row < 4; row++) for (let k = 0; k < 6; k++) {
+      let x = c.x + ((k * 110 + dir * t * Math.abs(c.fx) * 1.5 + row * 50) % c.w + c.w) % c.w;
+      const y = c.y + 30 + row * 52;
+      ctx.beginPath(); ctx.moveTo(x - dir * 14, y - 8); ctx.lineTo(x, y); ctx.lineTo(x - dir * 14, y + 8); ctx.stroke();
+    }
+  });
+
+  // Patates de corail (dangereuses) : forme sombre + coraux colorés
+  state.corals.forEach(o => {
+    if (!onScreen(o.x, o.y, o.r + 20, ox, oy)) return;
+    ctx.fillStyle = 'rgba(180,240,220,0.6)'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 12, 0, 7); ctx.fill();
+    ctx.fillStyle = '#7a5a4a'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 7); ctx.fill();
+    o.blobs.forEach(bl => { ctx.fillStyle = bl.col; ctx.beginPath(); ctx.arc(o.x + Math.cos(bl.a) * bl.d, o.y + Math.sin(bl.a) * bl.d, bl.r, 0, 7); ctx.fill(); });
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.4 + 0.3 * Math.sin(t * 3 + o.x)) + ')'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 6 + Math.sin(t * 2 + o.y) * 2, 0, 7); ctx.stroke();
+  });
+
+  // Sillages des pirogues
+  state.boats.forEach(b => {
+    ctx.lineCap = 'round';
+    for (let i = 1; i < b.trail.length; i++) {
+      const p = b.trail[i], q = b.trail[i - 1];
+      if (p.life <= 0) continue;
+      const age = 1 - p.life / 1.2;
+      const spread = 6 + age * 26;
+      const al = p.life / 1.2 * clamp(p.v / 200, 0.1, 0.8);
+      ctx.strokeStyle = 'rgba(255,255,255,' + al + ')'; ctx.lineWidth = 2.5;
+      const px = Math.cos(p.a), py = Math.sin(p.a), qx = Math.cos(q.a), qy = Math.sin(q.a);
+      const qs = 6 + (1 - q.life / 1.2) * 26;
+      ctx.beginPath(); ctx.moveTo(q.x - qx * qs, q.y - qy * qs); ctx.lineTo(p.x - px * spread, p.y - py * spread); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(q.x + qx * qs, q.y + qy * qs); ctx.lineTo(p.x + px * spread, p.y + py * spread); ctx.stroke();
+    }
+  });
+
+  // Vagues parfaites (anneaux dorés)
+  state.rings.forEach(r => {
+    if (r.taken[0] || !onScreen(r.x, r.y, 40, ox, oy)) return;
+    const pul = 1 + Math.sin(t * 5) * 0.08;
+    ctx.save(); ctx.translate(r.x, r.y); ctx.scale(pul, pul);
+    ctx.fillStyle = 'rgba(255,226,122,0.25)'; ctx.beginPath(); ctx.arc(0, 0, 34, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, 30, 0, 7); ctx.stroke();
+    // petite vague qui s'enroule
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.beginPath();
+    ctx.moveTo(-16, 8); ctx.quadraticCurveTo(-6, -16, 10, -8); ctx.quadraticCurveTo(16, -4, 8, 2); ctx.stroke();
+    ctx.restore();
+  });
+
+  // Tortues
+  state.turtles.forEach(o => { if (onScreen(o.x, o.y, 30, ox, oy)) drawTurtle(o, t); });
+  // Dauphins (sautent par intermittence)
+  state.dolphins.forEach(o => { if (onScreen(o.x, o.y, 80, ox, oy)) drawDolphins(o, t); });
+
+  // Portes : paires de bouées
+  state.gates.forEach((g, i) => {
+    const px = -g.dirY, py = g.dirX;
+    const x1 = g.x - px * g.w / 2, y1 = g.y - py * g.w / 2, x2 = g.x + px * g.w / 2, y2 = g.y + py * g.w / 2;
+    if (!onScreen(g.x, g.y, g.w, ox, oy)) return;
+    const next = i === state.player.gate, last = i === state.gates.length - 1, passed = i < state.player.gate;
+    if (next || last) {
+      ctx.strokeStyle = last ? 'rgba(255,255,255,0.75)' : 'rgba(255,226,122,0.55)';
+      ctx.lineWidth = last ? 6 : 3; ctx.setLineDash(last ? [14, 14] : [8, 10]);
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.setLineDash([]);
+    }
+    const col = passed ? '#9ad7a0' : last ? '#ffffff' : next ? '#ff7a1a' : '#ff5a5a';
+    drawBuoy(x1, y1, col, t + i, next); drawBuoy(x2, y2, col, t + i + 1, next);
+    if (last) { ctx.fillStyle = '#fff'; ctx.font = '700 22px Fredoka'; ctx.textAlign = 'center'; ctx.fillText('ARRIVÉE', g.x, g.y - 20); }
+  });
+
+  // Bateaux de pêche
+  state.fishers.forEach(o => { if (onScreen(o.x, o.y, 60, ox, oy)) drawFisher(o, t); });
+
+  // Pirogues (le joueur en dernier pour être au-dessus)
+  state.boats.slice().reverse().forEach(b => { if (onScreen(b.x, b.y, 60, ox, oy)) drawPirogue(b, t); });
+
+  // Îlots (la terre passe au-dessus de l'eau)
+  state.islets.forEach(o => { if (onScreen(o.x, o.y, o.r + 40, ox, oy)) drawIslet(o, t); });
+
+  // Particules
+  state.particles.forEach(p => {
+    const a = p.life / p.max;
+    if (p.kind === 'gold') ctx.fillStyle = 'rgba(255,220,90,' + a + ')';
+    else if (p.kind === 'foam') ctx.fillStyle = 'rgba(255,255,255,' + a * 0.6 + ')';
+    else ctx.fillStyle = 'rgba(235,255,255,' + a + ')';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.kind === 'foam' ? 3 : 2.5 + (1 - a) * 2, 0, 7); ctx.fill();
+  });
+  ctx.restore();
+
+  // Écume de houle (mer agitée)
+  if (state.course.waves) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (let k = 0; k < 14; k++) {
+      const y = ((k * 70 + t * 40 + oy * 1) % 640 + 640) % 640 - 50;
+      const x0 = ((k * 173 + ox) % 1100 + 1100) % 1100 - 120;
+      ctx.beginPath();
+      for (let s = 0; s < 8; s++) { const xx = x0 + s * 18; const yy = y + Math.sin(s * 0.8 + t * 2 + k) * 5; s ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); }
+      ctx.stroke();
+    }
+  }
+
+  drawHUD(ox, oy);
+  ctx.restore();
+}
+
+function onScreen(x, y, r, ox, oy) { const sx = x + ox, sy = y + oy; return sx > -r - 20 && sx < W + r + 20 && sy > -r - 20 && sy < H + r + 20; }
+
+function drawCaustics(ox, oy, t) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  [[0.10, 1, 12, 7], [0.07, 1.6, -9, 11]].forEach(([al, sc, vx, vy]) => {
+    ctx.globalAlpha = al;
+    const size = 256 * sc;
+    const offx = ((ox + t * vx) % size + size) % size - size;
+    const offy = ((oy + t * vy) % size + size) % size - size;
+    for (let x = offx; x < W; x += size) for (let y = offy; y < H; y += size) ctx.drawImage(caustic, x, y, size, size);
+  });
+  ctx.restore();
+}
+
+function drawBuoy(x, y, col, t, glow) {
+  const bob = Math.sin(t * 2.5) * 1.5;
+  ctx.fillStyle = 'rgba(0,40,60,0.25)'; ctx.beginPath(); ctx.ellipse(x + 3, y + 4, 11, 7, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 13 + Math.sin(t * 3) * 2, 0, 7); ctx.stroke();
+  if (glow) { ctx.fillStyle = 'rgba(255,200,80,0.3)'; ctx.beginPath(); ctx.arc(x, y + bob, 20, 0, 7); ctx.fill(); }
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y + bob, 10, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(x - 3, y + bob - 3, 3.5, 0, 7); ctx.fill();
+}
+
+// Pirogue vue de dessus : coque effilée, balancier sur le côté gauche, 2 pagayeurs
+function drawPirogue(b, t) {
+  const c = b.crew;
+  ctx.save();
+  ctx.translate(b.x, b.y);
+  ctx.rotate(b.a);
+  const rock = Math.sin(t * 3 + b.id) * 0.6;
+  // Ombre
+  ctx.fillStyle = 'rgba(0,40,60,0.28)';
+  ctx.beginPath(); ctx.ellipse(4, 5, 9, 28, 0, 0, 7); ctx.fill();
+  // Balancier : 2 traverses + flotteur
+  ctx.strokeStyle = '#7a4e2c'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(-24, -10); ctx.moveTo(0, 10); ctx.lineTo(-24, 10); ctx.stroke();
+  ctx.fillStyle = '#c99a63'; ctx.beginPath(); ctx.ellipse(-25, rock, 4, 20, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#7a4e2c'; ctx.lineWidth = 1.5; ctx.stroke();
+  // Coque
+  ctx.fillStyle = c.hull;
+  ctx.beginPath(); ctx.moveTo(0, -30); ctx.quadraticCurveTo(10, -10, 8, 18); ctx.quadraticCurveTo(0, 28, -8, 18); ctx.quadraticCurveTo(-10, -10, 0, -30); ctx.fill();
+  ctx.strokeStyle = '#3b2412'; ctx.lineWidth = 1.5; ctx.stroke();
+  // Bande peinte
+  ctx.strokeStyle = c.stripe; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(0, -27); ctx.quadraticCurveTo(7, -8, 6, 16); ctx.moveTo(0, -27); ctx.quadraticCurveTo(-7, -8, -6, 16); ctx.stroke();
+  // Intérieur
+  ctx.fillStyle = '#5a3a20'; ctx.beginPath(); ctx.ellipse(0, 0, 4.5, 18, 0, 0, 7); ctx.fill();
+  // Pagayeurs (avant et arrière) + pagaies animées
+  const st = b.stroke;
+  const side = st.side === 'L' ? -1 : 1;
+  const k = clamp(st.t, 0, 1);
+  // la pagaie va de l'avant vers l'arrière pendant le coup
+  const sweep = k < 1 ? -14 + k * 30 : 0;
+  [-9, 9].forEach((py, j) => {
+    const sd = j === 0 ? side : -side;     // les deux pagayeurs pagaient de côtés opposés
+    const pyy = py + (k < 1 ? sweep * 0.6 : 0);
+    ctx.strokeStyle = '#d9b27c'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(sd * 17, pyy); ctx.stroke();
+    ctx.fillStyle = '#d9b27c'; ctx.beginPath(); ctx.ellipse(sd * 19, pyy, 2.5, 6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = c.shirt; ctx.beginPath(); ctx.ellipse(0, py, 6, 4.5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#5b3a24'; ctx.beginPath(); ctx.arc(0, py - 1, 3.6, 0, 7); ctx.fill();
+  });
+  ctx.restore();
+  // Nom au-dessus des adversaires / marqueur du joueur
+  if (!b.ai) {
+    ctx.fillStyle = '#ffe27a'; ctx.beginPath();
+    const yy = b.y - 46 + Math.sin(t * 4) * 3;
+    ctx.moveTo(b.x - 8, yy); ctx.lineTo(b.x + 8, yy); ctx.lineTo(b.x, yy + 10); ctx.fill();
+  }
+}
+
+function drawTurtle(o, t) {
+  ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.a);
+  const fl = Math.sin(t * 4 + o.ph) * 0.4;
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = '#5a8f4a';
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => {
+    ctx.save(); ctx.translate(sx * 9, sy * 6); ctx.rotate(sx * (sy < 0 ? 0.6 + fl : 0.3 - fl * 0.5));
+    ctx.beginPath(); ctx.ellipse(sx * 4, 0, 6, sy < 0 ? 3.5 : 2.5, 0, 0, 7); ctx.fill(); ctx.restore();
+  });
+  ctx.beginPath(); ctx.arc(0, -15, 4.5, 0, 7); ctx.fill();
+  ctx.fillStyle = '#7a5a2a'; ctx.beginPath(); ctx.ellipse(0, 0, 10, 12, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#a07a3a'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-6, -5); ctx.lineTo(6, -5); ctx.moveTo(-7, 3); ctx.lineTo(7, 3); ctx.moveTo(0, -11); ctx.lineTo(0, 11); ctx.stroke();
+  ctx.restore();
+  if (o.hit > 0) { ctx.fillStyle = '#fff'; ctx.font = '700 18px Fredoka'; ctx.textAlign = 'center'; ctx.fillText('!', o.x, o.y - 22); }
+}
+
+function drawDolphins(o, t) {
+  for (let k = 0; k < 3; k++) {
+    const ph = (o.ph * 0.8 + k * 0.35) % 3;
+    const x = o.x + k * 26 - 26, y = o.y + k * 30;
+    ctx.save(); ctx.translate(x, y);
+    if (ph < 1) {
+      // dauphin en l'air (arc), vu de dessus il grossit puis replonge
+      const s = 0.8 + Math.sin(ph * Math.PI) * 0.4;
+      ctx.scale(s, s);
+      ctx.fillStyle = 'rgba(0,40,60,0.2)'; ctx.beginPath(); ctx.ellipse(6, 6, 6, 18, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#6f8fa8'; ctx.beginPath(); ctx.ellipse(0, 0, 6, 18, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-10, 2); ctx.lineTo(10, 2); ctx.lineTo(0, -4); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-6, 18); ctx.lineTo(6, 18); ctx.lineTo(0, 13); ctx.fill();
+      ctx.fillStyle = '#c6d8e4'; ctx.beginPath(); ctx.ellipse(0, -6, 2.5, 8, 0, 0, 7); ctx.fill();
+    } else {
+      // sous l'eau : ombre floue
+      ctx.fillStyle = 'rgba(20,70,110,0.35)'; ctx.beginPath(); ctx.ellipse(0, 0, 6, 18, 0, 0, 7); ctx.fill();
+      if (ph < 1.15) { ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 10 + (ph - 1) * 80, 0, 7); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
+}
+
+function drawFisher(o, t) {
+  ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.vx > 0 ? Math.PI / 2 : -Math.PI / 2);
+  ctx.fillStyle = 'rgba(0,40,60,0.3)'; ctx.beginPath(); ctx.ellipse(5, 5, 14, 34, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = o.col;
+  ctx.beginPath(); ctx.moveTo(0, -36); ctx.quadraticCurveTo(15, -18, 13, 26); ctx.lineTo(-13, 26); ctx.quadraticCurveTo(-15, -18, 0, -36); ctx.fill();
+  ctx.strokeStyle = '#2b4a5a'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#2f7fb0'; ctx.fillRect(-10, 8, 20, 4);
+  ctx.fillStyle = '#e8e2d0'; ctx.fillRect(-7, -6, 14, 14);
+  ctx.fillStyle = '#5ac'; ctx.fillRect(-5, -4, 10, 4);
+  ctx.fillStyle = '#444'; ctx.fillRect(-4, 22, 8, 6);
+  ctx.restore();
+}
+
+function drawIslet(o, t) {
+  ctx.save(); ctx.translate(o.x, o.y);
+  // Écume sur le bord
+  ctx.strokeStyle = 'rgba(255,255,255,' + (0.5 + 0.2 * Math.sin(t * 2 + o.wob)) + ')'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(0, 0, o.r * 0.95 + Math.sin(t * 1.5 + o.wob) * 3, 0, 7); ctx.stroke();
+  // Sable
+  const g = ctx.createRadialGradient(-o.r * 0.2, -o.r * 0.2, o.r * 0.1, 0, 0, o.r * 0.9);
+  g.addColorStop(0, '#fff6dc'); g.addColorStop(1, '#efd9a6');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, o.r * 0.88, 0, 7); ctx.fill();
+  // Végétation
+  ctx.fillStyle = '#6fbf5a'; ctx.beginPath(); ctx.arc(o.r * 0.05, o.r * 0.05, o.r * 0.45, 0, 7); ctx.fill();
+  ctx.fillStyle = '#4fa548'; ctx.beginPath(); ctx.arc(-o.r * 0.1, -o.r * 0.05, o.r * 0.3, 0, 7); ctx.fill();
+  // Palmiers (vus de dessus : étoile de palmes)
+  o.palms.forEach(p => {
+    const x = Math.cos(p.a) * p.d, y = Math.sin(p.a) * p.d;
+    ctx.save(); ctx.translate(x, y); ctx.scale(p.s, p.s); ctx.rotate(p.rot + Math.sin(t * 0.8 + p.a) * 0.06);
+    ctx.fillStyle = 'rgba(0,60,40,0.25)'; ctx.beginPath(); ctx.arc(8, 8, 22, 0, 7); ctx.fill();
+    for (let k = 0; k < 7; k++) {
+      ctx.rotate(Math.PI * 2 / 7);
+      ctx.fillStyle = k % 2 ? '#2e8b3e' : '#3fa34d';
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(8, -12, 2, -26); ctx.quadraticCurveTo(-5, -12, 0, 0); ctx.fill();
+    }
+    ctx.fillStyle = '#7a5a2a'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, 7); ctx.fill();
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+// ---------- Interface pendant la course ----------
+function drawHUD(ox, oy) {
+  const p = state.player;
+  const ranks = ranking();
+  const pos = state.finishOrder.includes(p) ? state.finishOrder.indexOf(p) + 1 : ranks.indexOf(p) + 1;
+  // Position
+  panel(12, 12, 150, 70);
+  ctx.fillStyle = '#ffe27a'; ctx.font = '700 40px Fredoka'; ctx.textAlign = 'left';
+  ctx.fillText(pos + (pos === 1 ? 'er' : 'e'), 24, 60);
+  ctx.fillStyle = '#fff'; ctx.font = '600 18px Fredoka'; ctx.fillText('/ 4', 92, 60);
+  // Bouées + temps
+  panel(170, 12, 190, 70);
+  ctx.font = '600 18px Fredoka'; ctx.fillStyle = '#fff';
+  ctx.fillText('Bouées ' + Math.min(p.gate, state.gates.length) + ' / ' + state.gates.length, 184, 40);
+  ctx.fillText('⏱ ' + fmtTime(state.raceTime), 184, 68);
+  // Endurance + rythme (en bas au centre)
+  const bx = W / 2 - 130, by = H - 54;
+  panel(bx - 10, by - 12, 280, 56);
+  ctx.fillStyle = '#fff'; ctx.font = '600 14px Fredoka'; ctx.fillText('Endurance', bx, by + 4);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(bx + 80, by - 8, 170, 14);
+  ctx.fillStyle = p.stamina > 0.5 ? '#6be08a' : p.stamina > 0.25 ? '#ffd23f' : '#ff6b5a';
+  ctx.fillRect(bx + 80, by - 8, 170 * p.stamina, 14);
+  // Vitesse
+  ctx.fillStyle = '#fff'; ctx.fillText('Vitesse', bx, by + 28);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(bx + 80, by + 16, 170, 14);
+  ctx.fillStyle = p.boost > 0 ? '#ffd23f' : '#7fe7e0';
+  ctx.fillRect(bx + 80, by + 16, 170 * clamp(p.v / 300, 0, 1), 14);
+  // Indication de rythme
+  const since = state.raceTime - p.lastStroke;
+  if (state.phase === 'race' && since < 0.6) {
+    let txt = '', col = '#fff';
+    if (p.quality === -1) { txt = p.lastSide === 'L' ? '↰ Virage' : 'Virage ↱'; col = '#bff3ee'; }
+    else if (p.quality >= 1) { txt = 'Bon rythme !'; col = '#6be08a'; }
+    else if (p.quality < 0.5) { txt = 'Trop vite !'; col = '#ff6b5a'; }
+    else { txt = 'Alterne en rythme'; col = '#ffd23f'; }
+    ctx.globalAlpha = 1 - since / 0.6;
+    ctx.fillStyle = col; ctx.font = '700 22px Fredoka'; ctx.textAlign = 'center';
+    ctx.fillText(txt, W / 2, by - 24);
+    ctx.globalAlpha = 1;
+  }
+  // Message
+  if (state.msg.t > 0) {
+    ctx.globalAlpha = clamp(state.msg.t, 0, 1);
+    ctx.font = '700 30px Fredoka'; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(0,30,50,0.5)'; ctx.fillText(state.msg.text, W / 2 + 2, 132);
+    ctx.fillStyle = '#ffe27a'; ctx.fillText(state.msg.text, W / 2, 130);
+    ctx.globalAlpha = 1;
+  }
+  // Flèche vers la prochaine bouée (si elle est hors écran)
+  if (p.gate < state.gates.length) {
+    const g = state.gates[p.gate];
+    const sx = g.x + ox, sy = g.y + oy;
+    if (sx < 20 || sx > W - 20 || sy < 20 || sy > H - 20) {
+      const ang = Math.atan2(sy - H / 2, sx - W / 2);
+      const ax = clamp(W / 2 + Math.cos(ang) * 400, 40, W - 40), ay = clamp(H / 2 + Math.sin(ang) * 220, 100, H - 80);
+      ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
+      ctx.fillStyle = '#ff7a1a'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(-10, -14); ctx.lineTo(-4, 0); ctx.lineTo(-10, 14); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  drawMinimap();
+}
+
+function panel(x, y, w, h) {
+  ctx.fillStyle = 'rgba(4,40,60,0.55)';
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 14) : ctx.rect(x, y, w, h); ctx.fill();
+}
+
+function drawMinimap() {
+  const mw = 130, mh = 200, mx = W - mw - 12, my = 12;
+  panel(mx, my, mw, mh);
+  // Bornes du parcours
+  const gs = state.gates;
+  let minX = -250, maxX = 250, minY = gs[gs.length - 1].y - 100, maxY = 220;
+  gs.forEach(g => { minX = Math.min(minX, g.x - 150); maxX = Math.max(maxX, g.x + 150); });
+  const sc = Math.min((mw - 16) / (maxX - minX), (mh - 16) / (maxY - minY));
+  const tx = x => mx + 8 + (x - minX) * sc + ((mw - 16) - (maxX - minX) * sc) / 2;
+  const ty = y => my + 8 + (y - minY) * sc;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(mx, my, mw, mh); ctx.clip();
+  state.islets.forEach(o => { ctx.fillStyle = '#efd9a6'; ctx.beginPath(); ctx.arc(tx(o.x), ty(o.y), Math.max(1.5, o.r * 0.85 * sc), 0, 7); ctx.fill(); });
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(tx(0), ty(150)); gs.forEach(g => ctx.lineTo(tx(g.x), ty(g.y))); ctx.stroke();
+  gs.forEach((g, i) => { ctx.fillStyle = i < state.player.gate ? '#9ad7a0' : i === state.player.gate ? '#ff7a1a' : '#ff9a9a'; ctx.beginPath(); ctx.arc(tx(g.x), ty(g.y), 2.5, 0, 7); ctx.fill(); });
+  state.boats.slice().reverse().forEach(b => {
+    ctx.fillStyle = b.crew.hull; ctx.strokeStyle = '#fff'; ctx.lineWidth = b.ai ? 1 : 2;
+    ctx.beginPath(); ctx.arc(tx(b.x), ty(b.y), b.ai ? 3.5 : 5, 0, 7); ctx.fill(); ctx.stroke();
+  });
+  ctx.restore();
+}
+
+// Fond animé derrière le menu
+function renderMenuBg() {
+  const t = state.t;
+  const grd = ctx.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, '#0f8fb0'); grd.addColorStop(1, '#2bc9c6');
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+  drawCaustics(-t * 20, t * 10, t);
+  drawIslet({ x: 120, y: 440, r: 120, wob: 1, palms: [{ a: 0, d: 0, s: 1.3, rot: 0 }, { a: 1, d: 40, s: 1, rot: 2 }] }, t);
+  drawIslet({ x: 860, y: 100, r: 90, wob: 2, palms: [{ a: 0, d: 10, s: 1.1, rot: 1 }] }, t);
+  // Quelques pirogues qui passent
+  for (let k = 0; k < 3; k++) {
+    const fake = { id: k, crew: CREWS[k + 1], ai: true, x: ((t * 50 + k * 340) % 1200) - 120, y: 180 + k * 110, a: Math.PI / 2, stroke: { side: (Math.floor(t * 2.5 + k) % 2) ? 'L' : 'R', t: (t * 2.5 + k) % 1 } };
+    drawPirogue(fake, t);
+  }
+}
+
+// =====================================================================
+//  BOUCLE PRINCIPALE (pas fixe avec accumulateur)
+// =====================================================================
+let last = performance.now(), acc = 0;
+function loop(now) {
+  acc += Math.min(0.25, (now - last) / 1000);
+  last = now;
+  while (acc >= STEP) { tick(STEP); acc -= STEP; }
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// =====================================================================
+//  COMMANDES
+// =====================================================================
+function paddle(side) {
+  audioInit();
+  if (state.screen === 'game' && !state.paused && state.phase === 'race') state.input.push(side);
+}
+window.addEventListener('keydown', e => {
+  if (e.repeat) { if (['ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault(); return; }
+  const k = e.key.toLowerCase();
+  if (e.key === 'ArrowLeft' || k === 'q' || k === 'a') { paddle('L'); e.preventDefault(); }
+  else if (e.key === 'ArrowRight' || k === 'd') { paddle('R'); e.preventDefault(); }
+  else if (e.key === 'Escape' || k === 'p') togglePause();
+  else if (k === 'm') { audioInit(); setMuted(!save.muted); }
+  else if ((e.key === 'Enter' || e.key === ' ') && state.screen === 'menu' && $('menu').classList.contains('show')) { startCourse(selectedCourse); e.preventDefault(); }
+});
+// Boutons tactiles (pointerdown = réaction immédiate)
+[['tl', 'L'], ['tr', 'R']].forEach(([id, side]) => {
+  const el = $(id);
+  el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('press'); paddle(side); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => el.classList.remove('press')));
+});
+
+function togglePause() {
+  if (state.screen !== 'game' || state.phase === 'done') return;
+  state.paused = !state.paused;
+  $('pause').classList.toggle('show', state.paused);
+}
+function hideTouch() { ['tl', 'tr', 'btnPause'].forEach(id => $(id).classList.remove('on')); }
+function hideAll() { ['menu', 'rules', 'pause', 'results'].forEach(id => $(id).classList.remove('show')); $('countdown').classList.remove('show'); }
+function showMenu() {
+  hideAll(); hideTouch();
+  state.screen = 'menu'; state.paused = false;
+  if (ambGain) ambGain.gain.value = 0.04;
+  buildCourseList();
+  $('menu').classList.add('show');
+}
+function buildCourseList() {
+  const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+  $('courses').innerHTML = COURSES.map((c, i) => {
+    const locked = i > save.unlocked;
+    const best = save.best[i];
+    return '<div class="ccard ' + (locked ? 'lock' : '') + (i === selectedCourse ? ' sel' : '') + '" data-i="' + i + '">' +
+      '<b>' + (locked ? '🔒 ' : '') + (i + 1) + '. ' + c.name + ' ' + (medals[best] || '') + '</b>' +
+      '<small>' + (locked ? 'Finis sur le podium de la course précédente' : c.desc + (best ? ' — meilleur : ' + best + (best === 1 ? 'er' : 'e') : '')) + '</small></div>';
+  }).join('');
+  document.querySelectorAll('.ccard').forEach(el => el.addEventListener('click', () => {
+    const i = +el.dataset.i;
+    if (i > save.unlocked) return;
+    selectedCourse = i; buildCourseList();
+  }));
+}
+
+$('btnPlay').onclick = () => startCourse(selectedCourse);
+$('btnRules').onclick = () => { $('menu').classList.remove('show'); $('rules').classList.add('show'); };
+$('btnRulesBack').onclick = () => { $('rules').classList.remove('show'); $('menu').classList.add('show'); };
+$('btnMute').onclick = () => { audioInit(); setMuted(!save.muted); };
+$('btnPause').onclick = togglePause;
+$('btnResume').onclick = togglePause;
+$('btnRestart').onclick = () => startCourse(state.courseIndex);
+$('btnQuit').onclick = showMenu;
+$('btnAgain').onclick = () => startCourse(state.courseIndex);
+$('btnMenu').onclick = showMenu;
+$('btnNext').onclick = () => { selectedCourse = state.courseIndex + 1; startCourse(selectedCourse); };
+// Pause automatique si on change d'onglet
+document.addEventListener('visibilitychange', () => { if (document.hidden && state.screen === 'game' && !state.paused && state.phase !== 'done') togglePause(); });
+
+setMuted(save.muted);
+showMenu();
+</script>
+</body>
+</html>

@@ -10,6 +10,156 @@
 
 window.ARCADE_GAMES = [
   {
+    slug: "course-de-pirogues",
+    title: "Course de pirogues",
+    emoji: "🛶",
+    tagline: "Pagaie dans le lagon de Mayotte.",
+    description:
+      "Course de pirogues à balancier dans le lagon. Pagaie en rythme (gauche, droite), passe entre les bouées, évite les coraux et les tortues, et attrape la vague parfaite pour un turbo.",
+    path: "games/course-de-pirogues/index.html",
+    cover: "images/course-de-pirogues.png",
+    orientation: "paysage",
+    accent: "#2fd3e0",
+    tags: ["Mayotte", "Course", "Rythme"],
+    difficulty: 3,
+    duration: "30 s à 1 min 30 par course",
+    content: "4 courses",
+    touch: true,
+    added: "2026-10-26",
+    controls: [
+      ["← →", "pagayer en alternant"],
+      ["← ← ←", "tourner à gauche (même côté)"],
+      ["Échap", "pause"],
+      ["M", "couper le son"],
+    ],
+    progress() {
+      const s = readJSON("pirogues-v1");
+      if (!s || !s.best) return null;
+      const wins = Object.values(s.best).filter((r) => r === 1).length;
+      return { value: wins, max: 4, label: `${wins} / 4 courses gagnées` };
+    },
+  },
+  {
+    slug: "belesset",
+    title: "Belesset",
+    emoji: "🪨",
+    tagline: "Lance, ramasse, attrape !",
+    description:
+      "Inspiré du belesset, jeu traditionnel mahorais proche des osselets : lance le caillou en l'air, ramasse les cailloux au sol et rattrape-le avant qu'il ne tombe. 7 cailloux, 7 étapes.",
+    path: "games/belesset/index.html",
+    cover: "images/belesset.png",
+    orientation: "paysage",
+    accent: "#e58a4f",
+    tags: ["Mayotte", "Adresse", "Tradition"],
+    difficulty: 3,
+    duration: "1 à 2 min par étape",
+    content: "7 étapes",
+    touch: true,
+    added: "2026-10-26",
+    controls: [
+      ["Espace", "lancer / attraper"],
+      ["Clic", "ramasser un caillou"],
+      ["← →", "choisir un caillou au clavier"],
+      ["Échap", "pause"],
+    ],
+    progress() {
+      const s = readJSON("belesset-v1");
+      if (!s || !s.stages) return null;
+      const stars = Object.values(s.stages).reduce((n, l) => n + (l.stars || 0), 0);
+      return { value: stars, max: 21, label: `${stars} / 21 étoiles` };
+    },
+  },
+  {
+    slug: "lachi",
+    title: "Lachi",
+    emoji: "🥥",
+    tagline: "La balle en feuilles de coco.",
+    description:
+      "Inspiré du lachi, jeu traditionnel mahorais : lance la balle tressée en feuilles de coco pour toucher tes adversaires, et esquive leurs tirs. 8 niveaux, jusqu'à 3 balles en même temps !",
+    path: "games/lachi/index.html",
+    cover: "images/lachi.png",
+    orientation: "paysage",
+    accent: "#9bd15a",
+    tags: ["Mayotte", "Action", "Tradition"],
+    difficulty: 3,
+    duration: "1 à 2 min par niveau",
+    content: "8 niveaux",
+    touch: true,
+    added: "2026-10-26",
+    controls: [
+      ["ZQSD / ↑↓←→", "se déplacer"],
+      ["Clic", "viser et lancer"],
+      ["Espace", "lancer vers le plus proche / attraper"],
+      ["Échap", "pause"],
+    ],
+    progress() {
+      const s = readJSON("lachi-v1");
+      if (!s || !s.levels) return null;
+      const stars = Object.values(s.levels).reduce((n, l) => n + (l.stars || 0), 0);
+      return { value: stars, max: 24, label: `${stars} / 24 étoiles` };
+    },
+  },
+  {
+    slug: "course-de-pneus",
+    title: "Course de pneus",
+    emoji: "🛞",
+    tagline: "Pousse ton pneu jusqu'à la ligne !",
+    description:
+      "Inspiré de la course de pneus, jeu d'enfants à Mayotte : fais rouler ton vieux pneu avec un bâton, pousse au bon moment et saute par-dessus les trous, les poules et les chèvres.",
+    path: "games/course-de-pneus/index.html",
+    cover: "images/course-de-pneus.png",
+    orientation: "paysage",
+    accent: "#ffb347",
+    tags: ["Mayotte", "Course", "Rythme"],
+    difficulty: 2,
+    duration: "20 à 40 s par course",
+    content: "4 courses",
+    touch: true,
+    added: "2026-10-26",
+    controls: [
+      ["Espace", "pousser le pneu (en rythme)"],
+      ["↑", "sauter"],
+      ["Échap", "pause"],
+      ["M", "couper le son"],
+    ],
+    progress() {
+      const s = readJSON("pneus-v1");
+      if (!s || !s.best) return null;
+      const wins = Object.values(s.best).filter((r) => r === 1).length;
+      return { value: wins, max: 4, label: `${wins} / 4 courses gagnées` };
+    },
+  },
+  {
+    slug: "mgourou",
+    title: "Mgourou",
+    emoji: "🪢",
+    tagline: "Le tir à la corde en rythme.",
+    description:
+      "Inspiré du mgourou, le tir à la corde pratiqué à Mayotte : tire au bon rythme pour faire passer le drapeau de ton côté. 6 équipes à battre, ou à deux sur le même écran.",
+    path: "games/mgourou/index.html",
+    cover: "images/mgourou.png",
+    orientation: "paysage",
+    accent: "#ff9f5a",
+    tags: ["Mayotte", "Rythme", "À deux"],
+    difficulty: 2,
+    duration: "1 à 2 min par match",
+    content: "6 niveaux",
+    touch: true,
+    added: "2026-10-26",
+    controls: [
+      ["Espace / A", "tirer (joueur 1)"],
+      ["L", "tirer (joueur 2)"],
+      ["Échap", "pause"],
+      ["M", "couper le son"],
+    ],
+    progress() {
+      const s = readJSON("mgourou-v1");
+      if (!s || !s.levels) return null;
+      const stars = Object.values(s.levels).reduce((n, l) => n + (l.stars || 0), 0);
+      return { value: stars, max: 18, label: `${stars} / 18 étoiles` };
+    },
+  },
+  {
     slug: "mraha",
     title: "M'raha",
     emoji: "🌰",

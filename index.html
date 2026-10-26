@@ -10,245 +10,325 @@
   <meta property="og:description" content="Médiation numérique, accompagnement associatif et insertion professionnelle à Mayotte, en shimaore et en français.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="https://djidjamcyber.vercel.app/logo.png">
-  <meta name="theme-color" content="#0b1a4a">
+  <meta name="theme-color" content="#03061a">
   <link rel="icon" type="image/png" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Unbounded:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Unbounded:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --navy: #0b1a4a;
-      --navy-2: #1f3a93;
-      --blue: #004aad;
-      --gold: #d4a54a;
-      --gold-light: #f2c96b;
-      --cream: #fbf8f1;
-      --sand: #f3ecdc;
-      --ink: #0f1733;
-      --muted: #5b6687;
-      --line: #e6e0d0;
-      --white: #ffffff;
-      --radius: 22px;
-      --shadow: 0 18px 50px rgba(11, 26, 74, 0.10);
-      --shadow-lg: 0 30px 70px rgba(11, 26, 74, 0.18);
+      --bg: #03061a;
+      --bg-2: #070d2b;
+      --glass: rgba(14, 26, 74, 0.38);
+      --glass-2: rgba(22, 40, 110, 0.32);
+      --line: rgba(120, 160, 255, 0.14);
+      --line-2: rgba(120, 160, 255, 0.28);
+      --blue: #2f7bff;
+      --blue-logo: #004aad;
+      --cyan: #4fe3ff;
+      --gold: #f2c96b;
+      --gold-2: #d4a54a;
+      --text: #eaf1ff;
+      --muted: #93a3d4;
+      --radius: 24px;
       --font-title: "Unbounded", system-ui, sans-serif;
       --font: "Outfit", system-ui, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; scroll-padding-top: 90px; }
-    body { margin: 0; font-family: var(--font); font-size: 17px; line-height: 1.6; color: var(--ink); background: var(--cream); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
     a { color: inherit; text-decoration: none; }
     img { display: block; max-width: 100%; }
-    ::selection { background: var(--gold); color: var(--navy); }
-    .wrap { width: min(1180px, 100% - 40px); margin: 0 auto; }
+    ::selection { background: var(--gold); color: #120d00; }
+    .wrap { width: min(1200px, 100% - 40px); margin: 0 auto; position: relative; }
 
-    /* ---------- Bandeau solidaire ---------- */
-    .solidaire { background: linear-gradient(90deg, var(--gold), var(--gold-light), var(--gold)); color: var(--navy); text-align: center; font-size: 14.5px; font-weight: 600; padding: 9px 16px; }
-    .solidaire a { text-decoration: underline; text-underline-offset: 3px; }
+    /* --- fond : grille + halos + grain --- */
+    .bg-fx { position: fixed; inset: 0; z-index: -3; pointer-events: none;
+      background:
+        radial-gradient(1000px 700px at 80% -10%, rgba(47,123,255,.28), transparent 60%),
+        radial-gradient(800px 600px at -10% 40%, rgba(242,201,107,.10), transparent 60%),
+        radial-gradient(900px 700px at 50% 120%, rgba(79,227,255,.12), transparent 60%),
+        var(--bg); }
+    .bg-grid { position: fixed; inset: 0; z-index: -2; pointer-events: none;
+      background-image: linear-gradient(rgba(120,160,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(120,160,255,.06) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse at 50% 30%, #000 10%, transparent 75%); -webkit-mask-image: radial-gradient(ellipse at 50% 30%, #000 10%, transparent 75%); }
+    .grain { position: fixed; inset: -50%; z-index: -1; pointer-events: none; opacity: .05;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      animation: grain 1s steps(4) infinite; }
+    @keyframes grain { 0% { transform: translate(0,0); } 25% { transform: translate(-3%,2%); } 50% { transform: translate(2%,-3%); } 75% { transform: translate(-2%,-1%); } }
+    /* halo qui suit la souris */
+    .cursor-glow { position: fixed; width: 520px; height: 520px; left: 0; top: 0; z-index: -1; pointer-events: none; border-radius: 50%;
+      background: radial-gradient(circle, rgba(47,123,255,.16), transparent 65%); transform: translate(-50%,-50%); transition: opacity .3s; }
+    @media (hover: none) { .cursor-glow { display: none; } }
 
-    /* ---------- En-tête ---------- */
-    .topbar { position: sticky; top: 0; z-index: 50; background: rgba(251, 248, 241, 0.86); backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%); border-bottom: 1px solid transparent; transition: border-color .2s, box-shadow .2s; }
-    .topbar.scrolled { border-color: var(--line); box-shadow: 0 8px 30px rgba(11,26,74,.06); }
-    .topbar .wrap { display: flex; align-items: center; gap: 20px; height: 76px; }
+    /* --- barre de chargement du défilement --- */
+    .progress { position: fixed; top: 0; left: 0; height: 2px; width: 0; z-index: 100; background: linear-gradient(90deg, var(--cyan), var(--blue), var(--gold)); box-shadow: 0 0 12px var(--cyan); }
+
+    /* --- bandeau solidaire --- */
+    .ticker { position: relative; z-index: 51; overflow: hidden; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(242,201,107,.16), rgba(242,201,107,.05)); font-size: 14px; color: var(--gold); }
+    .ticker .t { display: flex; gap: 60px; width: max-content; padding: 8px 0; animation: tick 40s linear infinite; font-family: var(--mono); letter-spacing: .5px; }
+    .ticker span::before { content: "◆ "; opacity: .6; }
+    @keyframes tick { to { transform: translateX(-50%); } }
+
+    /* --- en-tête --- */
+    .topbar { position: sticky; top: 0; z-index: 50; transition: background .3s, border-color .3s; border-bottom: 1px solid transparent; }
+    .topbar.scrolled { background: rgba(3,6,26,.72); backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); border-color: var(--line); }
+    .topbar .wrap { display: flex; align-items: center; gap: 20px; height: 78px; }
     .brand { display: flex; align-items: center; gap: 12px; }
-    .brand img { width: 46px; height: 46px; border-radius: 14px; box-shadow: 0 6px 16px rgba(0,74,173,.35); }
-    .brand b { font-family: var(--font-title); font-size: 17px; color: var(--navy); letter-spacing: .2px; display: block; line-height: 1.1; }
-    .brand span { font-size: 12.5px; color: var(--muted); }
-    .nav { margin-left: auto; display: flex; align-items: center; gap: 4px; }
-    .nav a { padding: 9px 13px; border-radius: 12px; font-weight: 500; color: var(--muted); transition: color .15s, background .15s; }
-    .nav a:hover { color: var(--navy); background: rgba(11,26,74,.05); }
-    .nav a.nav-arcade { color: var(--navy); font-weight: 600; }
-    .nav a.btn-navy { color: var(--white); margin-left: 8px; }
-    .nav a.btn-navy:hover { background: var(--navy-2); color: var(--white); }
-    .burger { display: none; margin-left: auto; width: 46px; height: 46px; border-radius: 14px; border: 1px solid var(--line); background: var(--white); font-size: 20px; cursor: pointer; }
+    .brand img { width: 44px; height: 44px; border-radius: 13px; box-shadow: 0 0 0 1px rgba(255,255,255,.18), 0 0 24px rgba(47,123,255,.6); }
+    .brand b { font-family: var(--font-title); font-size: 16px; letter-spacing: .3px; display: block; line-height: 1.1; }
+    .brand small { font-family: var(--mono); font-size: 11px; color: var(--cyan); letter-spacing: 1px; }
+    .nav { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+    .nav a { position: relative; padding: 9px 14px; border-radius: 12px; color: var(--muted); font-weight: 500; transition: color .2s; }
+    .nav a:not(.btn)::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 4px; height: 1px; background: var(--cyan); transform: scaleX(0); transform-origin: left; transition: transform .3s; box-shadow: 0 0 8px var(--cyan); }
+    .nav a:not(.btn):hover { color: var(--text); }
+    .nav a:not(.btn):hover::after { transform: scaleX(1); }
+    .nav a.nav-arcade { color: var(--gold); }
+    .nav a.btn-gold { color: #120d00; margin-left: 8px; }
+    .burger { display: none; margin-left: auto; width: 46px; height: 46px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--glass); color: var(--text); font-size: 20px; cursor: pointer; }
     @media (max-width: 980px) {
-      .nav { position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 2px; padding: 14px 20px 22px; background: var(--cream); border-bottom: 1px solid var(--line); box-shadow: 0 20px 40px rgba(11,26,74,.1); visibility: hidden; opacity: 0; transform: translateY(-12px); transition: opacity .25s ease, transform .25s ease, visibility .25s; }
+      .nav { position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; padding: 14px 20px 22px; background: rgba(3,6,26,.96); border-bottom: 1px solid var(--line); visibility: hidden; opacity: 0; transform: translateY(-10px); transition: all .25s; }
       .nav.open { visibility: visible; opacity: 1; transform: none; }
       .nav a { padding: 13px 14px; font-size: 18px; }
+      .nav a:not(.btn)::after { display: none; }
       .nav .btn { margin-top: 8px; }
       .burger { display: inline-flex; align-items: center; justify-content: center; }
     }
 
-    /* ---------- Boutons ---------- */
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 26px; border-radius: 16px; font-weight: 700; font-size: 17px; border: 0; cursor: pointer; font-family: inherit; transition: transform .12s ease, box-shadow .2s, background .2s; }
+    /* --- boutons --- */
+    .btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 15px 28px; border-radius: 16px; font-weight: 700; font-size: 16.5px; border: 0; cursor: pointer; font-family: inherit; overflow: hidden; isolation: isolate; transition: transform .15s, box-shadow .3s; }
     .btn:hover { transform: translateY(-2px); }
-    .btn-navy { background: var(--navy); color: var(--white); box-shadow: 0 10px 24px rgba(11,26,74,.25); }
-    .btn-navy:hover { background: var(--navy-2); }
-    .btn-gold { background: linear-gradient(135deg, var(--gold-light), var(--gold)); color: var(--navy); box-shadow: 0 10px 26px rgba(212,165,74,.4), inset 0 1px 0 rgba(255,255,255,.5); }
-    .btn-glass { background: rgba(255,255,255,.08); color: var(--white); border: 1px solid rgba(255,255,255,.25); }
-    .btn-glass:hover { background: rgba(255,255,255,.16); }
-    .btn-line { background: var(--white); color: var(--navy); border: 1px solid var(--line); }
+    .btn-gold { color: #120d00; background: linear-gradient(135deg, #ffe39a, var(--gold) 45%, var(--gold-2)); box-shadow: 0 0 0 1px rgba(255,230,160,.4) inset, 0 12px 34px rgba(242,201,107,.35); }
+    .btn-gold:hover { box-shadow: 0 0 0 1px rgba(255,230,160,.6) inset, 0 16px 44px rgba(242,201,107,.55); }
+    .btn-gold::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%); transform: translateX(-120%); animation: shine 4s ease-in-out infinite; }
+    @keyframes shine { 0%, 60% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+    .btn-glass { color: var(--text); background: var(--glass); border: 1px solid var(--line-2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    .btn-glass:hover { border-color: var(--cyan); box-shadow: 0 0 24px rgba(79,227,255,.25); }
+    .btn-blue { color: #fff; background: linear-gradient(135deg, #4d8fff, var(--blue) 50%, var(--blue-logo)); box-shadow: 0 12px 30px rgba(47,123,255,.4); }
     .btn-sm { padding: 10px 18px; font-size: 15px; border-radius: 13px; }
 
-    /* ---------- Titres ---------- */
-    .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); }
-    .eyebrow::before { content: ""; width: 24px; height: 2px; border-radius: 2px; background: currentColor; }
-    h2.title { font-family: var(--font-title); font-weight: 700; font-size: clamp(28px, 3.6vw, 42px); line-height: 1.12; letter-spacing: -0.8px; color: var(--navy); margin: 12px 0 14px; }
+    /* --- titres --- */
+    .tag { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--cyan); }
+    .tag::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); animation: blink 2s ease-in-out infinite; }
+    @keyframes blink { 50% { opacity: .3; } }
+    h2.title { font-family: var(--font-title); font-weight: 700; font-size: clamp(30px, 4vw, 48px); line-height: 1.08; letter-spacing: -1px; margin: 14px 0 16px; }
+    .grad { background: linear-gradient(100deg, var(--gold) 0%, #fff1c7 35%, var(--cyan) 75%, var(--blue) 100%); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: gradmove 8s linear infinite; }
+    @keyframes gradmove { to { background-position: 200% center; } }
     .intro { color: var(--muted); font-size: 18.5px; max-width: 640px; margin: 0; }
-    .section { padding: 100px 0; }
+    .section { padding: 120px 0; position: relative; }
     .center { text-align: center; }
     .center .intro { margin: 0 auto; }
 
-    /* ---------- Bandeau principal ---------- */
-    .hero { position: relative; overflow: hidden; color: var(--white); background: radial-gradient(900px 500px at 85% 10%, rgba(0,74,173,.85), transparent 60%), radial-gradient(700px 500px at 0% 100%, rgba(212,165,74,.25), transparent 60%), linear-gradient(160deg, #081236, var(--navy) 50%, #0d2466); }
-    .hero::after { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px); background-size: 56px 56px; mask-image: radial-gradient(ellipse at 70% 30%, #000 20%, transparent 70%); -webkit-mask-image: radial-gradient(ellipse at 70% 30%, #000 20%, transparent 70%); pointer-events: none; }
-    .hero .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: 1.15fr .85fr; gap: 60px; align-items: center; padding: 96px 0 110px; }
-    @media (max-width: 960px) { .hero .wrap { grid-template-columns: 1fr; padding: 64px 0 80px; gap: 40px; } }
-    .hero h1 { font-family: var(--font-title); font-weight: 700; font-size: clamp(32px, 4.6vw, 56px); line-height: 1.08; letter-spacing: -1.4px; margin: 20px 0 22px; }
-    .hero h1 em { font-style: normal; color: var(--gold-light); }
-    .hero p.lead { font-size: 19.5px; color: rgba(255,255,255,.78); max-width: 560px; margin: 0 0 34px; }
-    .hero .ctas { display: flex; flex-wrap: wrap; gap: 14px; }
-    .hero .place { margin-top: 30px; display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.65); font-size: 15px; }
-    .hero-card { position: relative; justify-self: center; width: min(400px, 100%); }
-    .hero-card .logo { width: 100%; aspect-ratio: 1; border-radius: 40px; box-shadow: 0 40px 90px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.15); animation: float 7s ease-in-out infinite; }
-    .pill { position: absolute; display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 16px; background: rgba(255,255,255,.95); color: var(--navy); font-weight: 600; font-size: 15px; box-shadow: 0 18px 40px rgba(0,0,0,.25); white-space: nowrap; animation: float 6s ease-in-out infinite; }
-    .pill i { font-style: normal; font-size: 22px; }
-    .pill.p1 { left: -38px; top: 14%; animation-delay: -1s; }
-    .pill.p2 { right: -30px; top: 52%; animation-delay: -3s; }
-    .pill.p3 { left: -10px; bottom: -18px; animation-delay: -2s; }
-    @media (max-width: 520px) { .pill.p1 { left: -6px; } .pill.p2 { right: -6px; } }
-    @keyframes float { 0%,100% { translate: 0 0; } 50% { translate: 0 -12px; } }
+    /* --- verre --- */
+    .glass { position: relative; background: linear-gradient(160deg, var(--glass-2), var(--glass)); border: 1px solid var(--line); border-radius: var(--radius); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    /* bordure lumineuse qui tourne */
+    .glow-border { position: relative; }
+    .glow-border::before { content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
+      background: conic-gradient(from var(--a, 0deg), transparent 0deg, var(--cyan) 40deg, transparent 90deg, transparent 180deg, var(--gold) 220deg, transparent 270deg);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+      animation: spin 6s linear infinite; opacity: .8; }
+    @property --a { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+    @keyframes spin { to { --a: 360deg; } }
+    /* reflet qui suit la souris dans les cartes */
+    .spot { --mx: 50%; --my: 50%; }
+    .spot::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .3s;
+      background: radial-gradient(400px circle at var(--mx) var(--my), rgba(79,227,255,.14), transparent 45%); }
+    .spot:hover::after { opacity: 1; }
 
-    /* ---------- Piliers ---------- */
-    .pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: -60px; position: relative; z-index: 2; }
+    /* ================= HERO ================= */
+    .hero { position: relative; min-height: calc(100vh - 110px); display: flex; align-items: center; overflow: hidden; }
+    #scene { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; display: block; }
+    .hero .wrap { z-index: 1; display: grid; grid-template-columns: minmax(0, 680px); gap: 30px; align-items: center; padding: 60px 0 90px; pointer-events: none; }
+    .hero .wrap > * { pointer-events: auto; }
+    @media (max-width: 960px) { .hero .wrap { grid-template-columns: 1fr; padding-top: 380px; } .hero { min-height: auto; } .topbar .brand small { display: none; } }
+    .hero h1 { font-family: var(--font-title); font-weight: 800; font-size: clamp(34px, 5vw, 64px); line-height: 1.04; letter-spacing: -1.8px; margin: 22px 0 22px; }
+    .hero h1 .line { display: block; overflow: hidden; }
+    .hero h1 .line > span { display: inline-block; animation: rise .9s cubic-bezier(.2,.8,.2,1) both; }
+    .hero h1 .line:nth-child(2) > span { animation-delay: .08s; }
+    .hero h1 .line:nth-child(3) > span { animation-delay: .16s; }
+    .hero h1 .line:nth-child(4) > span { animation-delay: .24s; }
+    .hero .lead, .hero .ctas, .terminal, .hud { animation: fadeup .8s ease both .35s; }
+    @keyframes rise { from { transform: translateY(110%); } }
+    @keyframes fadeup { from { opacity: 0; transform: translateY(24px); } }
+    .hero p.lead { font-size: 19.5px; color: var(--muted); max-width: 560px; margin: 0 0 34px; }
+    .hero .ctas { display: flex; flex-wrap: wrap; gap: 14px; }
+    .terminal { margin-top: 36px; max-width: 520px; padding: 14px 18px; font-family: var(--mono); font-size: 13.5px; color: var(--muted); border-radius: 14px; }
+    .terminal b { color: var(--cyan); font-weight: 600; }
+    .terminal .cur { display: inline-block; width: 8px; height: 15px; background: var(--cyan); vertical-align: -2px; margin-left: 2px; animation: blink 1s steps(1) infinite; }
+    .hud { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); width: min(760px, 100%); }
+    .hud .chip { padding: 12px 14px !important; }
+    @media (max-width: 560px) { .hud { grid-template-columns: 1fr; } }
+    .hud .chip { padding: 16px 18px; display: flex; align-items: center; gap: 14px; }
+    .hud .chip i { font-style: normal; width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; display: grid; place-items: center; font-size: 20px; background: rgba(79,227,255,.08); border: 1px solid var(--line-2); }
+    .hud .chip b { display: block; font-size: 16px; }
+    .hud .chip span { font-family: var(--mono); font-size: 11.5px; color: var(--muted); letter-spacing: .5px; }
+    .scroll-hint { position: absolute; left: 50%; bottom: 22px; z-index: 1; transform: translateX(-50%); font-family: var(--mono); font-size: 11px; letter-spacing: 3px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .scroll-hint::after { content: ""; width: 1px; height: 40px; background: linear-gradient(var(--cyan), transparent); animation: drop 2s ease-in-out infinite; }
+    @keyframes drop { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+
+    /* ================= CHIFFRES ================= */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; overflow: hidden; }
+    .stats > div { padding: 30px 28px; border-right: 1px solid var(--line); }
+    .stats > div:last-child { border-right: 0; }
+    @media (max-width: 860px) { .stats { grid-template-columns: 1fr 1fr; } .stats > div:nth-child(2) { border-right: 0; } .stats > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); } }
+    .stats b { display: block; font-family: var(--font-title); font-size: clamp(28px, 3.4vw, 42px); line-height: 1.1; }
+    .stats > div > span { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+
+    /* ================= PILIERS ================= */
+    .pillars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 56px; perspective: 1200px; }
     @media (max-width: 1000px) { .pillars { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 560px) { .pillars { grid-template-columns: 1fr; } }
-    .pillar { background: var(--white); border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow); border: 1px solid var(--line); transition: transform .25s, box-shadow .25s; }
-    .pillar:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
-    .pillar .ico { width: 56px; height: 56px; border-radius: 17px; display: grid; place-items: center; font-size: 27px; background: linear-gradient(135deg, #e9effd, #f7f1e3); margin-bottom: 18px; }
-    .pillar h3 { margin: 0 0 8px; font-size: 20px; color: var(--navy); }
-    .pillar p { margin: 0 0 14px; color: var(--muted); font-size: 15.5px; }
-    .pillar a { font-weight: 700; color: var(--blue); font-size: 15px; }
+    .pillar { padding: 30px 26px; transform-style: preserve-3d; transition: transform .2s ease-out, border-color .3s; will-change: transform; }
+    .pillar:hover { border-color: var(--line-2); }
+    .pillar .num { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 2px; }
+    .pillar .ico { width: 60px; height: 60px; border-radius: 18px; display: grid; place-items: center; font-size: 28px; margin: 22px 0 20px; background: radial-gradient(circle at 30% 30%, rgba(79,227,255,.25), rgba(47,123,255,.08)); border: 1px solid var(--line-2); box-shadow: 0 0 30px rgba(47,123,255,.25); transform: translateZ(40px); }
+    .pillar h3 { margin: 0 0 8px; font-size: 21px; transform: translateZ(30px); }
+    .pillar p { margin: 0 0 16px; color: var(--muted); font-size: 15.5px; transform: translateZ(20px); }
+    .pillar a { font-family: var(--mono); font-size: 13px; color: var(--cyan); letter-spacing: .5px; transform: translateZ(20px); display: inline-block; }
 
-    /* ---------- Services + tarifs ---------- */
-    .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin: 36px 0 26px; }
-    .tab { padding: 12px 20px; border-radius: 999px; border: 1px solid var(--line); background: var(--white); font-family: inherit; font-size: 16px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .15s; }
-    .tab:hover { color: var(--navy); }
-    .tab.active { background: var(--navy); color: var(--white); border-color: var(--navy); box-shadow: 0 10px 24px rgba(11,26,74,.2); }
-    .panel { display: none; grid-template-columns: .9fr 1.1fr; gap: 30px; background: var(--white); border: 1px solid var(--line); border-radius: 28px; padding: 40px; box-shadow: var(--shadow); }
-    .panel.active { display: grid; animation: fade .35s ease; }
-    @keyframes fade { from { opacity: 0; transform: translateY(10px); } }
-    @media (max-width: 860px) { .panel { grid-template-columns: 1fr; padding: 28px; } }
-    .panel h3 { font-family: var(--font-title); font-size: 26px; color: var(--navy); margin: 10px 0 12px; line-height: 1.2; }
-    .panel .desc { color: var(--muted); margin: 0 0 24px; }
-    .prices { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-    .prices li { display: flex; align-items: baseline; gap: 12px; padding: 12px 4px; border-bottom: 1px dashed var(--line); }
+    /* ================= SERVICES ================= */
+    .tabs { display: inline-flex; flex-wrap: wrap; gap: 6px; padding: 6px; margin: 40px 0 26px; border-radius: 18px; }
+    .tab { position: relative; padding: 12px 20px; border-radius: 13px; border: 0; background: transparent; font-family: inherit; font-size: 15.5px; font-weight: 600; color: var(--muted); cursor: pointer; transition: color .2s; z-index: 1; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: #fff; }
+    .tab-ind { position: absolute; z-index: 0; top: 6px; bottom: 6px; border-radius: 13px; background: linear-gradient(135deg, rgba(79,227,255,.25), rgba(47,123,255,.4)); border: 1px solid rgba(79,227,255,.45); box-shadow: 0 0 24px rgba(79,227,255,.25); transition: left .35s cubic-bezier(.4,1.3,.5,1), width .35s cubic-bezier(.4,1.3,.5,1); }
+    .panels { position: relative; }
+    .panel { display: none; grid-template-columns: .85fr 1.15fr; gap: 40px; padding: 44px; }
+    .panel.active { display: grid; }
+    @media (max-width: 860px) { .panel { grid-template-columns: 1fr; padding: 28px; gap: 24px; } }
+    .panel h3 { font-family: var(--font-title); font-size: 27px; margin: 14px 0 14px; line-height: 1.2; }
+    .panel .desc { color: var(--muted); margin: 0 0 26px; }
+    .prices { list-style: none; margin: 0; padding: 0; }
+    .prices li { display: flex; align-items: baseline; gap: 14px; padding: 14px 6px; border-bottom: 1px solid var(--line); transition: background .2s, padding .2s; }
+    .prices li:hover { background: rgba(79,227,255,.04); padding-left: 12px; }
     .prices li:last-child { border-bottom: 0; }
     .prices li span { flex: 1; }
-    .prices li b { font-family: var(--font-title); font-weight: 600; font-size: 16px; color: var(--navy); white-space: nowrap; }
-    .prices li b.devis { font-family: var(--font); font-size: 14px; font-weight: 600; color: var(--gold); }
-    .note { margin-top: 24px; padding: 16px 20px; border-radius: 16px; background: var(--sand); color: var(--ink); font-size: 15.5px; border-left: 4px solid var(--gold); }
+    .prices li .dots { flex: 1; border-bottom: 1px dashed var(--line-2); transform: translateY(-4px); min-width: 20px; }
+    .prices li b { font-family: var(--mono); font-weight: 600; font-size: 16px; color: var(--gold); white-space: nowrap; }
+    .prices li b.devis { color: var(--cyan); font-size: 13.5px; }
+    .note { margin-top: 24px; padding: 18px 22px; font-size: 15.5px; color: var(--muted); }
+    .note strong { color: var(--text); }
 
-    /* ---------- Associations ---------- */
-    .asso { background: var(--navy); color: var(--white); position: relative; overflow: hidden; }
-    .asso::before { content: ""; position: absolute; width: 700px; height: 700px; right: -250px; top: -250px; border-radius: 50%; background: radial-gradient(circle, rgba(0,74,173,.7), transparent 65%); }
-    .asso .wrap { position: relative; }
-    .asso h2.title { color: var(--white); }
-    .asso .intro { color: rgba(255,255,255,.72); }
-    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 50px; counter-reset: step; }
-    @media (max-width: 960px) { .steps { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 560px) { .steps { grid-template-columns: 1fr; } }
-    .step { position: relative; padding: 30px 26px; border-radius: var(--radius); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
-    .step::before { counter-increment: step; content: "0" counter(step); font-family: var(--font-title); font-size: 40px; font-weight: 800; color: var(--gold-light); display: block; line-height: 1; margin-bottom: 18px; }
-    .step h3 { margin: 0 0 8px; font-size: 19px; }
-    .step p { margin: 0; color: rgba(255,255,255,.7); font-size: 15.5px; }
-    .funders { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 44px; }
-    .funders span.lbl { color: rgba(255,255,255,.6); margin-right: 6px; }
-    .funders span.f { padding: 10px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); font-weight: 600; font-size: 15px; }
-    .asso-cta { margin-top: 44px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; padding: 26px 30px; border-radius: var(--radius); background: linear-gradient(120deg, rgba(212,165,74,.22), rgba(212,165,74,.06)); border: 1px solid rgba(212,165,74,.4); }
-    .asso-cta p { margin: 0; font-size: 18px; max-width: 640px; }
-    .asso-cta p b { color: var(--gold-light); }
+    /* ================= ASSOCIATIONS ================= */
+    .timeline { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; margin-top: 60px; }
+    .timeline::before { content: ""; position: absolute; left: 4%; right: 4%; top: 34px; height: 2px; background: linear-gradient(90deg, transparent, var(--line-2), transparent); }
+    .timeline .beam { position: absolute; left: 4%; top: 33px; height: 4px; width: 0; border-radius: 4px; background: linear-gradient(90deg, var(--cyan), var(--gold)); box-shadow: 0 0 16px var(--cyan); }
+    @media (max-width: 960px) { .timeline { grid-template-columns: 1fr 1fr; } .timeline::before, .timeline .beam { display: none; } }
+    @media (max-width: 560px) { .timeline { grid-template-columns: 1fr; } }
+    .step { padding: 0 6px; }
+    .step .dot { width: 70px; height: 70px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-title); font-weight: 800; font-size: 20px; color: var(--gold); background: radial-gradient(circle at 30% 30%, #18307d, #070d2b); border: 1px solid var(--line-2); box-shadow: 0 0 0 6px rgba(3,6,26,1), 0 0 30px rgba(79,227,255,.25); position: relative; z-index: 1; margin-bottom: 24px; }
+    .step h3 { margin: 0 0 8px; font-size: 20px; }
+    .step p { margin: 0; color: var(--muted); font-size: 15.5px; }
+    .funders { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 56px; }
+    .funders .lbl { font-family: var(--mono); font-size: 12.5px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-right: 8px; }
+    .funders .f { padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--glass); font-weight: 600; font-size: 15px; transition: border-color .2s, box-shadow .2s; }
+    .funders .f:hover { border-color: var(--gold); box-shadow: 0 0 20px rgba(242,201,107,.25); }
+    .asso-cta { margin-top: 44px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; padding: 30px 34px; }
+    .asso-cta p { margin: 0; font-size: 18px; max-width: 640px; color: var(--muted); }
+    .asso-cta p b { color: var(--gold); }
 
-    /* ---------- Tarif solidaire ---------- */
-    .soli { display: grid; grid-template-columns: auto 1fr; gap: 40px; align-items: center; padding: 50px; border-radius: 32px; background: linear-gradient(135deg, #fff6df, #f6e6bf); border: 1px solid #ecd8a8; box-shadow: var(--shadow); }
-    @media (max-width: 760px) { .soli { grid-template-columns: 1fr; padding: 32px; gap: 20px; } }
-    .soli .big { font-family: var(--font-title); font-weight: 800; font-size: clamp(64px, 9vw, 110px); line-height: .9; color: var(--navy); letter-spacing: -4px; }
-    .soli .big small { display: block; font-size: 16px; letter-spacing: 3px; color: var(--gold); margin-top: 10px; font-weight: 700; }
-    .soli h2.title { margin-top: 0; }
-    .who { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
-    .who span { padding: 10px 16px; border-radius: 999px; background: var(--white); border: 1px solid #ecd8a8; font-weight: 600; font-size: 15px; color: var(--navy); }
+    /* ================= SOLIDAIRE ================= */
+    .soli { display: grid; grid-template-columns: auto 1fr; gap: 50px; align-items: center; padding: 56px; overflow: hidden; }
+    .soli::before { content: ""; position: absolute; width: 500px; height: 500px; left: -150px; top: -200px; border-radius: 50%; background: radial-gradient(circle, rgba(242,201,107,.25), transparent 65%); pointer-events: none; }
+    @media (max-width: 760px) { .soli { grid-template-columns: 1fr; padding: 34px; gap: 20px; } }
+    .soli .big { font-family: var(--font-title); font-weight: 800; font-size: clamp(70px, 10vw, 130px); line-height: .9; letter-spacing: -5px; position: relative; }
+    .soli .big small { display: block; font-family: var(--mono); font-size: 13px; letter-spacing: 4px; color: var(--gold); margin-top: 14px; font-weight: 600; }
+    .who { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    .who span { padding: 10px 16px; border-radius: 999px; border: 1px solid rgba(242,201,107,.35); background: rgba(242,201,107,.07); font-weight: 600; font-size: 15px; color: #ffe7ad; }
 
-    /* ---------- Arcade ---------- */
-    .arcade { position: relative; overflow: hidden; border-radius: 32px; padding: 54px; color: #eaf0ff; background: radial-gradient(600px 400px at 90% 0%, rgba(47,107,255,.6), transparent 60%), radial-gradient(500px 400px at 0% 100%, rgba(242,193,78,.25), transparent 60%), #060a1c; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; box-shadow: var(--shadow-lg); }
+    /* ================= ARCADE ================= */
+    .arcade { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: center; padding: 56px; overflow: hidden; }
     @media (max-width: 900px) { .arcade { grid-template-columns: 1fr; padding: 34px; } }
-    .arcade h2.title { color: #fff; }
-    .arcade p { color: #9aa8d6; font-size: 18px; margin: 0 0 28px; }
-    .arcade .new { display: inline-block; padding: 6px 12px; border-radius: 9px; background: var(--gold-light); color: #1a1300; font-weight: 800; font-size: 12px; letter-spacing: 1.5px; }
-    .shots { position: relative; height: 300px; }
-    .shots img { position: absolute; border-radius: 18px; border: 1px solid rgba(255,255,255,.18); box-shadow: 0 24px 60px rgba(0,0,0,.6); object-fit: cover; transition: transform .4s; }
-    .shots .s1 { width: 80%; aspect-ratio: 16/9; right: 0; top: 20px; transform: rotate(3deg); }
-    .shots .s2 { width: 34%; aspect-ratio: 3/5; left: 4%; top: 30px; transform: rotate(-6deg); object-position: 50% 40%; }
-    .arcade:hover .s1 { transform: rotate(1deg) translateY(-6px); }
-    .arcade:hover .s2 { transform: rotate(-3deg) translateY(-6px); }
+    .arcade .new { display: inline-block; padding: 6px 12px; border-radius: 8px; background: var(--gold); color: #120d00; font-family: var(--mono); font-weight: 600; font-size: 12px; letter-spacing: 2px; }
+    .arcade p { color: var(--muted); font-size: 18px; margin: 0 0 30px; }
+    .shots { position: relative; height: 340px; perspective: 1000px; }
+    .shots img { position: absolute; border-radius: 18px; border: 1px solid var(--line-2); object-fit: cover; box-shadow: 0 30px 70px rgba(0,0,0,.6); transition: transform .6s cubic-bezier(.2,.8,.2,1); }
+    .shots .s1 { width: 80%; aspect-ratio: 16/9; right: 0; top: 30px; transform: rotateY(-14deg) rotateX(6deg); box-shadow: 0 30px 70px rgba(0,0,0,.6), 0 0 60px -10px rgba(76,217,123,.6); }
+    .shots .s2 { width: 34%; aspect-ratio: 3/5; left: 2%; top: 20px; object-position: 50% 40%; transform: rotateY(14deg) rotateX(4deg); box-shadow: 0 30px 70px rgba(0,0,0,.6), 0 0 60px -10px rgba(255,90,110,.6); }
+    .arcade:hover .s1 { transform: rotateY(-4deg) rotateX(2deg) translateY(-8px); }
+    .arcade:hover .s2 { transform: rotateY(4deg) translateY(-8px); }
 
-    /* ---------- À propos ---------- */
-    .about { display: grid; grid-template-columns: .85fr 1.15fr; gap: 60px; align-items: center; }
+    /* ================= À PROPOS ================= */
+    .about { display: grid; grid-template-columns: .9fr 1.1fr; gap: 60px; align-items: center; }
     @media (max-width: 900px) { .about { grid-template-columns: 1fr; gap: 36px; } }
-    .portrait { position: relative; border-radius: 32px; padding: 40px; background: linear-gradient(160deg, var(--navy-2), var(--navy)); color: #fff; box-shadow: var(--shadow-lg); overflow: hidden; }
-    .portrait::after { content: "“"; position: absolute; right: 20px; top: -40px; font-family: Georgia, serif; font-size: 240px; color: rgba(212,165,74,.25); line-height: 1; }
-    .portrait .avatar { width: 84px; height: 84px; border-radius: 26px; display: grid; place-items: center; font-family: var(--font-title); font-weight: 800; font-size: 30px; background: linear-gradient(135deg, var(--gold-light), var(--gold)); color: var(--navy); margin-bottom: 22px; }
-    .portrait blockquote { margin: 0; font-size: 22px; line-height: 1.4; font-weight: 500; position: relative; z-index: 1; }
-    .portrait cite { display: block; margin-top: 18px; font-style: normal; color: rgba(255,255,255,.7); font-size: 15px; }
+    .idcard { padding: 34px; overflow: hidden; }
+    .idcard .top { display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 11.5px; letter-spacing: 2px; color: var(--muted); }
+    .idcard .top i { font-style: normal; color: #6dffa8; }
+    .idcard .avatar { width: 96px; height: 96px; margin: 28px 0 22px; border-radius: 28px; display: grid; place-items: center; font-family: var(--font-title); font-weight: 800; font-size: 34px; color: #120d00; background: linear-gradient(135deg, #ffe39a, var(--gold-2)); box-shadow: 0 0 40px rgba(242,201,107,.4); }
+    .idcard blockquote { margin: 0; font-size: 22px; line-height: 1.4; font-weight: 500; }
+    .idcard cite { display: block; margin-top: 16px; font-style: normal; font-family: var(--mono); font-size: 12.5px; color: var(--cyan); letter-spacing: .5px; }
+    .idcard .scan { position: absolute; left: 0; right: 0; height: 80px; top: -80px; background: linear-gradient(transparent, rgba(79,227,255,.12), transparent); animation: scan 4s linear infinite; pointer-events: none; }
+    @keyframes scan { to { top: 110%; } }
     .about p { color: var(--muted); font-size: 18px; margin: 0 0 16px; }
-    .about p strong { color: var(--navy); }
-    .values { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 26px; }
-    .values div { display: flex; gap: 12px; align-items: flex-start; padding: 16px; border-radius: 16px; background: var(--white); border: 1px solid var(--line); }
+    .about p strong { color: var(--text); }
+    .values { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 28px; }
+    .values > div { display: flex; gap: 14px; align-items: flex-start; padding: 18px; }
     .values i { font-style: normal; font-size: 22px; }
-    .values b { display: block; color: var(--navy); }
+    .values b { display: block; }
     .values span { color: var(--muted); font-size: 14.5px; }
     @media (max-width: 480px) { .values { grid-template-columns: 1fr; } }
 
-    /* ---------- Contact ---------- */
-    .contact { background: var(--sand); }
-    .contact-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 30px; margin-top: 44px; }
+    /* ================= CONTACT ================= */
+    .contact-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 30px; margin-top: 50px; }
     @media (max-width: 900px) { .contact-grid { grid-template-columns: 1fr; } }
-    .cards { display: grid; gap: 14px; }
-    .ccard { display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-radius: 20px; background: var(--white); border: 1px solid var(--line); transition: transform .2s, box-shadow .2s, border-color .2s; }
-    .ccard:hover { transform: translateX(4px); box-shadow: var(--shadow); border-color: var(--gold); }
-    .ccard .ico { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; font-size: 24px; background: var(--navy); flex-shrink: 0; }
-    .ccard b { display: block; color: var(--navy); font-size: 17.5px; word-break: break-word; }
+    .cards { display: grid; gap: 14px; align-content: start; }
+    .ccard { display: flex; align-items: center; gap: 18px; padding: 20px 22px; transition: transform .25s, border-color .25s, box-shadow .25s; }
+    .ccard:hover { transform: translateX(6px); border-color: var(--cyan); box-shadow: 0 0 30px rgba(79,227,255,.15); }
+    .ccard .ico { width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; font-size: 24px; flex-shrink: 0; background: linear-gradient(135deg, var(--blue), var(--blue-logo)); box-shadow: 0 0 24px rgba(47,123,255,.45); }
+    .ccard b { display: block; font-size: 17.5px; word-break: break-word; }
     .ccard span { color: var(--muted); font-size: 14.5px; }
-    .form { padding: 34px; border-radius: 28px; background: var(--white); border: 1px solid var(--line); box-shadow: var(--shadow); }
-    .form h3 { font-family: var(--font-title); color: var(--navy); font-size: 22px; margin: 0 0 6px; }
-    .form > p { color: var(--muted); margin: 0 0 22px; font-size: 15.5px; }
-    .field { display: grid; gap: 6px; margin-bottom: 14px; }
-    .field label { font-weight: 600; font-size: 14.5px; color: var(--navy); }
-    .field input, .field select, .field textarea { font-family: inherit; font-size: 16px; padding: 13px 15px; border-radius: 14px; border: 1px solid var(--line); background: var(--cream); color: var(--ink); outline: none; transition: border-color .15s, box-shadow .15s; }
+    .form { padding: 36px; }
+    .form h3 { font-family: var(--font-title); font-size: 22px; margin: 0 0 6px; }
+    .form > p { color: var(--muted); margin: 0 0 24px; font-size: 15.5px; }
+    .field { display: grid; gap: 7px; margin-bottom: 16px; }
+    .field label { font-family: var(--mono); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--cyan); }
+    .field input, .field select, .field textarea { font-family: inherit; font-size: 16px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line-2); background: rgba(3,6,26,.55); color: var(--text); outline: none; transition: border-color .2s, box-shadow .2s; }
+    .field select option { background: var(--bg-2); }
     .field textarea { min-height: 110px; resize: vertical; }
-    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(212,165,74,.18); background: var(--white); }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--cyan); box-shadow: 0 0 0 4px rgba(79,227,255,.12), 0 0 24px rgba(79,227,255,.15); }
     .form .btn { width: 100%; margin-top: 6px; }
     .rgpd { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
 
-    /* ---------- Pied de page ---------- */
-    footer { background: #070f2c; color: rgba(255,255,255,.65); padding: 64px 0 34px; font-size: 15px; }
+    /* ================= PIED DE PAGE ================= */
+    footer { border-top: 1px solid var(--line); padding: 70px 0 34px; color: var(--muted); font-size: 15px; position: relative; overflow: hidden; }
     .foot { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 40px; }
     @media (max-width: 760px) { .foot { grid-template-columns: 1fr; gap: 28px; } }
-    footer h4 { color: #fff; font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase; margin: 0 0 14px; }
-    footer a:hover { color: var(--gold-light); }
-    footer ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-    .foot .brand b { color: #fff; }
-    .foot .brand span { color: rgba(255,255,255,.55); }
-    .copy { margin-top: 44px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.1); font-size: 13.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    footer h4 { font-family: var(--mono); color: var(--text); font-size: 12.5px; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 16px; }
+    footer a:hover { color: var(--gold); }
+    footer ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+    .giant { font-family: var(--font-title); font-weight: 800; font-size: clamp(50px, 13vw, 190px); line-height: .8; letter-spacing: -6px; margin-top: 60px; text-align: center; background: linear-gradient(180deg, rgba(120,160,255,.18), transparent 85%); -webkit-background-clip: text; background-clip: text; color: transparent; user-select: none; }
+    .copy { margin-top: 10px; padding-top: 24px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 
-    /* bouton d'appel flottant (téléphone) */
-    .callfab { position: fixed; right: 18px; bottom: 18px; z-index: 60; display: none; width: 60px; height: 60px; border-radius: 50%; align-items: center; justify-content: center; font-size: 26px; background: linear-gradient(135deg, var(--gold-light), var(--gold)); box-shadow: 0 14px 34px rgba(212,165,74,.55); }
+    .callfab { position: fixed; right: 18px; bottom: 18px; z-index: 60; display: none; width: 60px; height: 60px; border-radius: 50%; align-items: center; justify-content: center; font-size: 26px; background: linear-gradient(135deg, #ffe39a, var(--gold-2)); box-shadow: 0 0 0 0 rgba(242,201,107,.6); animation: pulse 2.4s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(242,201,107,.55); } 70% { box-shadow: 0 0 0 18px rgba(242,201,107,0); } 100% { box-shadow: 0 0 0 0 rgba(242,201,107,0); } }
     @media (max-width: 760px) { .callfab { display: flex; } }
 
-    .reveal { opacity: 0; transform: translateY(26px); transition: opacity .8s ease, transform .8s ease; }
-    .reveal.in { opacity: 1; transform: none; }
-    @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } * { animation: none !important; } }
+    /* état initial des animations (si JS indisponible, tout reste visible) */
+    .js .rv { opacity: 0; transform: translateY(40px); }
+    @media (prefers-reduced-motion: reduce) { .js .rv { opacity: 1; transform: none; } * { animation: none !important; } }
   </style>
+  <script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
+  <div class="bg-fx"></div><div class="bg-grid"></div><div class="grain"></div>
+  <div class="cursor-glow" id="glow"></div>
+  <div class="progress" id="progress"></div>
 
-  <div class="solidaire">🤝 Tarif solidaire −50 % sur les services aux particuliers (RSA, AAH, ASS, étudiants, demandeurs d'emploi longue durée) — <a href="#solidaire">en savoir plus</a></div>
+  <div class="ticker" aria-label="Tarif solidaire">
+    <div class="t">
+      <span>TARIF SOLIDAIRE −50 % · RSA · AAH · ASS · ÉTUDIANTS · DEMANDEURS D'EMPLOI LONGUE DURÉE</span><span>PREMIER ÉCHANGE GRATUIT (30 MIN)</span><span>EN SHIMAORE ET EN FRANÇAIS</span><span>📞 06 39 40 69 48</span>
+      <span>TARIF SOLIDAIRE −50 % · RSA · AAH · ASS · ÉTUDIANTS · DEMANDEURS D'EMPLOI LONGUE DURÉE</span><span>PREMIER ÉCHANGE GRATUIT (30 MIN)</span><span>EN SHIMAORE ET EN FRANÇAIS</span><span>📞 06 39 40 69 48</span>
+    </div>
+  </div>
 
   <!-- ====== EN-TÊTE ====== -->
   <header class="topbar" id="topbar">
     <div class="wrap">
       <a class="brand" href="#">
         <img src="logo.png" alt="Logo Dji Djam Cyber">
-        <div><b>Dji Djam Cyber</b><span>Le numérique, dans votre langue</span></div>
+        <div><b>Dji Djam Cyber</b><small>// le numérique, dans votre langue</small></div>
       </a>
       <button class="burger" id="burger" aria-label="Ouvrir le menu">☰</button>
       <nav class="nav" id="nav">
@@ -257,166 +337,192 @@
         <a href="#solidaire">Tarifs</a>
         <a href="#a-propos">À propos</a>
         <a class="nav-arcade" href="jeux/">🎮 Arcade</a>
-        <a class="btn btn-navy btn-sm" href="#contact">Prendre rendez-vous</a>
+        <a class="btn btn-gold btn-sm" href="#contact">Prendre rendez-vous</a>
       </nav>
     </div>
   </header>
 
-  <!-- ====== BANDEAU PRINCIPAL ====== -->
+  <!-- ====== HERO 3D ====== -->
   <section class="hero">
+    <canvas id="scene" aria-hidden="true"></canvas>
     <div class="wrap">
       <div>
-        <span class="eyebrow">Le numérique, dans votre langue</span>
-        <h1>Vos démarches, vos dossiers de subvention, votre emploi : <em>on s'en occupe avec vous.</em></h1>
-        <p class="lead">Médiation numérique, accompagnement des associations et insertion professionnelle à Mamoudzou — en shimaore et en français.</p>
+        <span class="tag">Système en ligne · Mamoudzou, Mayotte</span>
+        <h1 id="h1">
+          <span class="line"><span>Vos démarches,</span></span>
+          <span class="line"><span>vos subventions,</span></span>
+          <span class="line"><span>votre emploi :</span></span>
+          <span class="line"><span class="grad">on s'en occupe avec vous.</span></span>
+        </h1>
+        <p class="lead">Médiation numérique, accompagnement des associations et insertion professionnelle — en shimaore et en français.</p>
         <div class="ctas">
           <a class="btn btn-gold" href="tel:+262639406948">📞 06 39 40 69 48</a>
-          <a class="btn btn-glass" href="#contact">Premier échange gratuit (30 min)</a>
+          <a class="btn btn-glass" href="#contact">Premier échange gratuit →</a>
         </div>
-        <div class="place">📍 9 bis rue Boinali Jini, Doujani Mtsapéré — Mamoudzou</div>
+        <div class="terminal glass"><b>djidjam@cyber</b>:~$ <span id="typed"></span><span class="cur"></span></div>
       </div>
-      <div class="hero-card">
-        <img class="logo" src="logo.png" alt="Logo Dji Djam Cyber">
-        <div class="pill p1"><i>🗣️</i> Shimaore & français</div>
-        <div class="pill p2"><i>🤝</i> Tarif solidaire −50 %</div>
-        <div class="pill p3"><i>☕</i> 1er échange offert</div>
+      <div class="hud">
+        <div class="chip glass"><i>🗣️</i><div><b>Shimaore & français</b><span>LANGUES</span></div></div>
+        <div class="chip glass"><i>🤝</i><div><b>Tarif solidaire −50 %</b><span>ACCESSIBILITÉ</span></div></div>
+        <div class="chip glass"><i>📍</i><div><b>Doujani Mtsapéré</b><span>MAMOUDZOU · MAYOTTE</span></div></div>
+      </div>
+    </div>
+    <div class="scroll-hint">DÉFILER</div>
+  </section>
+
+  <!-- ====== CHIFFRES ====== -->
+  <div class="wrap">
+    <div class="stats glass glow-border rv">
+      <div><b><span class="count" data-to="4">0</span> pôles</b><span>d'accompagnement</span></div>
+      <div><b>−<span class="count" data-to="50">0</span> %</b><span>tarif solidaire</span></div>
+      <div><b><span class="count" data-to="30">0</span> min</b><span>1er échange offert</span></div>
+      <div><b><span class="count" data-to="2">0</span> langues</b><span>shimaore · français</span></div>
+    </div>
+  </div>
+
+  <!-- ====== PILIERS ====== -->
+  <section class="section" style="padding-bottom:40px">
+    <div class="wrap">
+      <div class="rv">
+        <span class="tag">Ce que nous faisons</span>
+        <h2 class="title">Un service de proximité,<br><span class="grad">pensé pour Mayotte.</span></h2>
+      </div>
+      <div class="pillars">
+        <div class="pillar glass spot tilt rv"><span class="num">01 /</span><div class="ico">🏛️</div><h3>Associations</h3><p>Création, statuts, dossiers de subvention et suivi des financeurs.</p><a href="#associations">→ notre méthode</a></div>
+        <div class="pillar glass spot tilt rv"><span class="num">02 /</span><div class="ico">💼</div><h3>Emploi</h3><p>CV, lettre de motivation, LinkedIn, préparation aux entretiens.</p><a href="#services" data-tab="emploi">→ voir les tarifs</a></div>
+        <div class="pillar glass spot tilt rv"><span class="num">03 /</span><div class="ico">🌐</div><h3>Démarches en ligne</h3><p>CSSM, CAF, Ameli, France Travail, ANTS : on vous accompagne.</p><a href="#services" data-tab="demarches">→ voir les tarifs</a></div>
+        <div class="pillar glass spot tilt rv"><span class="num">04 /</span><div class="ico">🎓</div><h3>Formations</h3><p>Ateliers et formations numériques pour associations et entreprises.</p><a href="#services" data-tab="formation">→ voir l'offre</a></div>
       </div>
     </div>
   </section>
-
-  <!-- ====== LES 4 PILIERS ====== -->
-  <div class="wrap">
-    <div class="pillars">
-      <div class="pillar reveal"><div class="ico">🏛️</div><h3>Associations</h3><p>Création, statuts, dossiers de subvention et suivi des financeurs.</p><a href="#associations">Notre méthode →</a></div>
-      <div class="pillar reveal"><div class="ico">💼</div><h3>Emploi</h3><p>CV, lettre de motivation, LinkedIn, préparation aux entretiens.</p><a href="#services" data-tab="emploi">Voir les tarifs →</a></div>
-      <div class="pillar reveal"><div class="ico">🌐</div><h3>Démarches en ligne</h3><p>CSSM, CAF, Ameli, France Travail, ANTS : on vous accompagne.</p><a href="#services" data-tab="demarches">Voir les tarifs →</a></div>
-      <div class="pillar reveal"><div class="ico">🎓</div><h3>Formations</h3><p>Ateliers et formations numériques pour associations et entreprises.</p><a href="#services" data-tab="formation">Voir l'offre →</a></div>
-    </div>
-  </div>
 
   <!-- ====== SERVICES ====== -->
   <section class="section" id="services">
     <div class="wrap">
-      <div class="reveal">
-        <span class="eyebrow">Nos services</span>
-        <h2 class="title">Des tarifs clairs, sans surprise.</h2>
+      <div class="rv">
+        <span class="tag">Services & tarifs</span>
+        <h2 class="title">Des tarifs clairs,<br><span class="grad">sans surprise.</span></h2>
         <p class="intro">Choisissez votre besoin : chaque service est expliqué simplement, avec son prix.</p>
       </div>
 
-      <div class="tabs" role="tablist">
+      <div class="tabs glass" id="tabs" role="tablist">
+        <span class="tab-ind" id="tabInd"></span>
         <button class="tab active" data-tab="associations">🏛️ Associations</button>
         <button class="tab" data-tab="emploi">💼 Emploi</button>
-        <button class="tab" data-tab="demarches">🌐 Démarches en ligne</button>
+        <button class="tab" data-tab="demarches">🌐 Démarches</button>
         <button class="tab" data-tab="formation">🎓 Formation</button>
       </div>
 
-      <div class="panel active" id="tab-associations">
-        <div>
-          <span class="eyebrow">Pour votre association</span>
-          <h3>De la création au bilan de vos subventions</h3>
-          <p class="desc">Un accompagnement complet pour lancer votre association, la faire vivre et obtenir des financements.</p>
-          <a class="btn btn-navy btn-sm" href="#associations">Découvrir la méthode</a>
+      <div class="panels">
+        <div class="panel glass glow-border active" id="tab-associations">
+          <div>
+            <span class="tag">Pour votre association</span>
+            <h3>De la création au bilan de vos subventions</h3>
+            <p class="desc">Un accompagnement complet pour lancer votre association, la faire vivre et obtenir des financements.</p>
+            <a class="btn btn-blue btn-sm" href="#associations">Découvrir la méthode</a>
+          </div>
+          <ul class="prices">
+            <li><span>Création complète (statuts, préfecture, RIB, JO)</span><b class="devis">SUR DEVIS</b></li>
+            <li><span>Pack « Lance ton asso » (création + 1ᵉʳ dossier)</span><b class="devis">SUR DEVIS</b></li>
+            <li><span>Mise à jour des statuts / changement de bureau</span><b class="devis">SUR DEVIS</b></li>
+            <li><span>Note d'intention / projet associatif</span><b class="devis">SUR DEVIS</b></li>
+            <li><span>PV et compte-rendu d'AG, règlement intérieur</span><b class="devis">SUR DEVIS</b></li>
+            <li><span><strong>Montage de dossiers de subvention</strong> (petits, moyens et gros)</span><b class="devis">SUR DEVIS</b></li>
+            <li><span>Suivi & reporting financeur, audit de fin de subvention</span><b class="devis">SUR DEVIS</b></li>
+          </ul>
         </div>
-        <ul class="prices">
-          <li><span>Création complète (statuts, préfecture, RIB, JO)</span><b class="devis">Sur devis</b></li>
-          <li><span>Pack « Lance ton asso » (création + 1ᵉʳ dossier)</span><b class="devis">Sur devis</b></li>
-          <li><span>Mise à jour des statuts / changement de bureau</span><b class="devis">Sur devis</b></li>
-          <li><span>Note d'intention / projet associatif</span><b class="devis">Sur devis</b></li>
-          <li><span>PV et compte-rendu d'AG, règlement intérieur</span><b class="devis">Sur devis</b></li>
-          <li><span><strong>Montage de dossiers de subvention</strong> (petits, moyens et gros)</span><b class="devis">Sur devis</b></li>
-          <li><span>Suivi & reporting financeur, audit de fin de subvention</span><b class="devis">Sur devis</b></li>
-        </ul>
+
+        <div class="panel glass glow-border" id="tab-emploi">
+          <div>
+            <span class="tag">Accompagnement à l'emploi</span>
+            <h3>Mettez toutes les chances de votre côté</h3>
+            <p class="desc">Un CV qui donne envie, une lettre qui convainc, et une vraie préparation à l'entretien.</p>
+            <a class="btn btn-blue btn-sm" href="#contact">Prendre rendez-vous</a>
+          </div>
+          <ul class="prices">
+            <li><span>CV professionnel</span><b>25 €</b></li>
+            <li><span>Lettre de motivation</span><b>20 €</b></li>
+            <li><span>Pack CV + lettre</span><b>40 €</b></li>
+            <li><span>Pack CV + lettre + LinkedIn</span><b>65 €</b></li>
+            <li><span>Préparation d'entretien (1 h)</span><b>35 €</b></li>
+            <li><span>Coaching carrière</span><b>35 €/h</b></li>
+            <li><span>Forfait recherche d'emploi mensuel</span><b>75 €</b></li>
+          </ul>
+        </div>
+
+        <div class="panel glass glow-border" id="tab-demarches">
+          <div>
+            <span class="tag">Médiation numérique</span>
+            <h3>Vos démarches en ligne, sans stress</h3>
+            <p class="desc">On s'assoit avec vous et on fait les démarches ensemble, en prenant le temps d'expliquer.</p>
+            <a class="btn btn-blue btn-sm" href="#contact">Prendre rendez-vous</a>
+          </div>
+          <ul class="prices">
+            <li><span>Rendez-vous CSSM / CAF / Ameli</span><b>15 €</b></li>
+            <li><span>Création / mise à jour France Travail</span><b>25 €</b></li>
+            <li><span>Inscription France Travail</span><b>20 €</b></li>
+            <li><span>ANTS (passeport, CNI, permis)</span><b>35 €</b></li>
+            <li><span>Démarche en ligne à l'unité</span><b>20 €</b></li>
+            <li><span>Pack 3 démarches par mois</span><b>50 €</b></li>
+            <li><span>Forfait illimité mensuel</span><b>75 €</b></li>
+          </ul>
+        </div>
+
+        <div class="panel glass glow-border" id="tab-formation">
+          <div>
+            <span class="tag">Formation & ateliers</span>
+            <h3>Montez en compétences numériques</h3>
+            <p class="desc">Initiation informatique, bureautique, cybersécurité, CV en ligne, démarches dématérialisées, communication digitale.</p>
+            <a class="btn btn-blue btn-sm" href="#contact">Demander un devis</a>
+          </div>
+          <ul class="prices">
+            <li><span>Atelier collectif de 3 h (jusqu'à 10 personnes)</span><b class="devis">SUR DEVIS</b></li>
+            <li><span>Journée de formation entreprise / association</span><b class="devis">SUR DEVIS</b></li>
+            <li><span>Cycle de montée en compétences sur 5 jours (12 personnes max.)</span><b class="devis">SUR DEVIS</b></li>
+            <li><span>Audit numérique d'association</span><b class="devis">SUR DEVIS</b></li>
+          </ul>
+        </div>
       </div>
 
-      <div class="panel" id="tab-emploi">
-        <div>
-          <span class="eyebrow">Accompagnement à l'emploi</span>
-          <h3>Mettez toutes les chances de votre côté</h3>
-          <p class="desc">Un CV qui donne envie, une lettre qui convainc, et une vraie préparation à l'entretien.</p>
-          <a class="btn btn-navy btn-sm" href="#contact">Prendre rendez-vous</a>
-        </div>
-        <ul class="prices">
-          <li><span>CV professionnel</span><b>25 €</b></li>
-          <li><span>Lettre de motivation</span><b>20 €</b></li>
-          <li><span>Pack CV + lettre</span><b>40 €</b></li>
-          <li><span>Pack CV + lettre + LinkedIn</span><b>65 €</b></li>
-          <li><span>Préparation d'entretien (1 h)</span><b>35 €</b></li>
-          <li><span>Coaching carrière</span><b>35 €/h</b></li>
-          <li><span>Forfait recherche d'emploi mensuel</span><b>75 €</b></li>
-        </ul>
-      </div>
-
-      <div class="panel" id="tab-demarches">
-        <div>
-          <span class="eyebrow">Médiation numérique</span>
-          <h3>Vos démarches en ligne, sans stress</h3>
-          <p class="desc">On s'assoit avec vous et on fait les démarches ensemble, en prenant le temps d'expliquer.</p>
-          <a class="btn btn-navy btn-sm" href="#contact">Prendre rendez-vous</a>
-        </div>
-        <ul class="prices">
-          <li><span>Rendez-vous CSSM / CAF / Ameli</span><b>15 €</b></li>
-          <li><span>Création / mise à jour France Travail</span><b>25 €</b></li>
-          <li><span>Inscription France Travail</span><b>20 €</b></li>
-          <li><span>ANTS (passeport, CNI, permis)</span><b>35 €</b></li>
-          <li><span>Démarche en ligne à l'unité</span><b>20 €</b></li>
-          <li><span>Pack 3 démarches par mois</span><b>50 €</b></li>
-          <li><span>Forfait illimité mensuel</span><b>75 €</b></li>
-        </ul>
-      </div>
-
-      <div class="panel" id="tab-formation">
-        <div>
-          <span class="eyebrow">Formation & ateliers</span>
-          <h3>Montez en compétences numériques</h3>
-          <p class="desc">Initiation informatique, bureautique, cybersécurité, CV en ligne, démarches dématérialisées, communication digitale.</p>
-          <a class="btn btn-navy btn-sm" href="#contact">Demander un devis</a>
-        </div>
-        <ul class="prices">
-          <li><span>Atelier collectif de 3 h (jusqu'à 10 personnes)</span><b class="devis">Sur devis</b></li>
-          <li><span>Journée de formation entreprise / association</span><b class="devis">Sur devis</b></li>
-          <li><span>Cycle de montée en compétences sur 5 jours (12 personnes max.)</span><b class="devis">Sur devis</b></li>
-          <li><span>Audit numérique d'association</span><b class="devis">Sur devis</b></li>
-        </ul>
-      </div>
-
-      <div class="note reveal">✏️ <strong>Secrétariat à façon :</strong> photocopie, impression, plastification, mise en page, archivage électronique — sur demande.</div>
+      <div class="note glass rv">✏️ <strong>Secrétariat à façon :</strong> photocopie, impression, plastification, mise en page, archivage électronique — sur demande.</div>
     </div>
   </section>
 
-  <!-- ====== ASSOCIATIONS & SUBVENTIONS ====== -->
-  <section class="section asso" id="associations">
+  <!-- ====== ASSOCIATIONS ====== -->
+  <section class="section" id="associations">
     <div class="wrap">
-      <div class="reveal">
-        <span class="eyebrow">Associations & subventions</span>
-        <h2 class="title">Un dossier monté, c'est un dossier déposable.</h2>
+      <div class="rv">
+        <span class="tag">Associations & subventions</span>
+        <h2 class="title">Un dossier monté,<br><span class="grad">c'est un dossier déposable.</span></h2>
         <p class="intro">Notre méthode en quatre étapes pour obtenir des financements, sans rejet pour vice de forme.</p>
       </div>
-      <div class="steps">
-        <div class="step reveal"><h3>Diagnostic</h3><p>On fait le point sur votre association, votre projet et les financements possibles.</p></div>
-        <div class="step reveal"><h3>Montage du dossier</h3><p>Rédaction, budget, pièces justificatives : on construit un dossier solide.</p></div>
-        <div class="step reveal"><h3>Dépôt</h3><p>On dépose le dossier dans les règles et dans les délais auprès du financeur.</p></div>
-        <div class="step reveal"><h3>Suivi & bilans</h3><p>Relances, reporting et bilans de fin de subvention pour préparer la suite.</p></div>
+      <div class="timeline" id="timeline">
+        <div class="beam" id="beam"></div>
+        <div class="step rv"><div class="dot">01</div><h3>Diagnostic</h3><p>On fait le point sur votre association, votre projet et les financements possibles.</p></div>
+        <div class="step rv"><div class="dot">02</div><h3>Montage du dossier</h3><p>Rédaction, budget, pièces justificatives : on construit un dossier solide.</p></div>
+        <div class="step rv"><div class="dot">03</div><h3>Dépôt</h3><p>On dépose le dossier dans les règles et dans les délais auprès du financeur.</p></div>
+        <div class="step rv"><div class="dot">04</div><h3>Suivi & bilans</h3><p>Relances, reporting et bilans de fin de subvention pour préparer la suite.</p></div>
       </div>
-      <div class="funders reveal">
-        <span class="lbl">Financeurs visés :</span>
+      <div class="funders rv">
+        <span class="lbl">Financeurs visés</span>
         <span class="f">État</span><span class="f">Europe</span><span class="f">Département</span><span class="f">Communes</span><span class="f">Fondations</span>
       </div>
-      <div class="asso-cta reveal">
+      <div class="asso-cta glass glow-border rv">
         <p><b>Rémunération :</b> un forfait + une commission sur les subventions obtenues. Le premier échange de 30 minutes est gratuit.</p>
         <a class="btn btn-gold" href="#contact">Parler de mon projet</a>
       </div>
     </div>
   </section>
 
-  <!-- ====== TARIF SOLIDAIRE ====== -->
-  <section class="section" id="solidaire">
+  <!-- ====== SOLIDAIRE ====== -->
+  <section class="section" id="solidaire" style="padding-top:20px">
     <div class="wrap">
-      <div class="soli reveal">
-        <div class="big">−50%<small>TARIF SOLIDAIRE</small></div>
+      <div class="soli glass glow-border rv">
+        <div class="big"><span class="grad">−<span class="count" data-to="50">0</span>%</span><small>TARIF SOLIDAIRE</small></div>
         <div>
-          <h2 class="title">Le numérique doit être accessible à tous.</h2>
+          <h2 class="title" style="margin-top:0">Le numérique doit être accessible à tous.</h2>
           <p class="intro">Une réduction de 50 % sur tous les services aux particuliers, sur simple justificatif :</p>
-          <div class="who"><span>✅ RSA</span><span>✅ AAH</span><span>✅ ASS</span><span>✅ Étudiants</span><span>✅ Demandeurs d'emploi longue durée</span></div>
+          <div class="who"><span>✓ RSA</span><span>✓ AAH</span><span>✓ ASS</span><span>✓ Étudiants</span><span>✓ Demandeurs d'emploi longue durée</span></div>
         </div>
       </div>
     </div>
@@ -425,60 +531,62 @@
   <!-- ====== ARCADE ====== -->
   <section class="section" style="padding-top:0">
     <div class="wrap">
-      <div class="arcade reveal">
+      <a class="arcade glass glow-border spot rv" href="jeux/">
         <div>
           <span class="new">NOUVEAU</span>
-          <h2 class="title">L'Arcade Dji Djam Cyber 🎮</h2>
+          <h2 class="title">L'Arcade<br><span class="grad">Dji Djam Cyber</span> 🎮</h2>
           <p>Des jeux gratuits et complètement absurdes, faits à Mayotte : gagne en arrivant dernier, réussis en perdant… Sans pub, sans inscription, sur ordinateur et téléphone.</p>
-          <a class="btn btn-gold" href="jeux/">▶ Jouer maintenant</a>
+          <span class="btn btn-gold">▶ Jouer maintenant</span>
         </div>
         <div class="shots" aria-hidden="true">
           <img class="s1" src="jeux/images/course-de-tortues.png" alt="">
           <img class="s2" src="jeux/images/perds-si-tu-peux.png" alt="">
         </div>
-      </div>
+      </a>
     </div>
   </section>
 
   <!-- ====== À PROPOS ====== -->
   <section class="section" id="a-propos" style="padding-top:20px">
     <div class="wrap about">
-      <div class="portrait reveal">
+      <div class="idcard glass glow-border rv">
+        <div class="scan"></div>
+        <div class="top"><span>ID · FONDATEUR</span><i>● EN LIGNE</i></div>
         <div class="avatar">DS</div>
-        <blockquote>Un dossier monté = un dossier déposable, sans rejet pour vice de forme.</blockquote>
-        <cite>— Djamadar SAINDOU, fondateur de Dji Djam Cyber</cite>
+        <blockquote>« Un dossier monté = un dossier déposable, sans rejet pour vice de forme. »</blockquote>
+        <cite>// Djamadar SAINDOU — fondateur de Dji Djam Cyber</cite>
       </div>
-      <div class="reveal">
-        <span class="eyebrow">À propos</span>
-        <h2 class="title">Un service de proximité, pensé pour Mayotte.</h2>
+      <div class="rv">
+        <span class="tag">À propos</span>
+        <h2 class="title">Proche de vous,<br><span class="grad">rigoureux sur le fond.</span></h2>
         <p>Je suis <strong>Djamadar SAINDOU</strong>, fondateur de Dji Djam Cyber. Je connais le tissu associatif mahorais et le travail de fond qu'il demande au quotidien.</p>
         <p>Chargé de mission pour <strong>Espoir et Réussite</strong>, j'ai obtenu un marché public de <strong>200 000 €</strong> pour deux Ateliers et Chantiers d'Insertion.</p>
         <div class="values">
-          <div><i>📍</i><div><b>Proximité</b><span>À Doujani, au cœur de Mamoudzou</span></div></div>
-          <div><i>🗣️</i><div><b>Votre langue</b><span>Shimaore et français</span></div></div>
-          <div><i>🔒</i><div><b>Confidentialité</b><span>Vos dossiers restent privés</span></div></div>
-          <div><i>🎯</i><div><b>Rigueur</b><span>Des dossiers complets et conformes</span></div></div>
+          <div class="glass"><i>📍</i><div><b>Proximité</b><span>À Doujani, au cœur de Mamoudzou</span></div></div>
+          <div class="glass"><i>🗣️</i><div><b>Votre langue</b><span>Shimaore et français</span></div></div>
+          <div class="glass"><i>🔒</i><div><b>Confidentialité</b><span>Vos dossiers restent privés</span></div></div>
+          <div class="glass"><i>🎯</i><div><b>Rigueur</b><span>Des dossiers complets et conformes</span></div></div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ====== CONTACT ====== -->
-  <section class="section contact" id="contact">
+  <section class="section" id="contact">
     <div class="wrap">
-      <div class="center reveal">
-        <span class="eyebrow">Contact & rendez-vous</span>
-        <h2 class="title">Parlons de votre besoin.</h2>
+      <div class="center rv">
+        <span class="tag">Contact & rendez-vous</span>
+        <h2 class="title">Parlons de <span class="grad">votre besoin.</span></h2>
         <p class="intro">Premier échange gratuit de 30 minutes, sans engagement. À Mamoudzou, partout à Mayotte, ou en visioconférence.</p>
       </div>
       <div class="contact-grid">
-        <div class="cards reveal">
-          <a class="ccard" href="tel:+262639406948"><div class="ico">📞</div><div><b>06 39 40 69 48</b><span>Appel direct</span></div></a>
-          <a class="ccard" href="mailto:djidjamcyber@gmail.com"><div class="ico">✉️</div><div><b>djidjamcyber@gmail.com</b><span>Réponse rapide par e-mail</span></div></a>
-          <a class="ccard" href="https://www.google.com/maps/search/?api=1&query=9+bis+rue+Boinali+Jini+Doujani+Mtsap%C3%A9r%C3%A9+97600+Mamoudzou" target="_blank" rel="noopener"><div class="ico">📍</div><div><b>9 bis rue Boinali Jini</b><span>Doujani Mtsapéré, 97600 Mamoudzou — voir sur la carte</span></div></a>
-          <a class="ccard" href="https://www.facebook.com/Dji_djam_cyber" target="_blank" rel="noopener"><div class="ico">📘</div><div><b>@Dji_djam_cyber</b><span>Suivez-nous sur Facebook</span></div></a>
+        <div class="cards">
+          <a class="ccard glass rv" href="tel:+262639406948"><div class="ico">📞</div><div><b>06 39 40 69 48</b><span>Appel direct</span></div></a>
+          <a class="ccard glass rv" href="mailto:djidjamcyber@gmail.com"><div class="ico">✉️</div><div><b>djidjamcyber@gmail.com</b><span>Réponse rapide par e-mail</span></div></a>
+          <a class="ccard glass rv" href="https://www.google.com/maps/search/?api=1&query=9+bis+rue+Boinali+Jini+Doujani+Mtsap%C3%A9r%C3%A9+97600+Mamoudzou" target="_blank" rel="noopener"><div class="ico">📍</div><div><b>9 bis rue Boinali Jini</b><span>Doujani Mtsapéré, 97600 Mamoudzou — voir sur la carte</span></div></a>
+          <a class="ccard glass rv" href="https://www.facebook.com/Dji_djam_cyber" target="_blank" rel="noopener"><div class="ico">📘</div><div><b>@Dji_djam_cyber</b><span>Suivez-nous sur Facebook</span></div></a>
         </div>
-        <form class="form reveal" id="form">
+        <form class="form glass glow-border rv" id="form">
           <h3>Demander un rendez-vous</h3>
           <p>Remplissez ce petit formulaire : votre messagerie s'ouvrira avec le message prêt à envoyer.</p>
           <div class="field"><label for="f-name">Nom</label><input id="f-name" required autocomplete="name" placeholder="Votre nom"></div>
@@ -493,7 +601,7 @@
             </select>
           </div>
           <div class="field"><label for="f-msg">Message</label><textarea id="f-msg" placeholder="Expliquez-nous en quelques mots…"></textarea></div>
-          <button class="btn btn-navy" type="submit">Envoyer ma demande</button>
+          <button class="btn btn-gold" type="submit">Envoyer ma demande →</button>
           <p class="rgpd">🔒 Vos informations servent uniquement à vous recontacter. Elles ne sont ni stockées sur ce site ni transmises à des tiers.</p>
         </form>
       </div>
@@ -505,7 +613,7 @@
     <div class="wrap">
       <div class="foot">
         <div>
-          <a class="brand" href="#"><img src="logo.png" alt=""><div><b>Dji Djam Cyber</b><span>Le numérique, dans votre langue</span></div></a>
+          <a class="brand" href="#"><img src="logo.png" alt=""><div><b>Dji Djam Cyber</b><small>// le numérique, dans votre langue</small></div></a>
           <p style="margin-top:18px;max-width:380px">Médiation numérique, accompagnement associatif et insertion professionnelle à Mamoudzou, Mayotte.</p>
         </div>
         <div>
@@ -527,32 +635,80 @@
           </ul>
         </div>
       </div>
-      <div class="copy"><span>© <span id="year">2026</span> Dji Djam Cyber. Tous droits réservés.</span><span>Fait avec ❤️ à Mayotte</span></div>
+      <div class="giant" aria-hidden="true">DJI DJAM</div>
+      <div class="copy"><span>© <span id="year">2026</span> Dji Djam Cyber</span><span>Fait avec ❤ à Mayotte</span></div>
     </div>
   </footer>
 
   <a class="callfab" href="tel:+262639406948" aria-label="Appeler Dji Djam Cyber">📞</a>
 
+  <!-- Bibliothèques : Three.js (3D) et GSAP (animations) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script>
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // en-tête : ombre au défilement
+    // ---------- en-tête, menu, barre de progression ----------
     const topbar = document.getElementById("topbar");
-    addEventListener("scroll", () => topbar.classList.toggle("scrolled", scrollY > 10), { passive: true });
-
-    // menu mobile
+    const prog = document.getElementById("progress");
+    addEventListener("scroll", () => {
+      topbar.classList.toggle("scrolled", scrollY > 20);
+      const h = document.documentElement.scrollHeight - innerHeight;
+      prog.style.width = (h > 0 ? (scrollY / h) * 100 : 0) + "%";
+    }, { passive: true });
     const nav = document.getElementById("nav");
     document.getElementById("burger").onclick = () => nav.classList.toggle("open");
     nav.querySelectorAll("a").forEach((a) => a.addEventListener("click", () => nav.classList.remove("open")));
 
-    // onglets des services
+    // ---------- halo qui suit la souris + reflets dans les cartes ----------
+    const glow = document.getElementById("glow");
+    addEventListener("pointermove", (e) => {
+      glow.style.left = e.clientX + "px";
+      glow.style.top = e.clientY + "px";
+    });
+    document.querySelectorAll(".spot").forEach((el) => {
+      el.addEventListener("pointermove", (e) => {
+        const r = el.getBoundingClientRect();
+        el.style.setProperty("--mx", e.clientX - r.left + "px");
+        el.style.setProperty("--my", e.clientY - r.top + "px");
+      });
+    });
+
+    // ---------- cartes qui s'inclinent en 3D ----------
+    if (!reduce && matchMedia("(hover: hover)").matches) {
+      document.querySelectorAll(".tilt").forEach((el) => {
+        el.addEventListener("pointermove", (e) => {
+          const r = el.getBoundingClientRect();
+          const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+          el.style.transform = `rotateY(${x * 14}deg) rotateX(${-y * 14}deg) translateZ(0)`;
+        });
+        el.addEventListener("pointerleave", () => { el.style.transform = ""; });
+      });
+    }
+
+    // ---------- onglets des services (avec indicateur glissant) ----------
+    const tabs = document.getElementById("tabs"), ind = document.getElementById("tabInd");
+    function moveInd() {
+      const a = tabs.querySelector(".tab.active");
+      ind.style.left = a.offsetLeft + "px";
+      ind.style.width = a.offsetWidth + "px";
+      ind.style.top = a.offsetTop + "px";
+      ind.style.height = a.offsetHeight + "px";
+    }
     function showTab(name) {
-      document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+      tabs.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
       document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === "tab-" + name));
+      moveInd();
+      if (window.gsap && !reduce) gsap.fromTo(".panel.active .prices li", { opacity: 0, x: 20 }, { opacity: 1, x: 0, stagger: 0.05, duration: 0.4, ease: "power2.out" });
     }
     document.querySelectorAll("[data-tab]").forEach((el) => el.addEventListener("click", () => showTab(el.dataset.tab)));
+    addEventListener("resize", moveInd);
+    (document.fonts ? document.fonts.ready : Promise.resolve()).then(moveInd);
+    moveInd();
 
-    // formulaire : prépare un e-mail
+    // ---------- formulaire : prépare un e-mail ----------
     document.getElementById("form").addEventListener("submit", (e) => {
       e.preventDefault();
       const v = (id) => document.getElementById(id).value.trim();
@@ -561,11 +717,170 @@
       location.href = `mailto:djidjamcyber@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     });
 
-    // apparition au défilement
-    const io = "IntersectionObserver" in window
-      ? new IntersectionObserver((es) => es.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } }), { threshold: 0.12 })
-      : null;
-    document.querySelectorAll(".reveal").forEach((el) => (io ? io.observe(el) : el.classList.add("in")));
+    // ---------- terminal qui s'écrit tout seul ----------
+    const lines = ["demarche --caf --cssm --ants", "subvention --montage --depot --suivi", "cv --pro --lettre --linkedin", "formation --numerique --cybersecurite", "langue --shimaore --francais"];
+    const typed = document.getElementById("typed");
+    let li = 0, ci = 0, del = false;
+    (function type() {
+      const L = lines[li];
+      typed.textContent = L.slice(0, ci);
+      if (!del && ci < L.length) { ci++; setTimeout(type, 45); }
+      else if (!del) { del = true; setTimeout(type, 1600); }
+      else if (ci > 0) { ci--; setTimeout(type, 20); }
+      else { del = false; li = (li + 1) % lines.length; setTimeout(type, 300); }
+    })();
+
+    // ---------- animations au défilement (GSAP) ----------
+    function counters(root) {
+      root.querySelectorAll(".count").forEach((el) => {
+        const to = +el.dataset.to;
+        if (!window.gsap || reduce) { el.textContent = to; return; }
+        const o = { v: 0 };
+        gsap.to(o, { v: to, duration: 1.6, ease: "power3.out", onUpdate: () => (el.textContent = Math.round(o.v)) });
+      });
+    }
+    if (window.gsap && window.ScrollTrigger && !reduce) {
+      gsap.registerPlugin(ScrollTrigger);
+      ScrollTrigger.batch(".rv", {
+        start: "top 88%",
+        onEnter: (els) => {
+          gsap.to(els, { opacity: 1, y: 0, duration: 0.9, ease: "power3.out", stagger: 0.1 });
+          els.forEach(counters);
+        },
+      });
+      gsap.to("#beam", { width: "92%", ease: "none", scrollTrigger: { trigger: "#timeline", start: "top 75%", end: "bottom 60%", scrub: true } });
+      gsap.to(".giant", { yPercent: -20, ease: "none", scrollTrigger: { trigger: "footer", start: "top bottom", end: "bottom bottom", scrub: true } });
+    } else {
+      document.querySelectorAll(".rv").forEach((el) => { el.style.opacity = 1; el.style.transform = "none"; counters(el); });
+    }
+
+    // ---------- scène 3D : bouclier + réseau de données (Three.js) ----------
+    (function scene3d() {
+      const canvas = document.getElementById("scene");
+      if (!window.THREE || !canvas) return;
+      let renderer;
+      try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }); } catch (e) { return; }
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+      camera.position.set(0, 0, 14);
+      const group = new THREE.Group();
+      scene.add(group);
+
+      // bouclier en fil lumineux (forme du logo)
+      const s = new THREE.Shape();
+      s.moveTo(0, 2.6); s.lineTo(2.1, 1.75);
+      s.bezierCurveTo(2.0, -0.6, 1.6, -1.6, 0, -2.7);
+      s.bezierCurveTo(-1.6, -1.6, -2.0, -0.6, -2.1, 1.75);
+      s.lineTo(0, 2.6);
+      const shieldPts = s.getPoints(80).map((p) => new THREE.Vector3(p.x, p.y, 0));
+      const shieldGeo = new THREE.BufferGeometry().setFromPoints(shieldPts);
+      const shieldMat = new THREE.LineBasicMaterial({ color: 0x4fe3ff, transparent: true, opacity: 0.95 });
+      const shield = new THREE.Line(shieldGeo, shieldMat);
+      group.add(shield);
+      // bouclier plein translucide
+      const fill = new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshBasicMaterial({ color: 0x0a3a9a, transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
+      group.add(fill);
+      // lignes d'empreinte digitale
+      const fp = new THREE.Group();
+      for (let i = 0; i < 7; i++) {
+        const r = 0.35 + i * 0.22;
+        const curve = new THREE.EllipseCurve(0, -0.15, r * 0.85, r, Math.PI * (0.1 + i * 0.02), Math.PI * (1.9 - i * 0.03), false, 0);
+        const g = new THREE.BufferGeometry().setFromPoints(curve.getPoints(60).map((p) => new THREE.Vector3(p.x, p.y, 0.05)));
+        fp.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: i % 2 ? 0xf2c96b : 0xffffff, transparent: true, opacity: 0.85 - i * 0.07 })));
+      }
+      group.add(fp);
+      // anneaux orbitaux
+      const rings = [];
+      [[4.2, 0x4fe3ff, 0.35], [5.0, 0xf2c96b, 0.25], [5.9, 0x2f7bff, 0.2]].forEach(([r, c, o], i) => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.012, 8, 160), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o }));
+        ring.rotation.x = Math.PI / 2.3 + i * 0.3;
+        ring.rotation.y = i * 0.6;
+        group.add(ring);
+        rings.push(ring);
+        // petite sphère qui tourne sur l'anneau
+        const sat = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), new THREE.MeshBasicMaterial({ color: c }));
+        ring.add(sat);
+        ring.userData.sat = sat; ring.userData.r = r; ring.userData.sp = 0.4 + i * 0.25;
+      });
+      // réseau de particules
+      const N = innerWidth < 700 ? 90 : 170;
+      const pos = new Float32Array(N * 3);
+      const vel = [];
+      for (let i = 0; i < N; i++) {
+        pos[i * 3] = (Math.random() - 0.5) * 22;
+        pos[i * 3 + 1] = (Math.random() - 0.5) * 13;
+        pos[i * 3 + 2] = (Math.random() - 0.5) * 8 - 2;
+        vel.push([(Math.random() - 0.5) * 0.01, (Math.random() - 0.5) * 0.01, 0]);
+      }
+      const pGeo = new THREE.BufferGeometry();
+      pGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      const points = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0x9fd8ff, size: 0.06, transparent: true, opacity: 0.85 }));
+      scene.add(points);
+      const MAXL = N * 6;
+      const lPos = new Float32Array(MAXL * 6);
+      const lGeo = new THREE.BufferGeometry();
+      lGeo.setAttribute("position", new THREE.BufferAttribute(lPos, 3));
+      const links = new THREE.LineSegments(lGeo, new THREE.LineBasicMaterial({ color: 0x2f7bff, transparent: true, opacity: 0.22 }));
+      scene.add(links);
+
+      let mx = 0, my = 0, tx = 0, ty = 0;
+      addEventListener("pointermove", (e) => { mx = (e.clientX / innerWidth - 0.5) * 2; my = (e.clientY / innerHeight - 0.5) * 2; });
+
+      function resize() {
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        // bouclier à droite sur grand écran, en haut au centre sur mobile
+        if (w > 960) { group.position.set(4.2, 0, 0); group.scale.setScalar(1); }
+        else { group.position.set(0, 3.6, 0); group.scale.setScalar(0.62); }
+      }
+      addEventListener("resize", resize);
+      resize();
+
+      let visible = true;
+      new IntersectionObserver(([e]) => (visible = e.isIntersecting)).observe(canvas);
+      const clock = new THREE.Clock();
+      (function loop() {
+        requestAnimationFrame(loop);
+        if (!visible) return;
+        const t = clock.getElapsedTime();
+        tx += (mx - tx) * 0.05; ty += (my - ty) * 0.05;
+        group.rotation.y = Math.sin(t * 0.4) * 0.35 + tx * 0.5;
+        group.rotation.x = Math.sin(t * 0.3) * 0.1 + ty * 0.25;
+        group.position.y += ((innerWidth > 960 ? 0 : 3.6) + Math.sin(t * 1.2) * 0.12 - group.position.y) * 0.1;
+        shieldMat.opacity = 0.75 + Math.sin(t * 2) * 0.2;
+        fp.children.forEach((l, i) => (l.material.opacity = 0.35 + 0.5 * (0.5 + 0.5 * Math.sin(t * 2.5 - i * 0.6))));
+        rings.forEach((r, i) => {
+          r.rotation.z += 0.002 + i * 0.001;
+          const a = t * r.userData.sp;
+          r.userData.sat.position.set(Math.cos(a) * r.userData.r, Math.sin(a) * r.userData.r, 0);
+        });
+        // particules + liens entre voisins
+        let k = 0;
+        for (let i = 0; i < N; i++) {
+          pos[i * 3] += vel[i][0]; pos[i * 3 + 1] += vel[i][1];
+          if (Math.abs(pos[i * 3]) > 11) vel[i][0] *= -1;
+          if (Math.abs(pos[i * 3 + 1]) > 6.5) vel[i][1] *= -1;
+        }
+        for (let i = 0; i < N && k < MAXL; i++) {
+          for (let j = i + 1; j < N && k < MAXL; j++) {
+            const dx = pos[i * 3] - pos[j * 3], dy = pos[i * 3 + 1] - pos[j * 3 + 1], dz = pos[i * 3 + 2] - pos[j * 3 + 2];
+            if (dx * dx + dy * dy + dz * dz < 3.2) {
+              lPos.set([pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2], pos[j * 3], pos[j * 3 + 1], pos[j * 3 + 2]], k * 6);
+              k++;
+            }
+          }
+        }
+        lGeo.setDrawRange(0, k * 2);
+        lGeo.attributes.position.needsUpdate = true;
+        pGeo.attributes.position.needsUpdate = true;
+        points.rotation.y = tx * 0.08;
+        links.rotation.y = tx * 0.08;
+        renderer.render(scene, camera);
+      })();
+    })();
   </script>
 </body>
 </html>

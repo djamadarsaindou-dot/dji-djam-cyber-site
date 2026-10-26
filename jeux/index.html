@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arcade Dji Djam Cyber — Jeux gratuits en ligne</title>
+  <meta name="description" content="L'arcade de Dji Djam Cyber : des jeux gratuits et absurdes, sans pub ni inscription, jouables sur ordinateur et téléphone. Créés à Mayotte.">
+  <meta property="og:title" content="Arcade Dji Djam Cyber — Jeux gratuits">
+  <meta property="og:description" content="Des jeux gratuits et absurdes, sans pub ni inscription. Créés à Mayotte.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://djidjamcyber.vercel.app/jeux/images/course-de-tortues.png">
+  <meta name="theme-color" content="#050918">
+  <link rel="icon" type="image/png" href="../logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Unbounded:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/arcade.css">
+  <style>
+    /* ---------- Bandeau d'accueil ---------- */
+    .hero { padding: 70px 0 40px; }
+    .hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 50px; align-items: center; }
+    @media (max-width: 920px) { .hero .wrap { grid-template-columns: 1fr; } .hero-art { order: -1; } }
+    .hero h1 {
+      font-family: var(--font-title); font-weight: 800;
+      font-size: clamp(40px, 6.2vw, 76px); line-height: 1.02; letter-spacing: -2px; margin: 18px 0 20px;
+    }
+    .hero h1 .grad {
+      background: linear-gradient(100deg, var(--gold) 10%, #ffe7a3 40%, var(--cyan) 90%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero p.lead { font-size: 20px; color: var(--muted); max-width: 540px; margin: 0 0 30px; }
+    .hero .ctas { display: flex; flex-wrap: wrap; gap: 14px; }
+    .stats { display: flex; gap: 34px; margin-top: 40px; flex-wrap: wrap; }
+    .stats div b { display: block; font-family: var(--font-title); font-size: 30px; color: var(--text); }
+    .stats div span { color: var(--muted); font-size: 14px; }
+
+    /* écrans flottants */
+    .hero-art { position: relative; height: 470px; }
+    @media (max-width: 920px) { .hero-art { height: 340px; } }
+    .screen {
+      position: absolute; border-radius: 22px; overflow: hidden;
+      border: 1px solid var(--line-strong); background: #000;
+      box-shadow: 0 30px 70px rgba(0,0,0,.6);
+    }
+    .screen img { width: 100%; height: 100%; object-fit: cover; }
+    .screen.a { width: 78%; aspect-ratio: 16/9; right: 0; top: 30px; transform: rotate(3deg); animation: float1 7s ease-in-out infinite; box-shadow: 0 30px 70px rgba(0,0,0,.6), 0 0 80px -20px #4cd97b; }
+    .screen.b { width: 36%; aspect-ratio: 3/5; left: 2%; top: 90px; transform: rotate(-6deg); animation: float2 8s ease-in-out infinite; box-shadow: 0 30px 70px rgba(0,0,0,.6), 0 0 80px -20px #ff5a6e; }
+    .screen.b img { object-position: 50% 40%; }
+    .hero-logo {
+      position: absolute; right: 8%; bottom: 10px; width: 110px; height: 110px; border-radius: 30px;
+      box-shadow: 0 20px 50px rgba(0, 74, 173, .7), 0 0 0 1px rgba(255,255,255,.15);
+      animation: float1 6s ease-in-out infinite reverse;
+    }
+    .spark { position: absolute; font-size: 30px; animation: float2 5s ease-in-out infinite; filter: drop-shadow(0 6px 14px rgba(0,0,0,.5)); }
+    @keyframes float1 { 0%,100% { translate: 0 0; } 50% { translate: 0 -14px; } }
+    @keyframes float2 { 0%,100% { translate: 0 0; } 50% { translate: 0 12px; } }
+
+    /* ---------- Bandeau défilant ---------- */
+    .marquee { border-block: 1px solid var(--line); background: rgba(255,255,255,.02); overflow: hidden; padding: 16px 0; }
+    .marquee .track { display: flex; gap: 48px; width: max-content; animation: scroll 30s linear infinite; }
+    .marquee span { font-family: var(--font-title); font-size: 18px; color: var(--muted); white-space: nowrap; display: inline-flex; gap: 14px; align-items: center; }
+    .marquee span b { color: var(--gold); }
+    @keyframes scroll { to { transform: translateX(-50%); } }
+
+    /* ---------- Progression ---------- */
+    .progress-strip {
+      display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center;
+      padding: 26px 30px; border-radius: var(--radius);
+      background: linear-gradient(120deg, rgba(47,107,255,.18), rgba(242,193,78,.1));
+      border: 1px solid var(--line-strong);
+    }
+    .progress-strip .trophy { font-size: 46px; }
+    .progress-strip h3 { margin: 0 0 4px; font-family: var(--font-title); font-size: 20px; }
+    .progress-items { display: flex; flex-wrap: wrap; gap: 12px 28px; color: var(--muted); font-size: 15px; }
+    .progress-items b { color: var(--text); }
+
+    /* ---------- Barre d'outils du catalogue ---------- */
+    .toolbar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 26px; }
+    .search {
+      flex: 1 1 260px; display: flex; align-items: center; gap: 10px;
+      padding: 0 16px; height: 50px; border-radius: 16px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--line-strong);
+    }
+    .search input { flex: 1; background: none; border: 0; outline: 0; color: var(--text); font-family: inherit; font-size: 16px; }
+    .search input::placeholder { color: var(--muted); }
+    .search:focus-within { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(242,193,78,.15); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .empty { text-align: center; color: var(--muted); padding: 50px 20px; border: 1px dashed var(--line-strong); border-radius: var(--radius); display: none; }
+
+    /* ---------- Bientôt ---------- */
+    .soon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+    .soon {
+      position: relative; padding: 26px; border-radius: var(--radius);
+      background: repeating-linear-gradient(135deg, rgba(255,255,255,.025) 0 12px, transparent 12px 24px), var(--bg-2);
+      border: 1px dashed var(--line-strong);
+    }
+    .soon .e { font-size: 38px; filter: grayscale(.2); }
+    .soon h3 { font-family: var(--font-title); font-size: 18px; margin: 14px 0 6px; }
+    .soon p { color: var(--muted); margin: 0; font-size: 15px; }
+    .soon .lock { position: absolute; top: 18px; right: 18px; font-size: 12px; font-weight: 800; letter-spacing: 1.5px; color: var(--gold); text-transform: uppercase; }
+
+    /* ---------- Idée de jeu + le cyber ---------- */
+    .duo { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; }
+    @media (max-width: 860px) { .duo { grid-template-columns: 1fr; } }
+    .panel {
+      padding: 38px; border-radius: 28px; position: relative; overflow: hidden;
+      border: 1px solid var(--line-strong);
+    }
+    .panel h2 { font-family: var(--font-title); font-size: clamp(24px, 3vw, 34px); margin: 12px 0 12px; line-height: 1.15; }
+    .panel p { color: var(--muted); margin: 0 0 24px; }
+    .panel.idea { background: radial-gradient(500px 300px at 100% 0%, rgba(242,193,78,.22), transparent 60%), linear-gradient(160deg, var(--surface-2), var(--bg-2)); }
+    .panel.idea .big-emoji { position: absolute; right: 26px; bottom: 10px; font-size: 120px; opacity: .14; transform: rotate(-12deg); pointer-events: none; }
+    .panel.cyber { background: linear-gradient(160deg, #0a3a9a, var(--blue-logo) 55%, #00307a); }
+    .panel.cyber p { color: rgba(255,255,255,.8); }
+    .panel.cyber img { width: 64px; height: 64px; border-radius: 18px; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+  </style>
+</head>
+<body>
+
+  <!-- ====== EN-TÊTE ====== -->
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="./">
+        <img src="../logo.png" alt="">
+        <span class="long">Dji Djam Cyber</span>
+        <small>ARCADE</small>
+      </a>
+      <nav class="nav">
+        <a href="#jeux">Les jeux</a>
+        <a href="#bientot">Bientôt</a>
+        <a href="#idee">Proposer un jeu</a>
+        <a class="pro" href="../">Le cyber ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ====== BANDEAU D'ACCUEIL ====== -->
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow">L'arcade de Dji Djam Cyber</span>
+        <h1>Des jeux qui<br><span class="grad">ne tournent pas rond.</span></h1>
+        <p class="lead">Gagner en arrivant dernier, réussir en perdant… Des jeux gratuits et absurdes, sans pub ni inscription, jouables sur ordinateur et téléphone. Faits à Mayotte.</p>
+        <div class="ctas">
+          <a class="btn btn-gold" id="heroPlay" href="#jeux">▶ Jouer maintenant</a>
+          <a class="btn btn-ghost" href="#jeux">Voir tous les jeux</a>
+        </div>
+        <div class="stats">
+          <div><b id="statGames">2</b><span>jeux en ligne</span></div>
+          <div><b id="statLevels">10</b><span>niveaux à finir</span></div>
+          <div><b>0 €</b><span>pour toujours</span></div>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="screen a"><img src="images/course-de-tortues.png" alt=""></div>
+        <div class="screen b"><img src="images/perds-si-tu-peux.png" alt=""></div>
+        <img class="hero-logo" src="../logo.png" alt="">
+        <span class="spark" style="left:44%;top:4%">🐢</span>
+        <span class="spark" style="left:8%;top:78%;animation-delay:-2s">🔥</span>
+        <span class="spark" style="right:2%;top:-2%;animation-delay:-3s">⭐</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="marquee" aria-hidden="true">
+    <div class="track">
+      <span>🐢 <b>Arrive dernier</b> pour gagner</span><span>🔥 <b>Perds</b> si tu peux</span><span>🎮 <b>100 % gratuit</b></span><span>📱 Joue sur <b>téléphone</b></span><span>🚫 <b>Zéro</b> pub</span><span>🌴 Fait à <b>Mayotte</b></span>
+      <span>🐢 <b>Arrive dernier</b> pour gagner</span><span>🔥 <b>Perds</b> si tu peux</span><span>🎮 <b>100 % gratuit</b></span><span>📱 Joue sur <b>téléphone</b></span><span>🚫 <b>Zéro</b> pub</span><span>🌴 Fait à <b>Mayotte</b></span>
+    </div>
+  </div>
+
+  <!-- ====== PROGRESSION (affichée si on a déjà joué) ====== -->
+  <section class="wrap" id="progressSection" style="display:none; padding-top:50px">
+    <div class="progress-strip reveal">
+      <div class="trophy">🏆</div>
+      <div>
+        <h3>Ta progression</h3>
+        <div class="progress-items" id="progressItems"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== CATALOGUE ====== -->
+  <section class="section" id="jeux">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div>
+          <span class="eyebrow">Catalogue</span>
+          <h2>Tous les jeux</h2>
+        </div>
+        <p>Choisis un jeu, clique, joue. Ta progression est gardée dans ton navigateur.</p>
+      </div>
+      <div class="toolbar reveal">
+        <label class="search">
+          <span aria-hidden="true">🔍</span>
+          <input id="search" type="search" placeholder="Chercher un jeu…" autocomplete="off">
+        </label>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="games-grid" id="grid"></div>
+      <div class="empty" id="empty">Aucun jeu ne correspond. Essaie un autre mot !</div>
+    </div>
+  </section>
+
+  <!-- ====== BIENTÔT ====== -->
+  <section class="section" id="bientot" style="padding-top:20px">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div>
+          <span class="eyebrow">En préparation</span>
+          <h2>Bientôt sur l'arcade</h2>
+        </div>
+        <p>De nouveaux jeux arrivent régulièrement. Reviens voir !</p>
+      </div>
+      <div class="soon-grid" id="soon"></div>
+    </div>
+  </section>
+
+  <!-- ====== IDÉE + LE CYBER ====== -->
+  <section class="section" id="idee" style="padding-top:20px">
+    <div class="wrap duo">
+      <div class="panel idea reveal">
+        <span class="eyebrow">À toi de jouer</span>
+        <h2>Tu as une idée de jeu complètement folle ?</h2>
+        <p>Envoie-la nous : les meilleures idées deviendront peut-être le prochain jeu de l'arcade.</p>
+        <a class="btn btn-gold" href="mailto:djidjamcyber@gmail.com?subject=Id%C3%A9e%20de%20jeu%20pour%20l'arcade">💡 Proposer une idée</a>
+        <span class="big-emoji" aria-hidden="true">💡</span>
+      </div>
+      <div class="panel cyber reveal">
+        <img src="../logo.png" alt="Logo Dji Djam Cyber">
+        <h2>Derrière l'arcade : Dji Djam Cyber</h2>
+        <p>Médiation numérique, accompagnement des associations et aide aux démarches à Doujani Mtsapéré, Mamoudzou.</p>
+        <a class="btn btn-ghost" href="../">Découvrir nos services →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== PIED DE PAGE ====== -->
+  <footer class="footer">
+    <div class="wrap">
+      <div><strong style="color:var(--text)">Dji Djam Cyber</strong> · Arcade · © <span id="year">2026</span></div>
+      <div class="links">
+        <a href="#jeux">Les jeux</a>
+        <a href="../">Le cyber</a>
+        <a href="mailto:djidjamcyber@gmail.com">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/catalogue.js"></script>
+  <script>
+    const games = window.ARCADE_GAMES;
+    const FAV_KEY = "arcade-favoris";
+    let favs = [];
+    try { favs = JSON.parse(localStorage.getItem(FAV_KEY) || "[]"); } catch (e) {}
+    const saveFavs = () => { try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch (e) {} };
+
+    const isNew = (g) => (Date.now() - new Date(g.added).getTime()) / 86400000 < 30;
+    const escapeHTML = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    // --- chiffres du bandeau ---
+    document.getElementById("statGames").textContent = games.length;
+    document.getElementById("statLevels").textContent = games.reduce((n, g) => n + (parseInt(g.content) || 0), 0);
+    document.getElementById("heroPlay").href = "jouer.html?jeu=" + games[0].slug;
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // --- filtres ---
+    const allTags = ["Tous", "❤️ Favoris", ...new Set(games.flatMap((g) => g.tags))];
+    let activeTag = "Tous";
+    const chips = document.getElementById("chips");
+    chips.innerHTML = allTags.map((t) => `<button class="chip${t === activeTag ? " active" : ""}" data-tag="${escapeHTML(t)}">${escapeHTML(t)}</button>`).join("");
+    chips.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-tag]");
+      if (!b) return;
+      activeTag = b.dataset.tag;
+      chips.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c === b));
+      render();
+    });
+    document.getElementById("search").addEventListener("input", render);
+
+    // --- une carte de jeu ---
+    function card(g) {
+      const p = g.progress && g.progress();
+      const fav = favs.includes(g.slug);
+      const url = "jouer.html?jeu=" + g.slug;
+      return `
+        <article class="card reveal" style="--accent:${g.accent}">
+          <a class="card-link" href="${url}" aria-label="Jouer à ${escapeHTML(g.title)}"></a>
+          <div class="card-cover">
+            <img src="${g.cover}" alt="" loading="lazy" class="${g.orientation === "portrait" ? "portrait" : ""}">
+            ${isNew(g) ? '<span class="badge-new">Nouveau</span>' : ""}
+            <div class="card-play"><span>▶</span></div>
+            <div class="card-emoji">${g.emoji}</div>
+          </div>
+          <div class="card-body">
+            <h3>${escapeHTML(g.title)}</h3>
+            <p class="tagline">${escapeHTML(g.tagline)}</p>
+            <div class="meta">
+              <span>🎯 <span class="dots">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= g.difficulty ? "on" : ""}"></i>`).join("")}</span></span>
+              <span>🗂️ ${escapeHTML(g.content)}</span>
+              ${g.touch ? "<span>📱 Tactile</span>" : ""}
+            </div>
+            <div class="tags">${g.tags.map((t) => `<span class="chip">${escapeHTML(t)}</span>`).join("")}</div>
+            ${p ? `<div class="progress"><span>${escapeHTML(p.label)}</span><div class="bar"><i style="width:${Math.round((p.value / p.max) * 100)}%"></i></div></div>` : ""}
+            <div class="card-actions">
+              <a class="btn btn-gold btn-sm" href="${url}">▶ Jouer</a>
+              <button class="icon-btn${fav ? " on" : ""}" data-fav="${g.slug}" title="Ajouter aux favoris" aria-label="Favori">${fav ? "♥" : "♡"}</button>
+            </div>
+          </div>
+        </article>`;
+    }
+
+    function render() {
+      const q = document.getElementById("search").value.trim().toLowerCase();
+      const list = games.filter((g) => {
+        if (activeTag === "❤️ Favoris" && !favs.includes(g.slug)) return false;
+        if (activeTag !== "Tous" && activeTag !== "❤️ Favoris" && !g.tags.includes(activeTag)) return false;
+        if (!q) return true;
+        return [g.title, g.tagline, g.description, ...g.tags].join(" ").toLowerCase().includes(q);
+      });
+      document.getElementById("grid").innerHTML = list.map(card).join("");
+      document.getElementById("empty").style.display = list.length ? "none" : "block";
+      observe();
+    }
+
+    document.getElementById("grid").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-fav]");
+      if (!b) return;
+      e.preventDefault();
+      const s = b.dataset.fav;
+      favs = favs.includes(s) ? favs.filter((x) => x !== s) : [...favs, s];
+      saveFavs();
+      render();
+    });
+
+    // --- jeux à venir ---
+    document.getElementById("soon").innerHTML = (window.ARCADE_SOON || []).map((s) => `
+      <div class="soon reveal">
+        <span class="lock">🔒 Bientôt</span>
+        <div class="e">${s.emoji}</div>
+        <h3>${escapeHTML(s.title)}</h3>
+        <p>${escapeHTML(s.tagline)}</p>
+      </div>`).join("");
+
+    // --- progression globale ---
+    const prog = games.map((g) => [g, g.progress && g.progress()]).filter(([, p]) => p && p.value > 0);
+    if (prog.length) {
+      document.getElementById("progressSection").style.display = "block";
+      document.getElementById("progressItems").innerHTML = prog.map(([g, p]) => `<span>${g.emoji} ${escapeHTML(g.title)} : <b>${escapeHTML(p.label)}</b></span>`).join("");
+    }
+
+    // --- apparition au défilement ---
+    const io = "IntersectionObserver" in window
+      ? new IntersectionObserver((entries) => entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } }), { threshold: 0.12 })
+      : null;
+    function observe() {
+      document.querySelectorAll(".reveal:not(.in)").forEach((el) => (io ? io.observe(el) : el.classList.add("in")));
+    }
+
+    render();
+  </script>
+</body>
+</html>

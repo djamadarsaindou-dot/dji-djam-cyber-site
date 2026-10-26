@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>La course la plus lente</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #4cd97b;
+    --dark: #173b2a;
+    --gold: #ffcc4d;
+    --red: #ff5a5f;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 30%, #1d3a2c, #08130d 75%);
+    font-family: "Fredoka", system-ui, sans-serif;
+    color: #fff;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+
+  /* La scène fait toujours 960x540 "virtuels", agrandie pour remplir l'écran */
+  #stage {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 960px;
+    height: 540px;
+    transform-origin: center center;
+    overflow: hidden;
+    border-radius: 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.06);
+  }
+  canvas { position: absolute; inset: 0; width: 960px; height: 540px; display: block; }
+
+  /* ---------- Écrans ---------- */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 30px;
+    text-align: center;
+    background: radial-gradient(ellipse at center, rgba(10,30,20,.45), rgba(5,15,10,.85));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease;
+    z-index: 3;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+
+  .kicker { font-size: 15px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+  .title {
+    font-size: 64px; font-weight: 700; line-height: .95;
+    text-shadow: 0 5px 0 #1d6b3c, 0 12px 30px rgba(0,0,0,.4);
+    animation: wobble 4s ease-in-out infinite;
+  }
+  .title .accent { color: var(--gold); text-shadow: 0 5px 0 #a8741a, 0 12px 30px rgba(0,0,0,.4); }
+  .tagline { font-size: 20px; opacity: .9; margin-bottom: 6px; }
+  .h2 { font-size: 34px; font-weight: 700; }
+  .big { font-size: 42px; font-weight: 700; text-shadow: 0 4px 0 rgba(0,0,0,.35); }
+  .quip { font-size: 17px; opacity: .88; max-width: 520px; line-height: 1.4; }
+  .rules {
+    display: grid; grid-template-columns: auto auto; gap: 6px 22px; text-align: left;
+    background: rgba(0,0,0,.28); border-radius: 16px; padding: 14px 22px; font-size: 15px; margin-top: 4px;
+  }
+  .rules span:nth-child(odd) { opacity: .7; text-align: right; }
+  kbd {
+    display: inline-block; min-width: 26px; padding: 1px 7px; margin: 0 2px;
+    background: #24493a; border-radius: 7px; border-bottom: 3px solid #102519;
+    font-family: inherit; font-size: 13px; text-align: center;
+  }
+
+  .btn {
+    font-family: inherit; font-size: 21px; font-weight: 600;
+    min-width: 210px; padding: 13px 28px;
+    border: none; border-radius: 18px; cursor: pointer;
+    color: #10331f; background: linear-gradient(#8ff0ad, #3fcf72);
+    box-shadow: 0 6px 0 #1f8a47, 0 12px 24px rgba(0,0,0,.3);
+    transition: transform .08s ease, box-shadow .08s ease, filter .15s;
+  }
+  .btn:hover { filter: brightness(1.07); }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #1f8a47; }
+  .btn.secondary { color: #fff; background: linear-gradient(#3b5f50, #2a4639); box-shadow: 0 6px 0 #142a20, 0 12px 24px rgba(0,0,0,.3); }
+  .btn.secondary:active { box-shadow: 0 2px 0 #142a20; }
+  .row { display: flex; gap: 12px; }
+  .link { background: none; border: none; color: #fff; opacity: .65; font-family: inherit; font-size: 16px; cursor: pointer; text-decoration: underline; }
+
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 8px 0 12px; }
+  .card {
+    font-family: inherit; color: #fff; cursor: pointer; width: 190px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 16px 12px; border-radius: 18px; border: 1px solid rgba(255,255,255,.1);
+    background: linear-gradient(#2e5646, #1d3a2f);
+    box-shadow: 0 6px 0 #0f2219;
+    transition: transform .08s;
+  }
+  .card:active { transform: translateY(3px); }
+  .card .num { font-size: 13px; letter-spacing: 2px; color: var(--gold); font-weight: 600; }
+  .card .ico { font-size: 40px; line-height: 1.1; }
+  .card .nm { font-size: 18px; font-weight: 600; }
+  .card .res { font-size: 14px; opacity: .8; min-height: 18px; }
+  .card.locked { opacity: .4; cursor: not-allowed; }
+
+  table.res { border-collapse: collapse; font-size: 17px; min-width: 460px; }
+  table.res td { padding: 6px 12px; text-align: left; }
+  table.res tr { background: rgba(255,255,255,.05); }
+  table.res tr:nth-child(even) { background: rgba(255,255,255,.09); }
+  table.res tr.me { background: rgba(76,217,123,.28); font-weight: 600; }
+  table.res td.rk { font-size: 20px; width: 44px; text-align: center; }
+  table.res td.st { opacity: .75; font-size: 14px; text-align: right; }
+  .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 8px; vertical-align: -1px; border: 2px solid rgba(0,0,0,.25); }
+
+  /* ---------- Boutons en jeu ---------- */
+  #hudBtns { position: absolute; top: 14px; right: 16px; display: flex; gap: 8px; z-index: 4; }
+  .round {
+    width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
+    border: 1px solid rgba(255,255,255,.25); background: rgba(10,30,20,.55);
+    color: #fff; font-size: 17px; font-family: inherit;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .round.hidden { display: none; }
+
+  #touch { position: absolute; left: 0; right: 0; bottom: 70px; display: none; justify-content: space-between; align-items: flex-end; padding: 0 24px; z-index: 2; pointer-events: none; }
+  #touch.show { display: flex; }
+  #touch .grp { display: flex; gap: 12px; pointer-events: auto; }
+  .tbtn {
+    width: 84px; height: 84px; border-radius: 50%;
+    background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.35);
+    color: #fff; font-size: 32px; font-family: inherit; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tbtn.wide { width: 150px; border-radius: 42px; font-size: 20px; }
+  .tbtn:active { background: rgba(255,255,255,.32); }
+
+  @keyframes wobble { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg) translateY(-6px); } }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game"></canvas>
+
+    <div id="hudBtns">
+      <button class="round" data-a="mute" id="muteBtn" title="Son (M)">🔊</button>
+      <button class="round hidden" data-a="pause" id="pauseBtn" title="Pause (Échap)">❚❚</button>
+    </div>
+
+    <div id="touch">
+      <div class="grp">
+        <button class="tbtn" data-k="left">◀</button>
+        <button class="tbtn" data-k="right">▶</button>
+      </div>
+      <div class="grp">
+        <button class="tbtn wide" data-k="push">AVANCER</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+  </div>
+
+<script>
+"use strict";
+// ============================================================
+//  LA COURSE LA PLUS LENTE
+//  Règles : le DERNIER arrivé gagne. Interdit de s'arrêter.
+//  Plus tu vas lentement, plus ta tortue perd l'équilibre.
+// ============================================================
+
+// ---------- Dimensions (unités "virtuelles") ----------
+const VW = 960, VH = 540;
+const START_X = 60;                     // ligne de départ (position dans le monde)
+const LANE_Y = [352, 386, 420, 454];    // hauteur des pattes dans chaque couloir
+const PLAYER_LANE = 3;                  // le joueur est dans le couloir de devant
+const CAM_OFF = 300;                    // position du joueur à l'écran
+
+// ---------- Physique de la tortue ----------
+const PUSH = 60;        // accélération quand on appuie
+const DECEL = 26;       // ralentissement quand on lâche
+const SAND_DRAG = 38;   // freinage dans le sable
+const SLOPE_G = 130;    // effet des pentes
+const MAX_V = 160;
+const STABLE_V = 55;    // au-dessus de cette vitesse, la tortue est stable
+const TIP_ANGLE = 0.8;  // au-delà : elle se retourne
+const STOP_TIME = 1.2;  // secondes sous la vitesse minimale avant disqualification
+
+// ---------- Équilibre (plus les chiffres sont grands, plus c'est dur) ----------
+const BAL = {
+  instab: 2.4,    // tendance à basculer quand on est lent
+  selfFix: 1.2,   // tendance à se redresser quand on va vite
+  noise: 1.6,     // secousses aléatoires quand on est lent
+  control: 2.6,   // force des touches ← →
+  damping: 1.4,   // amortissement
+  wind: 0.45,     // poussée des rafales de vent
+};
+
+// ============================================================
+//  LES COURSES
+//  hills : collines [hauteur, fréquence, décalage]
+//  sand  : zones de sable [début, fin]
+//  rivals: { name, color, speed (vitesse moyenne), dq (risque d'abandon par seconde) }
+// ============================================================
+const COURSES = [
+  {
+    name: "La Prairie", ico: "🌼",
+    desc: "Une petite course tranquille pour apprendre.",
+    sky: ["#6ec3ff", "#d7f1ff"], far: "#9cc7e6", mid: "#5fb35a", grass: ["#7fd36b", "#4e9e45"],
+    track: "#d9b27a", trackDark: "#c49a62", sun: "#fff3b0",
+    length: 1300, hills: [[14, 0.004, 0], [6, 0.012, 1]], sand: [], wind: false, minSpeed: 6,
+    rivals: [
+      { name: "Turbo", color: "#ff6b6b", speed: 72, dq: 0 },
+      { name: "Léon", color: "#ffb84d", speed: 42, dq: 0.006 },
+      { name: "Mamie", color: "#b48cff", speed: 31, dq: 0.003 },
+    ],
+  },
+  {
+    name: "Les Collines", ico: "⛰️",
+    desc: "Ça monte, ça descend… Ne t'arrête pas dans les montées !",
+    sky: ["#7fb8ff", "#f3e9ff"], far: "#8fa8d8", mid: "#4f9c55", grass: ["#73c65e", "#3f8a3a"],
+    track: "#cfa56d", trackDark: "#b98d55", sun: "#fff1a8",
+    length: 1500, hills: [[42, 0.0032, 0.5], [14, 0.009, 2]], sand: [], wind: false, minSpeed: 7,
+    rivals: [
+      { name: "Flash", color: "#ff5c8a", speed: 66, dq: 0.002 },
+      { name: "Gaston", color: "#4dd0e1", speed: 36, dq: 0.007 },
+      { name: "Mamie", color: "#b48cff", speed: 27, dq: 0.003 },
+    ],
+  },
+  {
+    name: "La Plage", ico: "🏖️",
+    desc: "Le sable te freine et le vent te bouscule.",
+    sky: ["#4fc3f7", "#fff6d6"], sea: true, far: "#2bb3c9", mid: "#e8cf8f", grass: ["#f1dca0", "#d9bd78"],
+    track: "#e2bf80", trackDark: "#cfa866", sun: "#fffbe0",
+    length: 1500, hills: [[10, 0.005, 0]], sand: [[380, 560], [860, 1080], [1250, 1400]], wind: true, minSpeed: 7,
+    rivals: [
+      { name: "Coco", color: "#ff8a65", speed: 34, dq: 0.006 },
+      { name: "Turbo", color: "#ff6b6b", speed: 60, dq: 0.001 },
+      { name: "Pépé", color: "#90a4ae", speed: 25, dq: 0.004 },
+    ],
+  },
+  {
+    name: "Le Grand Prix", ico: "🏆",
+    desc: "La finale. Ton rival : Gary, la tortue la plus lente du monde.",
+    sky: ["#ff9a76", "#ffd7a8"], far: "#b0698f", mid: "#7a5a8c", grass: ["#8bc06a", "#4d7d3f"],
+    track: "#cf9f6a", trackDark: "#b5844f", sun: "#ffe0a3",
+    length: 1700, hills: [[34, 0.004, 1], [12, 0.011, 3]], sand: [[720, 900]], wind: true, minSpeed: 8,
+    rivals: [
+      { name: "Mamie", color: "#b48cff", speed: 25, dq: 0.004 },
+      { name: "Pépé", color: "#90a4ae", speed: 22, dq: 0.005 },
+      { name: "Gary", color: "#ffd54f", speed: 18, dq: 0.006 },
+    ],
+  },
+];
+
+const PLAYER_COLOR = "#3ddc84";
+
+// ============================================================
+//  Page, taille d'écran
+// ============================================================
+const stage = document.getElementById("stage");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("overlay");
+const muteBtn = document.getElementById("muteBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+const touchPad = document.getElementById("touch");
+const isTouch = window.matchMedia("(pointer: coarse)").matches;
+
+let S = 1, DPR = 1;
+function resize() {
+  S = Math.min(window.innerWidth / VW, window.innerHeight / VH);
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.round(VW * S * DPR);
+  canvas.height = Math.round(VH * S * DPR);
+  stage.style.transform = `translate(-50%, -50%) scale(${S})`;
+}
+window.addEventListener("resize", resize);
+resize();
+
+// ============================================================
+//  Sauvegarde
+// ============================================================
+let save = { unlocked: 1, best: {}, muted: false };
+try {
+  const raw = localStorage.getItem("tortues-v1");
+  if (raw) save = Object.assign(save, JSON.parse(raw));
+} catch (e) {}
+function persist() {
+  try { localStorage.setItem("tortues-v1", JSON.stringify(save)); } catch (e) {}
+}
+
+// ============================================================
+//  Sons (fabriqués par le navigateur)
+// ============================================================
+const Sound = {
+  ctx: null,
+  init() {
+    if (!this.ctx) {
+      try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    }
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+  },
+  tone(freq, dur, type = "sine", vol = 0.2, slideTo = null, delay = 0) {
+    if (save.muted || !this.ctx) return;
+    const c = this.ctx, t = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  },
+  noise(dur, vol, freq, q = 1) {
+    if (save.muted || !this.ctx) return;
+    const c = this.ctx, len = Math.floor(c.sampleRate * dur);
+    const buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / len);
+    const src = c.createBufferSource(); src.buffer = buf;
+    const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q;
+    const g = c.createGain(); g.gain.value = vol;
+    src.connect(f); f.connect(g); g.connect(c.destination);
+    src.start();
+  },
+  step()    { this.tone(260 + Math.random() * 60, 0.05, "triangle", 0.035); },
+  beep(hi)  { this.tone(hi ? 880 : 440, hi ? 0.45 : 0.18, "square", 0.08); },
+  warn()    { this.tone(620, 0.08, "square", 0.05); },
+  creak()   { this.tone(140, 0.12, "sawtooth", 0.04, 110); },
+  whistle() { this.tone(2100, 0.25, "sine", 0.12, 2300); this.tone(2100, 0.35, "sine", 0.12, 2300, 0.3); },
+  wind()    { this.noise(2.0, 0.35, 500, 0.5); },
+  sad()     { [[392, 0], [370, 0.4], [349, 0.8]].forEach(([f, d]) => this.tone(f, 0.38, "sawtooth", 0.07, f * 0.97, d)); this.tone(330, 1.0, "sawtooth", 0.07, 290, 1.2); },
+  fanfare() { [523, 659, 784, 1046, 784, 1046].forEach((f, i) => this.tone(f, i === 5 ? 0.7 : 0.22, "triangle", 0.15, null, i * 0.14)); },
+  click()   { this.tone(700, 0.06, "triangle", 0.1); },
+};
+
+// ============================================================
+//  Clavier + tactile
+// ============================================================
+const keys = { left: false, right: false, push: false };
+const KEYMAP = {
+  " ": "push", ArrowUp: "push", z: "push", Z: "push", w: "push", W: "push",
+  ArrowLeft: "left", q: "left", Q: "left", a: "left", A: "left",
+  ArrowRight: "right", d: "right", D: "right",
+};
+window.addEventListener("keydown", (e) => {
+  Sound.init();
+  const k = KEYMAP[e.key];
+  if (k) { keys[k] = true; e.preventDefault(); }
+  if (e.key === "ArrowDown") e.preventDefault();
+  if (e.key === "Escape" || e.key === "p" || e.key === "P") togglePause();
+  if ((e.key === "r" || e.key === "R") && course && state !== "menu") startCourse(courseIdx);
+  if (e.key === "m" || e.key === "M") toggleMute();
+  if (e.key === "Enter" && (state === "results" || state === "dqshown")) doAction("retry");
+});
+window.addEventListener("keyup", (e) => { const k = KEYMAP[e.key]; if (k) keys[k] = false; });
+window.addEventListener("blur", () => { keys.left = keys.right = keys.push = false; });
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && (state === "racing" || state === "countdown")) togglePause();
+});
+
+touchPad.querySelectorAll("[data-k]").forEach((b) => {
+  const k = b.dataset.k;
+  b.addEventListener("pointerdown", (e) => { Sound.init(); keys[k] = true; b.setPointerCapture(e.pointerId); e.preventDefault(); });
+  const up = () => { keys[k] = false; };
+  b.addEventListener("pointerup", up);
+  b.addEventListener("pointercancel", up);
+  b.addEventListener("lostpointercapture", up);
+});
+
+// ============================================================
+//  Petits outils
+// ============================================================
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const hash = (n) => { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); };
+const fmt = (t) => t.toFixed(1).replace(".", ",");
+const noise1 = (x) => Math.sin(x * 0.013) * 0.5 + Math.sin(x * 0.031 + 1.7) * 0.3 + Math.sin(x * 0.077 + 4) * 0.2;
+
+// ============================================================
+//  État du jeu
+// ============================================================
+let state = "menu";   // menu | countdown | racing | finished | results | dq | dqshown | paused
+let pausedFrom = null;
+let course = null, courseIdx = 0;
+let racers = [], player = null;
+let finishOrder = [];
+let T = 0, raceT = 0, countT = 0, endT = 0;
+let camX = 0;
+let parts = [];
+let msgs = [];
+let gust = { t: 8, active: 0, dir: 1 };
+let warnT = 0, lastCount = 4;
+let lastResult = null;
+
+// --- Le terrain : hauteur du sol à une position donnée ---
+function terrain(x) {
+  if (!course) return 0;
+  let h = 0;
+  for (const [a, f, p] of course.hills) h += a * Math.sin(x * f + p);
+  return h * smooth(START_X + 60, START_X + 280, x) * (1 - smooth(course.length - 160, course.length - 10, x));
+}
+const slopeAt = (x) => (terrain(x + 2) - terrain(x - 2)) / 4;
+const inSand = (x) => course && course.sand.some(([a, b]) => x >= a && x <= b);
+
+function makeRacer(name, color, lane, opts = {}) {
+  return {
+    name, color, lane, x: START_X, v: 0, base: opts.speed || 0, dq: opts.dq || 0,
+    status: "run", reason: "", finishT: 0, legPh: rand(0, 6), ph: rand(0, 6), f: rand(0.3, 0.7),
+    theta: 0, omega: 0, noise: 0, stopT: 0, flipK: 0, flipDir: 1, sleeping: false,
+    isPlayer: !!opts.player, bib: opts.bib, stepAcc: 0,
+  };
+}
+
+function loadCourse(i) {
+  courseIdx = i;
+  course = COURSES[i];
+  racers = course.rivals.map((r, k) => makeRacer(r.name, r.color, k, { speed: r.speed, dq: r.dq, bib: k + 2 }));
+  player = makeRacer("Toi", PLAYER_COLOR, PLAYER_LANE, { player: true, bib: 1 });
+  racers.push(player);
+  finishOrder = [];
+  raceT = 0; endT = 0;
+  parts = []; msgs = [];
+  gust = { t: rand(6, 10), active: 0, dir: 1 };
+  camX = player.x - CAM_OFF;
+}
+
+function say(text, color = "#fff", big = false) {
+  msgs.push({ text, color, big, t: 0, life: big ? 2.4 : 2.2 });
+  if (msgs.length > 3) msgs.shift();
+}
+
+function emit(x, y, n, o) {
+  for (let i = 0; i < n; i++) {
+    const a = o.angle !== undefined ? o.angle + (Math.random() - 0.5) * (o.spread ?? Math.PI * 2) : Math.random() * Math.PI * 2;
+    const sp = (o.speed || 60) * rand(0.4, 1.2);
+    parts.push({
+      x, y, vx: Math.cos(a) * sp + (o.vx || 0), vy: Math.sin(a) * sp,
+      life: 0, max: (o.life || 0.8) * rand(0.6, 1.2), size: (o.size || 3) * rand(0.6, 1.3),
+      color: pick(o.colors || ["#fff"]), grav: o.grav ?? 200, rot: rand(0, 6), vr: rand(-6, 6), shape: o.shape || "dot",
+    });
+  }
+}
+
+// ============================================================
+//  Mise à jour (60 fois par seconde)
+// ============================================================
+function tick(dt) {
+  T += dt;
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.life += dt;
+    if (p.life >= p.max) { parts.splice(i, 1); continue; }
+    p.vy += p.grav * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.rot += p.vr * dt;
+  }
+  for (let i = msgs.length - 1; i >= 0; i--) { msgs[i].t += dt; if (msgs[i].t >= msgs[i].life) msgs.splice(i, 1); }
+
+  if (!course || state === "paused" || state === "results" || state === "dqshown") return;
+
+  if (state === "countdown") {
+    countT -= dt;
+    const n = Math.ceil(countT);
+    if (n !== lastCount && n >= 0) { lastCount = n; Sound.beep(n === 0); }
+    if (countT <= 0) { state = "racing"; say("PARTEZ… mais doucement !", "#ffcc4d", true); }
+    updateCamera(dt);
+    return;
+  }
+
+  if (state === "racing" || state === "menu" || state === "finished" || state === "dq") {
+    raceT += dt;
+    updateGust(dt);
+    for (const r of racers) {
+      if (r.isPlayer) updatePlayer(r, dt);
+      else updateRival(r, dt);
+    }
+  }
+
+  if (state === "finished" || state === "dq") {
+    endT -= dt;
+    if (state === "finished" && Math.random() < 0.5) {
+      emit(rand(0, VW) + camX, -10, 1, { angle: Math.PI / 2, spread: 0.6, speed: 80, colors: ["#ffcc4d", "#ff6b6b", "#4cd97b", "#4fc3f7", "#b48cff"], life: 3, size: 5, grav: 60, shape: "confetti" });
+    }
+    if (endT <= 0) state === "finished" ? showResults() : showDQ();
+  }
+
+  // menu : la course de démo recommence quand tout le monde est arrivé
+  if (state === "menu" && racers.every((r) => r.status !== "run")) loadCourse(0);
+
+  updateCamera(dt);
+}
+
+function updateCamera(dt) {
+  const target = player.x - CAM_OFF;
+  camX += (target - camX) * Math.min(1, dt * 4);
+}
+
+function updateGust(dt) {
+  if (!course.wind || state === "menu") return;
+  if (gust.active > 0) {
+    gust.active -= dt;
+    if (Math.random() < 0.6) {
+      emit(camX + (gust.dir > 0 ? -20 : VW + 20), rand(140, 480), 1, {
+        angle: gust.dir > 0 ? 0 : Math.PI, spread: 0.3, speed: 380, colors: ["#6fbf4a", "#a5d65c", "#e0c060"],
+        life: 2.6, size: 5, grav: 15, shape: "leaf",
+      });
+    }
+  } else {
+    gust.t -= dt;
+    if (gust.t <= 0 && state === "racing") {
+      gust.active = 2.2;
+      gust.dir = Math.random() < 0.5 ? -1 : 1;
+      gust.t = rand(7, 12);
+      Sound.wind();
+      say(gust.dir > 0 ? "💨 Rafale de vent →" : "💨 ← Rafale de vent", "#d9f3ff", true);
+    }
+  }
+}
+
+function updatePlayer(p, dt) {
+  if (p.status === "dq") { animateDQ(p, dt); return; }
+
+  // --- en mode démo (menu), la tortue roule toute seule ---
+  if (state === "menu") {
+    p.v += (40 - p.v) * dt;
+    p.x += p.v * dt;
+    p.legPh += p.v * dt * 0.18;
+    p.theta = Math.sin(T * 2) * 0.05;
+    if (p.x >= course.length && p.status === "run") { p.status = "done"; }
+    return;
+  }
+
+  const ctl = state === "racing";
+
+  // --- vitesse ---
+  let a = ctl && keys.push ? PUSH : -DECEL;
+  if (p.status === "done") a = -DECEL;
+  a -= p.v * 0.25;
+  if (inSand(p.x)) a -= SAND_DRAG;
+  a -= slopeAt(p.x) * SLOPE_G;
+  p.v = clamp(p.v + a * dt, 0, MAX_V);
+  p.x += p.v * dt;
+
+  // --- pattes + petits bruits de pas ---
+  const prev = p.legPh;
+  p.legPh += p.v * dt * 0.18;
+  if (Math.floor(prev / Math.PI) !== Math.floor(p.legPh / Math.PI)) Sound.step();
+  if (p.v > 18 && Math.random() < p.v / 400) {
+    emit(p.x - 22, LANE_Y[p.lane] - terrain(p.x), 1, { angle: Math.PI + 0.3, spread: 0.8, speed: 30, colors: inSand(p.x) ? ["#f2dca5"] : ["#c9a46c", "#b38b56"], life: 0.6, size: 3, grav: -10 });
+  }
+
+  if (p.status !== "run") { p.theta *= 0.95; return; }
+
+  // --- interdit de s'arrêter ! ---
+  if (raceT > 2.5 && p.v < course.minSpeed) {
+    p.stopT += dt;
+    warnT -= dt;
+    if (warnT <= 0) { Sound.warn(); warnT = 0.25; }
+    if (p.stopT > STOP_TIME) return disqualify(p, "stop");
+  } else {
+    p.stopT = Math.max(0, p.stopT - dt * 1.5);
+  }
+
+  // --- équilibre : plus on est lent, plus c'est instable ---
+  const vn = clamp(p.v / STABLE_V, 0, 1);
+  const ramp = clamp(raceT / 2, 0, 1);
+  p.noise += (-p.noise * 1.5 + (Math.random() - 0.5) * 16) * dt;
+  const instab = BAL.instab * (1 - vn) - BAL.selfFix * vn;
+  let torque = p.noise * (0.15 + BAL.noise * Math.pow(1 - vn, 1.5)) * ramp;
+  torque += p.theta * instab * ramp;
+  torque += ((keys.right ? 1 : 0) - (keys.left ? 1 : 0)) * BAL.control;
+  torque += slopeAt(p.x) * 0.5;
+  if (gust.active > 0) torque += gust.dir * BAL.wind;
+  p.omega += torque * dt;
+  p.omega *= 1 - BAL.damping * dt;
+  p.theta += p.omega * dt;
+  if (Math.abs(p.theta) > 0.5 && Math.random() < 0.04) Sound.creak();
+  if (Math.abs(p.theta) > TIP_ANGLE) return disqualify(p, "flip");
+
+  // --- ligne d'arrivée ---
+  if (p.x >= course.length) finish(p);
+}
+
+function updateRival(r, dt) {
+  if (r.status === "dq") { animateDQ(r, dt); return; }
+  const s = slopeAt(r.x);
+  let target = r.base * (1 + 0.22 * Math.sin(raceT * r.f + r.ph)) * clamp(1 - s * 2, 0.55, 1.5);
+  if (inSand(r.x)) target *= 0.8;
+  if (r.status === "done") target = 0;
+  r.v += (target - r.v) * Math.min(1, dt * 1.5);
+  r.x += r.v * dt;
+  r.legPh += r.v * dt * 0.18;
+  r.theta = Math.sin(raceT * 2.5 + r.ph) * 0.05;
+
+  if (r.status !== "run") return;
+  if (state === "racing" && r.x > START_X + 200 && Math.random() < r.dq * dt) {
+    disqualify(r, Math.random() < 0.5 ? "stop" : "flip");
+    return;
+  }
+  if (r.x >= course.length) finish(r);
+}
+
+function animateDQ(r, dt) {
+  r.v *= 0.9;
+  r.x += r.v * dt;
+  if (r.reason === "flip") r.flipK = Math.min(1, r.flipK + dt * 2.2);
+}
+
+function disqualify(r, reason) {
+  r.status = "dq";
+  r.reason = reason;
+  r.sleeping = reason === "stop";
+  r.flipDir = r.theta >= 0 ? 1 : -1;
+  if (r.isPlayer) {
+    state = "dq";
+    endT = 1.8;
+    Sound.whistle();
+    Sound.sad();
+    say(reason === "stop" ? "💤 Tu t'es arrêté !" : "🙃 Tu t'es retourné !", "#ff8a8a", true);
+  } else if (state === "racing") {
+    Sound.whistle();
+    say(reason === "stop"
+      ? `💤 ${r.name} s'est endormie. Disqualifiée !`
+      : `🙃 ${r.name} s'est retournée. Disqualifiée !`, "#ffd0d0");
+  }
+}
+
+function finish(r) {
+  r.status = "done";
+  r.finishT = raceT;
+  finishOrder.push(r);
+  if (r.isPlayer) {
+    state = "finished";
+    endT = 2.2;
+    const stillRunning = racers.filter((o) => o.status === "run").length;
+    if (stillRunning === 0) { Sound.fanfare(); say("🏆 Dernier ! Tu as gagné !", "#ffcc4d", true); }
+    else { Sound.sad(); say("Tu as franchi la ligne… trop tôt !", "#fff", true); }
+  } else if (state === "racing") {
+    say(finishOrder.length === 1
+      ? `🐇 ${r.name} arrive en premier… quelle honte !`
+      : `${r.name} franchit la ligne. Trop pressée !`, "#fff");
+    if (racers.every((o) => o.isPlayer || o.status !== "run")) {
+      say("Tu es la dernière tortue en piste ! Passe la ligne pour gagner 🏆", "#ffcc4d", true);
+    }
+  }
+}
+
+// --- Classement "lenteur" en direct : 1 = le plus lent = celui qui gagne ---
+function liveRank() {
+  let rank = 1;
+  for (const r of racers) if (!r.isPlayer && r.status === "run" && r.x < player.x) rank++;
+  return rank;
+}
+
+// ============================================================
+//  Dessin
+// ============================================================
+function render() {
+  ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+  if (!course) return;
+  drawSky();
+  drawFar();
+  drawMid();
+  drawGround();
+  drawFinish(false);
+  // tortues du fond vers l'avant
+  for (let lane = 0; lane < 4; lane++) for (const r of racers) if (r.lane === lane) drawRacer(r);
+  drawFinish(true);
+  drawFrontGrass();
+  drawParticles();
+  if (state !== "menu") drawHUD();
+  if (state === "countdown") drawCountdown();
+  drawMsgs();
+}
+
+function drawSky() {
+  const g = ctx.createLinearGradient(0, 0, 0, 320);
+  g.addColorStop(0, course.sky[0]);
+  g.addColorStop(1, course.sky[1]);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, VW, VH);
+
+  // soleil
+  const sx = 760, sy = 95;
+  const sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 120);
+  sg.addColorStop(0, "rgba(255,255,230,.9)");
+  sg.addColorStop(0.3, "rgba(255,240,180,.35)");
+  sg.addColorStop(1, "rgba(255,240,180,0)");
+  ctx.fillStyle = sg;
+  ctx.fillRect(sx - 120, sy - 120, 240, 240);
+  ctx.fillStyle = course.sun;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 38, 0, Math.PI * 2);
+  ctx.fill();
+
+  // nuages
+  for (let i = 0; i < 6; i++) {
+    const span = VW + 320;
+    const x = ((i * 233 - camX * 0.08 + T * 7) % span + span) % span - 160;
+    const y = 50 + (i * 47) % 130;
+    drawCloud(x, y, 0.7 + (i % 3) * 0.25);
+  }
+}
+
+function drawCloud(x, y, s) {
+  ctx.fillStyle = "rgba(255,255,255,.85)";
+  ctx.beginPath();
+  ctx.arc(x, y, 22 * s, 0, Math.PI * 2);
+  ctx.arc(x + 26 * s, y - 10 * s, 28 * s, 0, Math.PI * 2);
+  ctx.arc(x + 56 * s, y, 22 * s, 0, Math.PI * 2);
+  ctx.arc(x + 28 * s, y + 8 * s, 22 * s, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawFar() {
+  if (course.sea) {
+    // la mer
+    const g = ctx.createLinearGradient(0, 230, 0, 310);
+    g.addColorStop(0, "#1ea7c4");
+    g.addColorStop(1, "#7fdde8");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 232, VW, 90);
+    ctx.strokeStyle = "rgba(255,255,255,.55)";
+    ctx.lineWidth = 2;
+    for (let k = 0; k < 4; k++) {
+      ctx.beginPath();
+      const y = 248 + k * 16;
+      for (let sx = 0; sx <= VW; sx += 10) {
+        const yy = y + Math.sin((sx + camX * 0.15) * 0.04 + T * 1.5 + k) * 2.5;
+        sx ? ctx.lineTo(sx, yy) : ctx.moveTo(sx, yy);
+      }
+      ctx.globalAlpha = 0.5 - k * 0.1;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
+  // montagnes au loin
+  ctx.fillStyle = course.far;
+  ctx.beginPath();
+  ctx.moveTo(0, VH);
+  for (let sx = 0; sx <= VW; sx += 10) ctx.lineTo(sx, 225 + noise1(sx + camX * 0.15) * 45);
+  ctx.lineTo(VW, VH);
+  ctx.fill();
+  // neige / lumière sur les sommets
+  ctx.fillStyle = "rgba(255,255,255,.18)";
+  ctx.beginPath();
+  ctx.moveTo(0, VH);
+  for (let sx = 0; sx <= VW; sx += 10) ctx.lineTo(sx, 232 + noise1(sx + camX * 0.15) * 45);
+  ctx.lineTo(VW, VH);
+  ctx.fill();
+}
+
+function drawMid() {
+  const off = camX * 0.4;
+  // collines moyennes
+  ctx.fillStyle = course.mid;
+  ctx.beginPath();
+  ctx.moveTo(0, VH);
+  for (let sx = 0; sx <= VW; sx += 10) ctx.lineTo(sx, 285 + noise1((sx + off) * 1.3 + 500) * 22);
+  ctx.lineTo(VW, VH);
+  ctx.fill();
+
+  // arbres (ou palmiers à la plage)
+  const step = 150;
+  const first = Math.floor(off / step) - 1;
+  for (let k = first; k < first + VW / step + 3; k++) {
+    if (hash(k + courseIdx * 50) < 0.4) continue;
+    const sx = k * step - off + hash(k * 3) * 60;
+    const base = 285 + noise1((sx + off) * 1.3 + 500) * 22 + 6;
+    const sc = 0.7 + hash(k * 7) * 0.5;
+    if (course.sea) drawPalm(sx, base, sc);
+    else drawTree(sx, base, sc);
+  }
+}
+
+function drawTree(x, y, s) {
+  ctx.fillStyle = "#6b4a2b";
+  ctx.fillRect(x - 3 * s, y - 26 * s, 6 * s, 26 * s);
+  ctx.fillStyle = "rgba(0,0,0,.12)";
+  ctx.beginPath(); ctx.arc(x + 4 * s, y - 34 * s, 20 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = shade(course.mid, -18);
+  ctx.beginPath(); ctx.arc(x, y - 38 * s, 20 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = shade(course.mid, 10);
+  ctx.beginPath(); ctx.arc(x - 6 * s, y - 44 * s, 10 * s, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawPalm(x, y, s) {
+  ctx.strokeStyle = "#8a6239";
+  ctx.lineWidth = 5 * s;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.quadraticCurveTo(x + 10 * s, y - 30 * s, x + 4 * s, y - 60 * s);
+  ctx.stroke();
+  ctx.strokeStyle = "#3f9a4a";
+  ctx.lineWidth = 4 * s;
+  for (let k = 0; k < 5; k++) {
+    const a = -Math.PI / 2 + (k - 2) * 0.65 + Math.sin(T * 1.5 + x) * 0.05;
+    ctx.beginPath();
+    ctx.moveTo(x + 4 * s, y - 60 * s);
+    ctx.quadraticCurveTo(x + 4 * s + Math.cos(a) * 20 * s, y - 72 * s, x + 4 * s + Math.cos(a) * 30 * s, y - 58 * s + Math.sin(a) * -4 * s);
+    ctx.stroke();
+  }
+}
+
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = clamp((n >> 16) + amt, 0, 255), g = clamp(((n >> 8) & 255) + amt, 0, 255), b = clamp((n & 255) + amt, 0, 255);
+  return `rgb(${r},${g},${b})`;
+}
+
+// --- Le sol : herbe + piste à 4 couloirs qui suit les collines ---
+function groundPath(offsetY, from = 0, to = VW) {
+  ctx.moveTo(from, offsetY - terrain(from + camX));
+  for (let sx = from; sx <= to; sx += 8) ctx.lineTo(sx, offsetY - terrain(sx + camX));
+  ctx.lineTo(to, offsetY - terrain(to + camX));
+}
+
+function drawGround() {
+  // herbe
+  const g = ctx.createLinearGradient(0, 290, 0, VH);
+  g.addColorStop(0, course.grass[0]);
+  g.addColorStop(1, course.grass[1]);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  groundPath(305);
+  ctx.lineTo(VW, VH); ctx.lineTo(0, VH);
+  ctx.fill();
+
+  // piste
+  ctx.beginPath();
+  groundPath(332);
+  for (let sx = VW; sx >= 0; sx -= 8) ctx.lineTo(sx, 470 - terrain(sx + camX));
+  ctx.closePath();
+  ctx.fillStyle = course.track;
+  ctx.fill();
+
+  // bandes alternées sur chaque couloir
+  for (let i = 0; i < 4; i++) {
+    if (i % 2) continue;
+    ctx.beginPath();
+    groundPath(LANE_Y[i] - 20);
+    for (let sx = VW; sx >= 0; sx -= 8) ctx.lineTo(sx, LANE_Y[i] + 14 - terrain(sx + camX));
+    ctx.closePath();
+    ctx.fillStyle = course.trackDark;
+    ctx.globalAlpha = 0.35;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // zones de sable
+  for (const [a, b] of course.sand) {
+    const s1 = Math.max(0, a - camX), s2 = Math.min(VW, b - camX);
+    if (s2 <= s1) continue;
+    ctx.beginPath();
+    groundPath(332, s1, s2);
+    for (let sx = s2; sx >= s1; sx -= 8) ctx.lineTo(sx, 470 - terrain(sx + camX));
+    ctx.closePath();
+    ctx.fillStyle = "#f5df9f";
+    ctx.fill();
+    ctx.fillStyle = "rgba(190,150,80,.5)";
+    for (let wx = Math.ceil(a / 14) * 14; wx < b; wx += 14) {
+      const sx = wx - camX;
+      if (sx < s1 || sx > s2) continue;
+      for (let k = 0; k < 4; k++) {
+        const yy = 340 + hash(wx + k) * 120 - terrain(wx);
+        ctx.fillRect(sx + hash(wx * k) * 10, yy, 2, 2);
+      }
+    }
+    // panneau "SABLE"
+    if (a - camX > -60 && a - camX < VW) drawSign(a - camX, 318 - terrain(a), "SABLE", "#e0a43a");
+  }
+
+  // bords de la piste + lignes de couloirs
+  ctx.strokeStyle = "rgba(255,255,255,.85)";
+  ctx.lineWidth = 3;
+  ctx.beginPath(); groundPath(332); ctx.stroke();
+  ctx.beginPath(); groundPath(470); ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,.5)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const y0 = LANE_Y[i] + 14;
+    const dash = 28;
+    const start = -((camX % dash) + dash) % dash;
+    for (let sx = start; sx < VW; sx += dash) {
+      ctx.beginPath();
+      ctx.moveTo(sx, y0 - terrain(sx + camX));
+      ctx.lineTo(sx + 14, y0 - terrain(sx + 14 + camX));
+      ctx.stroke();
+    }
+  }
+
+  // ligne de départ
+  const sx0 = START_X - camX;
+  if (sx0 > -20 && sx0 < VW + 20) {
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(sx0 - 2, 332 - terrain(START_X), 5, 138);
+  }
+
+  // panneaux de distance tous les 200
+  for (let d = 200; d < course.length; d += 200) {
+    const sx = START_X + d - camX;
+    if (sx < -40 || sx > VW + 40) continue;
+    drawSign(sx, 318 - terrain(START_X + d), String(d), "#fff");
+  }
+
+  // fleurs / coquillages dans l'herbe du haut
+  const cell = 37;
+  const firstC = Math.floor(camX / cell);
+  for (let c = firstC; c < firstC + VW / cell + 2; c++) {
+    if (hash(c) < 0.55) continue;
+    const sx = c * cell - camX + hash(c * 2) * 20;
+    const y = 312 + hash(c * 5) * 14 - terrain(c * cell);
+    drawFlower(sx, y, c, 0.8);
+  }
+}
+
+function drawSign(x, y, text, color) {
+  ctx.fillStyle = "#7a5530";
+  ctx.fillRect(x - 2, y - 26, 4, 26);
+  ctx.fillStyle = color;
+  roundRect(x - 22, y - 42, 44, 18, 5);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,.25)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = "#3a2a18";
+  ctx.font = "600 11px Fredoka, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(text, x, y - 29);
+}
+
+function drawFlower(x, y, seed, s) {
+  if (course.sea) {
+    // coquillage
+    ctx.fillStyle = hash(seed * 9) < 0.5 ? "#ffd9c7" : "#fff1d6";
+    ctx.beginPath();
+    ctx.arc(x, y, 4 * s, Math.PI, 0);
+    ctx.fill();
+    return;
+  }
+  ctx.strokeStyle = "#3f8a3a";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 8 * s); ctx.stroke();
+  ctx.fillStyle = ["#fff", "#ffd54f", "#ff8fb1", "#b39ddb"][Math.floor(hash(seed * 3) * 4)];
+  for (let k = 0; k < 5; k++) {
+    const a = k * 1.2566;
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(a) * 3 * s, y - 8 * s + Math.sin(a) * 3 * s, 2.2 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#ffb300";
+  ctx.beginPath(); ctx.arc(x, y - 8 * s, 1.6 * s, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawFrontGrass() {
+  const cell = 29;
+  const firstC = Math.floor(camX / cell);
+  for (let c = firstC; c < firstC + VW / cell + 2; c++) {
+    if (hash(c + 777) < 0.5) continue;
+    const sx = c * cell - camX;
+    const y = 488 + hash(c * 11) * 40 - terrain(c * cell) * 0.6;
+    if (hash(c * 13) < 0.35) drawFlower(sx, y, c + 99, 1.2);
+    else {
+      ctx.strokeStyle = shade(course.grass[1], -15);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let k = -1; k <= 1; k++) {
+        ctx.moveTo(sx + k * 4, y);
+        ctx.quadraticCurveTo(sx + k * 5, y - 8, sx + k * 7 + Math.sin(T * 2 + c) * 1.5, y - 14);
+      }
+      ctx.stroke();
+    }
+  }
+}
+
+// --- Arrivée : damier + arche (front = parties devant les tortues) ---
+function drawFinish(front) {
+  const sx = course.length - camX;
+  if (sx < -80 || sx > VW + 80) return;
+  const h = terrain(course.length);
+  if (!front) {
+    // damier sur la piste
+    const sq = 9.5;
+    for (let row = 0; row < 14; row++) {
+      for (let col = 0; col < 2; col++) {
+        ctx.fillStyle = (row + col) % 2 ? "#222" : "#fff";
+        ctx.fillRect(sx - sq + col * sq, 333 - h + row * sq * 1.0, sq, sq);
+      }
+    }
+    // poteau arrière
+    ctx.fillStyle = "#e9e9e9";
+    ctx.fillRect(sx - 4, 190 - h, 8, 142);
+    return;
+  }
+  // poteau avant
+  ctx.fillStyle = "#f4f4f4";
+  ctx.fillRect(sx - 5, 190 - h, 10, 285);
+  ctx.fillStyle = "rgba(0,0,0,.15)";
+  ctx.fillRect(sx + 2, 190 - h, 3, 285);
+  // banderole
+  ctx.save();
+  ctx.translate(sx, 175 - h);
+  ctx.rotate(Math.sin(T * 1.5) * 0.02);
+  ctx.fillStyle = "#ff5a5f";
+  roundRect(-90, -24, 180, 44, 8);
+  ctx.fill();
+  for (let k = 0; k < 18; k++) {
+    ctx.fillStyle = k % 2 ? "#222" : "#fff";
+    ctx.fillRect(-90 + k * 10, -24, 10, 6);
+  }
+  ctx.fillStyle = "#fff";
+  ctx.font = "700 20px Fredoka, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("ARRIVÉE", 0, 10);
+  ctx.restore();
+}
+
+// --- Une tortue ---
+function drawRacer(r) {
+  const sx = r.x - camX;
+  if (sx < -80 || sx > VW + 80) return;
+  const sy = LANE_Y[r.lane] - terrain(r.x);
+  const sc = 0.78 + 0.08 * r.lane;
+  const ang = -Math.atan(slopeAt(r.x)) + r.theta;
+
+  // halo vert au sol sous la tortue du joueur
+  if (r.isPlayer) {
+    ctx.save();
+    ctx.fillStyle = `rgba(110,255,170,${0.32 + Math.sin(T * 4) * 0.08})`;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + 2, 40 * sc, 9 * sc, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawTurtle(sx, sy, sc, r, ang);
+
+  // nom derrière les adversaires / flèche "TOI" au départ
+  ctx.textAlign = "center";
+  if (r.isPlayer && (state === "countdown" || state === "menu" || raceT < 3)) {
+    const by = sy - 52 + Math.sin(T * 4) * 2;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.moveTo(sx - 8, by); ctx.lineTo(sx + 8, by); ctx.lineTo(sx, by + 9);
+    ctx.fill();
+    ctx.font = "700 13px Fredoka, sans-serif";
+    outlineText("TOI", sx, by - 5, "#fff", "rgba(0,0,0,.45)", 4);
+  } else {
+    ctx.font = "600 12px Fredoka, sans-serif";
+    ctx.textAlign = "right";
+    ctx.globalAlpha = r.status === "dq" ? 0.5 : 0.9;
+    outlineText(r.name, sx - 38 * sc, sy - 8 * sc, "#fff", "rgba(0,0,0,.45)", 3);
+    ctx.globalAlpha = 1;
+  }
+
+  // Zzz si elle dort
+  if (r.sleeping) {
+    ctx.font = "700 16px Fredoka, sans-serif";
+    for (let k = 0; k < 3; k++) {
+      const ph = (T * 0.6 + k / 3) % 1;
+      ctx.globalAlpha = Math.sin(ph * Math.PI);
+      outlineText("z", sx + 28 * sc + ph * 18, sy - 40 * sc - ph * 30, "#fff", "rgba(0,0,0,.35)", 3);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawTurtle(x, y, sc, r, ang) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(sc, sc);
+
+  // ombre
+  ctx.fillStyle = "rgba(0,0,0,.18)";
+  ctx.beginPath();
+  ctx.ellipse(0, 2, 32, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.rotate(ang);
+  // retournement sur la carapace
+  if (r.flipK > 0) {
+    ctx.translate(0, -16);
+    ctx.rotate(r.flipDir * Math.PI * r.flipK);
+    ctx.translate(0, 16 - 18 * r.flipK);
+  }
+
+  const skin = "#9bd56f", skinDark = "#6fae4a";
+  const flipped = r.flipK > 0.5;
+  const ph = flipped ? T * 22 : r.legPh;
+
+  // pattes
+  [-17, -6, 7, 18].forEach((lx, k) => {
+    const o = ph + (k % 2) * Math.PI;
+    const dx = Math.sin(o) * 3.2;
+    const lift = -Math.max(0, Math.cos(o)) * 2.6;
+    ctx.fillStyle = k < 2 ? skinDark : skin;
+    roundRect(lx - 4 + dx, -13 + lift, 8, 13, 4);
+    ctx.fill();
+  });
+
+  // queue
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.moveTo(-26, -13); ctx.lineTo(-35, -9); ctx.lineTo(-25, -8);
+  ctx.fill();
+
+  // cou + tête (qui dodeline)
+  const bob = Math.sin(r.legPh * 2) * 1.2;
+  ctx.fillStyle = skin;
+  roundRect(18, -19 + bob, 13, 9, 4);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(32, -16 + bob, 9, 0, Math.PI * 2);
+  ctx.fill();
+  // joue
+  ctx.fillStyle = "rgba(255,120,140,.45)";
+  ctx.beginPath(); ctx.arc(31, -11 + bob, 2.6, 0, Math.PI * 2); ctx.fill();
+  // œil
+  if (r.sleeping) {
+    ctx.strokeStyle = "#1d2b1a";
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(34.5, -18 + bob, 2.6, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+  } else {
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(34.5, -18.5 + bob, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#1d2b1a";
+    ctx.beginPath(); ctx.arc(35.6, -18.5 + bob, 1.8, 0, Math.PI * 2); ctx.fill();
+  }
+  // bouche
+  ctx.strokeStyle = "#2c4a22";
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  if (flipped || (r.isPlayer && Math.abs(r.theta) > 0.45)) ctx.arc(37, -10 + bob, 2, Math.PI * 1.1, Math.PI * 1.9);
+  else ctx.arc(36, -13 + bob, 2.4, 0.15 * Math.PI, 0.75 * Math.PI);
+  ctx.stroke();
+
+  // bandeau rouge du joueur
+  if (r.isPlayer) {
+    ctx.strokeStyle = "#ff5a5f";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(32, -16 + bob, 9, Math.PI * 1.08, Math.PI * 1.85); ctx.stroke();
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(25, -22 + bob);
+    ctx.quadraticCurveTo(18, -26 + Math.sin(T * 9) * 3, 12, -23 + Math.sin(T * 9 + 1) * 3);
+    ctx.stroke();
+  }
+
+  // carapace
+  const g = ctx.createLinearGradient(0, -36, 0, -10);
+  g.addColorStop(0, shade(r.color, 40));
+  g.addColorStop(1, shade(r.color, -25));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(0, -12, 27, 23, 0, Math.PI, Math.PI * 2);
+  ctx.closePath();
+  ctx.fill();
+  // écailles
+  ctx.fillStyle = "rgba(255,255,255,.22)";
+  ctx.strokeStyle = "rgba(0,0,0,.18)";
+  ctx.lineWidth = 1.2;
+  for (const [ex, ey, rx, ry] of [[0, -23, 9, 7], [-15, -17, 7, 5.5], [15, -17, 7, 5.5]]) {
+    ctx.beginPath();
+    ctx.ellipse(ex, ey, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  // reflet
+  ctx.fillStyle = "rgba(255,255,255,.35)";
+  ctx.beginPath();
+  ctx.ellipse(-9, -29, 7, 3, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  // bordure
+  ctx.fillStyle = shade(r.color, -45);
+  roundRect(-29, -14, 58, 6, 3);
+  ctx.fill();
+  // numéro
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(0, -23, 6.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#222";
+  ctx.font = "700 9px Fredoka, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(String(r.bib), 0, -20);
+
+  // gouttes de sueur quand on perd l'équilibre
+  if (r.isPlayer && Math.abs(r.theta) > 0.4 && r.status === "run") {
+    ctx.fillStyle = "#7fd3ff";
+    for (let k = 0; k < 2; k++) {
+      const p = (T * 2 + k * 0.5) % 1;
+      ctx.globalAlpha = 1 - p;
+      ctx.beginPath();
+      ctx.arc(26 + k * 9, -30 - p * 10, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+function drawParticles() {
+  for (const p of parts) {
+    const sx = p.x - camX;
+    ctx.globalAlpha = clamp(1 - p.life / p.max, 0, 1) * (p.shape === "dot" ? 0.7 : 1);
+    ctx.fillStyle = p.color;
+    if (p.shape === "dot") {
+      ctx.beginPath();
+      ctx.arc(sx, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.save();
+      ctx.translate(sx, p.y);
+      ctx.rotate(p.rot);
+      if (p.shape === "leaf") { ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size * 0.45, 0, 0, Math.PI * 2); ctx.fill(); }
+      else ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      ctx.restore();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- Interface ---
+function outlineText(text, x, y, fill, stroke = "rgba(0,0,0,.5)", lw = 5) {
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = lw;
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = fill;
+  ctx.fillText(text, x, y);
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function panel(x, y, w, h) {
+  ctx.fillStyle = "rgba(12,30,22,.62)";
+  roundRect(x, y, w, h, 14);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.12)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawHUD() {
+  // nom de la course
+  panel(16, 14, 210, 52);
+  ctx.textAlign = "left";
+  ctx.font = "600 11px Fredoka, sans-serif";
+  ctx.fillStyle = "#ffcc4d";
+  ctx.fillText(`COURSE ${courseIdx + 1} / ${COURSES.length}`, 30, 34);
+  ctx.font = "700 19px Fredoka, sans-serif";
+  ctx.fillStyle = "#fff";
+  ctx.fillText(course.ico + " " + course.name, 30, 56);
+
+  // mini-carte de la course
+  const mx = 300, mw = 360, my = 30;
+  panel(mx - 20, 14, mw + 40, 64);
+  ctx.strokeStyle = "rgba(255,255,255,.35)";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(mx, my + 6); ctx.lineTo(mx + mw, my + 6); ctx.stroke();
+  ctx.font = "14px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("🏁", mx + mw + 2, my + 11);
+  for (const r of racers) {
+    const px = mx + clamp((r.x - START_X) / (course.length - START_X), 0, 1) * mw;
+    ctx.globalAlpha = r.status === "dq" ? 0.4 : 1;
+    ctx.fillStyle = r.color;
+    ctx.beginPath(); ctx.arc(px, my + 6, r.isPlayer ? 8 : 6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = r.isPlayer ? "#fff" : "rgba(0,0,0,.35)";
+    ctx.lineWidth = r.isPlayer ? 2.5 : 1.5;
+    ctx.stroke();
+    if (r.status === "dq") {
+      ctx.strokeStyle = "#ff5a5f"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(px - 5, my + 1); ctx.lineTo(px + 5, my + 11); ctx.moveTo(px + 5, my + 1); ctx.lineTo(px - 5, my + 11); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // classement de lenteur en direct
+  if (state === "racing" && player.status === "run") {
+    const rk = liveRank();
+    ctx.font = "600 14px Fredoka, sans-serif";
+    ctx.fillStyle = rk === 1 ? "#8ff0ad" : "#ffd27a";
+    ctx.fillText(rk === 1 ? "🐢 Tu es la plus lente : tu gagnes !" : `Tu es ${rk}e plus lente — ralentis !`, mx + mw / 2, my + 36);
+  }
+
+  // jauge de vitesse
+  const bx = 20, by = 474, bw = 300;
+  panel(bx, by, bw + 28, 52);
+  ctx.textAlign = "left";
+  ctx.font = "600 11px Fredoka, sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,.75)";
+  ctx.fillText("VITESSE", bx + 14, by + 18);
+  const vmax = 100;
+  const gx = bx + 14, gy = by + 26, gw = bw, gh = 14;
+  ctx.fillStyle = "rgba(255,255,255,.12)";
+  roundRect(gx, gy, gw, gh, 7); ctx.fill();
+  const minW = (course.minSpeed / vmax) * gw;
+  ctx.fillStyle = "rgba(255,90,95,.75)";
+  roundRect(gx, gy, minW, gh, 7); ctx.fill();
+  const grad = ctx.createLinearGradient(gx, 0, gx + gw, 0);
+  grad.addColorStop(0, "#4cd97b");
+  grad.addColorStop(0.5, "#ffcc4d");
+  grad.addColorStop(1, "#ff8a4d");
+  ctx.fillStyle = grad;
+  ctx.globalAlpha = 0.85;
+  const vw = clamp(player.v / vmax, 0, 1) * gw;
+  if (vw > minW) { roundRect(gx + minW, gy, vw - minW, gh, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(gx + vw - 1.5, gy - 3, 3, gh + 6);
+  ctx.font = "600 9px Fredoka, sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,.85)";
+  ctx.textAlign = "center";
+  ctx.fillText("STOP", gx + minW / 2 + 3, gy + 10.5);
+  ctx.font = "500 10px Fredoka, sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,.6)";
+  ctx.textAlign = "right";
+  ctx.fillText("🐇 trop vite", gx + gw, by + 18);
+
+  // jauge d'équilibre
+  const ex = VW - 20 - 328, ey = 474, ew = 300;
+  panel(ex, ey, ew + 28, 52);
+  ctx.textAlign = "left";
+  ctx.font = "600 11px Fredoka, sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,.75)";
+  ctx.fillText("ÉQUILIBRE   ← →", ex + 14, ey + 18);
+  const qx = ex + 14, qy = ey + 26;
+  const eg = ctx.createLinearGradient(qx, 0, qx + ew, 0);
+  eg.addColorStop(0, "#ff5a5f");
+  eg.addColorStop(0.25, "#ffcc4d");
+  eg.addColorStop(0.5, "#4cd97b");
+  eg.addColorStop(0.75, "#ffcc4d");
+  eg.addColorStop(1, "#ff5a5f");
+  ctx.fillStyle = eg;
+  ctx.globalAlpha = 0.85;
+  roundRect(qx, qy, ew, 14, 7); ctx.fill();
+  ctx.globalAlpha = 1;
+  const tx = qx + ew / 2 + clamp(player.theta / TIP_ANGLE, -1, 1) * (ew / 2);
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(tx, qy + 7, 9, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = PLAYER_COLOR;
+  ctx.beginPath(); ctx.arc(tx, qy + 7, 6, 0, Math.PI * 2); ctx.fill();
+
+  // alerte : tu vas t'arrêter !
+  if (player.stopT > 0 && player.status === "run") {
+    const k = player.stopT / STOP_TIME;
+    ctx.textAlign = "center";
+    ctx.font = "700 30px Fredoka, sans-serif";
+    ctx.globalAlpha = 0.6 + 0.4 * Math.sin(T * 20);
+    outlineText("💤 AVANCE !", VW / 2, 150, "#ff8a8a", "rgba(0,0,0,.5)", 6);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "rgba(0,0,0,.35)";
+    roundRect(VW / 2 - 80, 162, 160, 8, 4); ctx.fill();
+    ctx.fillStyle = "#ff5a5f";
+    roundRect(VW / 2 - 80, 162, 160 * k, 8, 4); ctx.fill();
+  }
+}
+
+function drawCountdown() {
+  const n = Math.ceil(countT);
+  const frac = countT - Math.floor(countT);
+  ctx.textAlign = "center";
+  ctx.save();
+  ctx.translate(VW / 2, 210);
+  const s = 1 + frac * 0.4;
+  ctx.scale(s, s);
+  ctx.globalAlpha = clamp(frac * 2, 0, 1);
+  ctx.font = "700 90px Fredoka, sans-serif";
+  outlineText(n > 0 ? String(n) : "", 0, 30, "#fff", "rgba(0,0,0,.45)", 10);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  ctx.font = "500 18px Fredoka, sans-serif";
+  outlineText(course.desc, VW / 2, 290, "#fff", "rgba(0,0,0,.45)", 5);
+}
+
+function drawMsgs() {
+  ctx.textAlign = "center";
+  msgs.forEach((m, i) => {
+    const a = clamp(Math.min(m.t / 0.2, (m.life - m.t) / 0.4), 0, 1);
+    const pop = m.t < 0.15 ? 0.6 + (m.t / 0.15) * 0.5 : m.t < 0.25 ? 1.1 - (m.t - 0.15) : 1;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(VW / 2, 120 + i * 34);
+    ctx.scale(pop, pop);
+    ctx.font = `700 ${m.big ? 24 : 18}px Fredoka, sans-serif`;
+    outlineText(m.text, 0, 0, m.color, "rgba(0,0,0,.5)", 5);
+    ctx.restore();
+  });
+}
+
+// ============================================================
+//  Écrans (menu, choix de course, résultats, pause)
+// ============================================================
+const MEDALS = ["🥇", "🥈", "🥉", "🐇"];
+
+function showOverlay(html) { overlay.innerHTML = html; overlay.classList.add("show"); }
+function hideOverlay() { overlay.classList.remove("show"); }
+function setPlayUI(on) {
+  pauseBtn.classList.toggle("hidden", !on);
+  touchPad.classList.toggle("show", on && isTouch);
+}
+
+function showMenu() {
+  state = "menu";
+  loadCourse(0);
+  setPlayUI(false);
+  showOverlay(`
+    <div class="kicker">🐢 Championnat du monde</div>
+    <div class="title">LA COURSE<br><span class="accent">LA PLUS LENTE</span></div>
+    <div class="tagline">Le dernier arrivé a gagné.</div>
+    <div class="rules">
+      <span><kbd>Espace</kbd> maintenu</span><span>avancer</span>
+      <span><kbd>←</kbd> <kbd>→</kbd></span><span>garder l'équilibre</span>
+      <span>⚠️</span><span>Interdit de t'arrêter, et plus tu es lente, plus tu vacilles !</span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" data-a="play">▶ Jouer</button>
+      <button class="btn secondary" data-a="courses">Courses</button>
+    </div>
+  `);
+}
+
+function showCourses() {
+  let cards = "";
+  COURSES.forEach((c, i) => {
+    const locked = i >= save.unlocked;
+    const b = save.best[i];
+    cards += `
+      <button class="card${locked ? " locked" : ""}" data-a="course" data-i="${i}" ${locked ? "disabled" : ""}>
+        <span class="num">COURSE ${i + 1}</span>
+        <span class="ico">${locked ? "🔒" : c.ico}</span>
+        <span class="nm">${c.name}</span>
+        <span class="res">${b ? MEDALS[b - 1] + " " + (b === 1 ? "Gagnée" : b + "e") : locked ? "Finis 1re ou 2e avant" : "—"}</span>
+      </button>`;
+  });
+  showOverlay(`
+    <div class="h2">Choisis ta course</div>
+    <div class="grid">${cards}</div>
+    <button class="btn secondary" data-a="menu">← Retour</button>
+  `);
+}
+
+function showResults() {
+  state = "results";
+  setPlayUI(false);
+  // ordre d'arrivée : ceux déjà arrivés, puis ceux encore en course (le plus avancé d'abord)
+  const still = racers.filter((r) => r.status === "run").sort((a, b) => b.x - a.x);
+  const arrival = [...finishOrder, ...still];
+  const ranking = arrival.slice().reverse();       // le plus lent en premier
+  const dqs = racers.filter((r) => r.status === "dq");
+  const rank = ranking.indexOf(player) + 1;
+
+  const prev = save.best[courseIdx];
+  if (!prev || rank < prev) save.best[courseIdx] = rank;
+  if (rank <= 2) save.unlocked = Math.min(COURSES.length, Math.max(save.unlocked, courseIdx + 2));
+  persist();
+  if (rank === 1) Sound.fanfare();
+
+  const titles = [
+    "🏆 CHAMPIONNE DE LA LENTEUR !",
+    "🥈 Presque assez lente !",
+    "🥉 Un peu trop pressée…",
+    "🐇 Beaucoup trop rapide !",
+  ];
+  const quips = [
+    "Personne n'a été plus lent que toi. Un exploit.",
+    "Une seule tortue a été plus lente. Elle doit dormir debout.",
+    "Tu avais un rendez-vous ?",
+    "Tu as couru comme un lièvre. C'est la honte du championnat.",
+  ];
+
+  let rows = "";
+  ranking.forEach((r, i) => {
+    rows += `<tr class="${r.isPlayer ? "me" : ""}"><td class="rk">${MEDALS[i] || i + 1}</td>
+      <td><span class="dot" style="background:${r.color}"></span>${r.name}</td>
+      <td class="st">${r.status === "done" ? "arrivée en " + fmt(r.finishT) + " s" : "encore en route"}</td></tr>`;
+  });
+  dqs.forEach((r) => {
+    rows += `<tr><td class="rk">❌</td><td><span class="dot" style="background:${r.color}"></span>${r.name}</td>
+      <td class="st">disqualifiée (${r.reason === "stop" ? "endormie" : "retournée"})</td></tr>`;
+  });
+
+  const canNext = courseIdx + 1 < COURSES.length && courseIdx + 1 < save.unlocked;
+  showOverlay(`
+    <div class="kicker">${course.ico} ${course.name}</div>
+    <div class="big" style="color:${rank === 1 ? "#ffcc4d" : "#fff"}">${titles[Math.min(rank, 4) - 1]}</div>
+    <div class="quip">${quips[Math.min(rank, 4) - 1]}${rank > 2 ? "<br><b>Termine 1re ou 2e pour débloquer la course suivante.</b>" : ""}</div>
+    <table class="res">${rows}</table>
+    <div class="row" style="margin-top:6px">
+      <button class="btn secondary" data-a="retry">↻ Rejouer</button>
+      ${canNext ? `<button class="btn" data-a="next">Course suivante ▶</button>` : `<button class="btn" data-a="courses">Courses</button>`}
+    </div>
+    <button class="link" data-a="menu">Menu principal</button>
+  `);
+}
+
+function showDQ() {
+  state = "dqshown";
+  setPlayUI(false);
+  const stop = player.reason === "stop";
+  showOverlay(`
+    <div class="kicker">${course.ico} ${course.name}</div>
+    <div class="big" style="color:#ff8a8a">${stop ? "💤 DISQUALIFIÉE !" : "🙃 DISQUALIFIÉE !"}</div>
+    <div class="quip">${stop
+      ? "Tu t'es arrêtée. Une tortue de course doit <b>toujours</b> avancer, même tout doucement."
+      : "Tu t'es retournée sur ta carapace. Va un peu plus vite pour garder l'équilibre, ou corrige avec ← →."}</div>
+    <div class="row" style="margin-top:6px">
+      <button class="btn" data-a="retry">↻ Réessayer</button>
+      <button class="btn secondary" data-a="courses">Courses</button>
+    </div>
+    <button class="link" data-a="menu">Menu principal</button>
+  `);
+}
+
+function togglePause() {
+  if (state === "racing" || state === "countdown") {
+    pausedFrom = state;
+    state = "paused";
+    keys.left = keys.right = keys.push = false;
+    showOverlay(`
+      <div class="h2">Pause</div>
+      <div class="quip">Les tortues en profitent pour faire une sieste.</div>
+      <button class="btn" data-a="resume">▶ Reprendre</button>
+      <button class="btn secondary" data-a="retry">↻ Recommencer</button>
+      <button class="link" data-a="menu">Menu principal</button>
+    `);
+  } else if (state === "paused") {
+    state = pausedFrom;
+    hideOverlay();
+  }
+}
+
+function toggleMute() {
+  save.muted = !save.muted;
+  persist();
+  muteBtn.textContent = save.muted ? "🔇" : "🔊";
+}
+
+function startCourse(i) {
+  loadCourse(i);
+  state = "countdown";
+  countT = 3.99;
+  lastCount = 4;
+  hideOverlay();
+  setPlayUI(true);
+}
+
+function doAction(a, el) {
+  Sound.init();
+  Sound.click();
+  switch (a) {
+    case "play": {
+      let i = COURSES.findIndex((_, k) => save.best[k] !== 1 && k < save.unlocked);
+      if (i < 0) i = 0;
+      startCourse(i);
+      break;
+    }
+    case "courses": showCourses(); break;
+    case "course": startCourse(+el.dataset.i); break;
+    case "menu": showMenu(); break;
+    case "retry": startCourse(courseIdx); break;
+    case "next": startCourse(courseIdx + 1); break;
+    case "resume": togglePause(); break;
+    case "pause": togglePause(); break;
+    case "mute": toggleMute(); break;
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-a]");
+  if (el && !el.disabled) doAction(el.dataset.a, el);
+});
+
+// ============================================================
+//  Boucle principale (pas de temps fixe = même vitesse partout)
+// ============================================================
+const STEP = 1 / 60;
+let acc = 0, last = performance.now();
+function frame(now) {
+  let dt = (now - last) / 1000;
+  last = now;
+  if (dt > 0.1) dt = 0.1;
+  acc += dt;
+  while (acc >= STEP) { tick(STEP); acc -= STEP; }
+  render();
+  requestAnimationFrame(frame);
+}
+
+muteBtn.textContent = save.muted ? "🔇" : "🔊";
+showMenu();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

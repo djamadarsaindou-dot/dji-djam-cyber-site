@@ -25,6 +25,7 @@
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
+    overscroll-behavior: none;
   }
 
   /* La scène fait toujours 960x540 "virtuels", agrandie pour remplir l'écran */
@@ -132,17 +133,37 @@
   }
   .round.hidden { display: none; }
 
-  #touch { position: absolute; left: 0; right: 0; bottom: 70px; display: none; justify-content: space-between; align-items: flex-end; padding: 0 24px; z-index: 2; pointer-events: none; }
+  /* --tk : agrandissement des boutons tactiles (calculé en JS selon la taille de l'écran) */
+  #touch { --tk: 1; position: absolute; left: 0; right: 0; bottom: 70px; display: none; justify-content: space-between; align-items: flex-end; padding: 0 24px; z-index: 2; pointer-events: none; }
   #touch.show { display: flex; }
-  #touch .grp { display: flex; gap: 12px; pointer-events: auto; }
+  #touch .grp { display: flex; gap: calc(12px * var(--tk)); pointer-events: auto; }
   .tbtn {
-    width: 84px; height: 84px; border-radius: 50%;
+    width: calc(84px * var(--tk)); height: calc(84px * var(--tk)); border-radius: 50%;
+    -webkit-touch-callout: none; touch-action: none;
     background: rgba(255,255,255,.16); border: 2px solid rgba(255,255,255,.35);
     color: #fff; font-size: 32px; font-family: inherit; font-weight: 600;
     display: flex; align-items: center; justify-content: center;
   }
-  .tbtn.wide { width: 150px; border-radius: 42px; font-size: 20px; }
+  .tbtn.wide { width: calc(150px * var(--tk)); border-radius: calc(42px * var(--tk)); font-size: calc(20px * var(--tk)); }
   .tbtn:active { background: rgba(255,255,255,.32); }
+
+  /* Bouton "Passer le tutoriel" */
+  #tutoSkip {
+    position: absolute; left: 50%; top: 300px; transform: translateX(-50%); z-index: 2;
+    font-family: inherit; font-size: 14px; color: #fff; cursor: pointer;
+    background: rgba(10,30,20,.7); border: 1px solid rgba(255,255,255,.25); border-radius: 20px; padding: 6px 16px;
+  }
+  #tutoSkip.hidden { display: none; }
+
+  /* Confettis de victoire (pur CSS) */
+  .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .confetti i { position: absolute; top: -20px; width: 10px; height: 15px; border-radius: 2px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(600px) rotate(720deg); } }
+  /* apparition en douceur des éléments des écrans */
+  .overlay > * { animation: rise .35s ease-out both; }
+  .overlay > .confetti { animation: none; }
+  .overlay > .title { animation: rise .35s ease-out both, wobble 4s ease-in-out .35s infinite; }
+  @keyframes rise { from { transform: translateY(14px); opacity: 0; } }
 
   @keyframes wobble { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg) translateY(-6px); } }
 </style>
@@ -165,6 +186,8 @@
         <button class="tbtn wide" data-k="push">AVANCER</button>
       </div>
     </div>
+
+    <button id="tutoSkip" class="hidden" data-a="skiptuto">Passer le tutoriel ✕</button>
 
     <div class="overlay" id="overlay"></div>
   </div>
@@ -209,6 +232,7 @@ const BAL = {
 //  hills : collines [hauteur, fréquence, décalage]
 //  sand  : zones de sable [début, fin]
 //  rivals: { name, color, speed (vitesse moyenne), dq (risque d'abandon par seconde) }
+//  ease  : multiplie l'instabilité (0.6 = course 1 très indulgente, 1 = normal)
 // ============================================================
 const COURSES = [
   {
@@ -216,7 +240,7 @@ const COURSES = [
     desc: "Une petite course tranquille pour apprendre.",
     sky: ["#6ec3ff", "#d7f1ff"], far: "#9cc7e6", mid: "#5fb35a", grass: ["#7fd36b", "#4e9e45"],
     track: "#d9b27a", trackDark: "#c49a62", sun: "#fff3b0",
-    length: 1300, hills: [[14, 0.004, 0], [6, 0.012, 1]], sand: [], wind: false, minSpeed: 6,
+    length: 1300, hills: [[14, 0.004, 0], [6, 0.012, 1]], sand: [], wind: false, minSpeed: 6, ease: 0.6,
     rivals: [
       { name: "Turbo", color: "#ff6b6b", speed: 72, dq: 0 },
       { name: "Léon", color: "#ffb84d", speed: 42, dq: 0.006 },
@@ -228,7 +252,7 @@ const COURSES = [
     desc: "Ça monte, ça descend… Ne t'arrête pas dans les montées !",
     sky: ["#7fb8ff", "#f3e9ff"], far: "#8fa8d8", mid: "#4f9c55", grass: ["#73c65e", "#3f8a3a"],
     track: "#cfa56d", trackDark: "#b98d55", sun: "#fff1a8",
-    length: 1500, hills: [[42, 0.0032, 0.5], [14, 0.009, 2]], sand: [], wind: false, minSpeed: 7,
+    length: 1500, hills: [[42, 0.0032, 0.5], [14, 0.009, 2]], sand: [], wind: false, minSpeed: 7, ease: 0.8,
     rivals: [
       { name: "Flash", color: "#ff5c8a", speed: 66, dq: 0.002 },
       { name: "Gaston", color: "#4dd0e1", speed: 36, dq: 0.007 },
@@ -240,7 +264,7 @@ const COURSES = [
     desc: "Le sable te freine et le vent te bouscule.",
     sky: ["#4fc3f7", "#fff6d6"], sea: true, far: "#2bb3c9", mid: "#e8cf8f", grass: ["#f1dca0", "#d9bd78"],
     track: "#e2bf80", trackDark: "#cfa866", sun: "#fffbe0",
-    length: 1500, hills: [[10, 0.005, 0]], sand: [[380, 560], [860, 1080], [1250, 1400]], wind: true, minSpeed: 7,
+    length: 1500, hills: [[10, 0.005, 0]], sand: [[380, 560], [860, 1080], [1250, 1400]], wind: true, minSpeed: 7, ease: 0.9,
     rivals: [
       { name: "Coco", color: "#ff8a65", speed: 34, dq: 0.006 },
       { name: "Turbo", color: "#ff6b6b", speed: 60, dq: 0.001 },
@@ -252,11 +276,11 @@ const COURSES = [
     desc: "La finale. Ton rival : Gary, la tortue la plus lente du monde.",
     sky: ["#ff9a76", "#ffd7a8"], far: "#b0698f", mid: "#7a5a8c", grass: ["#8bc06a", "#4d7d3f"],
     track: "#cf9f6a", trackDark: "#b5844f", sun: "#ffe0a3",
-    length: 1700, hills: [[34, 0.004, 1], [12, 0.011, 3]], sand: [[720, 900]], wind: true, minSpeed: 8,
+    length: 1700, hills: [[34, 0.004, 1], [12, 0.011, 3]], sand: [[720, 900]], wind: true, minSpeed: 8, ease: 1,
     rivals: [
       { name: "Mamie", color: "#b48cff", speed: 25, dq: 0.004 },
       { name: "Pépé", color: "#90a4ae", speed: 22, dq: 0.005 },
-      { name: "Gary", color: "#ffd54f", speed: 18, dq: 0.006 },
+      { name: "Gary", color: "#ffd54f", speed: 20, dq: 0.006 },
     ],
   },
 ];
@@ -282,6 +306,8 @@ function resize() {
   canvas.width = Math.round(VW * S * DPR);
   canvas.height = Math.round(VH * S * DPR);
   stage.style.transform = `translate(-50%, -50%) scale(${S})`;
+  // boutons tactiles : au moins ~60 px réels, même quand la scène est très réduite
+  touchPad.style.setProperty("--tk", Math.max(1, Math.min(1.5, 60 / (84 * S))).toFixed(3));
 }
 window.addEventListener("resize", resize);
 resize();
@@ -308,6 +334,7 @@ const Sound = {
       try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
     }
     if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+    this.startMusic();
   },
   tone(freq, dur, type = "sine", vol = 0.2, slideTo = null, delay = 0) {
     if (save.muted || !this.ctx) return;
@@ -342,6 +369,24 @@ const Sound = {
   sad()     { [[392, 0], [370, 0.4], [349, 0.8]].forEach(([f, d]) => this.tone(f, 0.38, "sawtooth", 0.07, f * 0.97, d)); this.tone(330, 1.0, "sawtooth", 0.07, 290, 1.2); },
   fanfare() { [523, 659, 784, 1046, 784, 1046].forEach((f, i) => this.tone(f, i === 5 ? 0.7 : 0.22, "triangle", 0.15, null, i * 0.14)); },
   click()   { this.tone(700, 0.06, "triangle", 0.1); },
+  phew()    { this.tone(500, 0.12, "sine", 0.08, 760); },                                   // rattrapage d'équilibre
+  good()    { this.tone(660, 0.1, "triangle", 0.08); this.tone(880, 0.16, "triangle", 0.07, null, 0.08); },
+  tuto()    { this.tone(660, 0.1, "sine", 0.1); this.tone(990, 0.16, "sine", 0.08, null, 0.08); },
+
+  // --- Petite musique de fond : quelques notes douces, en boucle ---
+  // Démarre seulement après un geste du joueur (init) et se tait si le son est coupé.
+  musicTimer: null,
+  musicStep: 0,
+  startMusic() {
+    if (this.musicTimer || !this.ctx) return;
+    const NOTES = [392, 0, 330, 0, 294, 330, 0, 262, 294, 0, 330, 392, 0, 440, 392, 0];
+    this.musicTimer = setInterval(() => {
+      if (save.muted || document.hidden || !this.ctx || this.ctx.state !== "running") return;
+      const f = NOTES[this.musicStep++ % NOTES.length];
+      if (f) this.tone(f, 0.6, "triangle", 0.025);
+      if (this.musicStep % 4 === 1) this.tone(131, 0.9, "sine", 0.03); // basse
+    }, 450);
+  },
 };
 
 // ============================================================
@@ -361,8 +406,12 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" || e.key === "p" || e.key === "P") togglePause();
   if ((e.key === "r" || e.key === "R") && course && state !== "menu") startCourse(courseIdx);
   if (e.key === "m" || e.key === "M") toggleMute();
-  if (e.key === "Enter" && (state === "results" || state === "dqshown")) doAction("retry");
+  // (preventDefault : évite qu'un bouton qui a le focus soit aussi "cliqué" → double action)
+  if (e.key === "Enter" && (state === "results" || state === "dqshown")) { e.preventDefault(); if (!e.repeat) doAction("retry"); }
 });
+// pas de défilement / zoom de la page pendant qu'on joue (mobile, iframe)
+document.addEventListener("touchmove", (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+document.addEventListener("contextmenu", (e) => { if (e.target.closest(".tbtn")) e.preventDefault(); });
 window.addEventListener("keyup", (e) => { const k = KEYMAP[e.key]; if (k) keys[k] = false; });
 window.addEventListener("blur", () => { keys.left = keys.right = keys.push = false; });
 document.addEventListener("visibilitychange", () => {
@@ -404,6 +453,14 @@ let msgs = [];
 let gust = { t: 8, active: 0, dir: 1 };
 let warnT = 0, lastCount = 4;
 let lastResult = null;
+let fade = 0;            // fondu au noir entre les écrans
+let tuto = null;         // tutoriel interactif { step, t } (une seule fois : save.tuto)
+let nextMark = 200;      // prochain panneau de distance (pour les encouragements)
+let wobbly = false;      // vrai quand la tortue du joueur penche dangereusement
+const tutoBtn = document.getElementById("tutoSkip");
+const TUTO_TEXT = isTouch
+  ? ["Maintiens AVANCER pour partir", "Penche ? Corrige avec ◀ ▶", "Reste derrière les autres… mais ne t'arrête jamais !"]
+  : ["Maintiens ESPACE pour partir", "Penche ? Corrige avec ← →", "Reste derrière les autres… mais ne t'arrête jamais !"];
 
 // --- Le terrain : hauteur du sol à une position donnée ---
 function terrain(x) {
@@ -435,6 +492,32 @@ function loadCourse(i) {
   parts = []; msgs = [];
   gust = { t: rand(6, 10), active: 0, dir: 1 };
   camX = player.x - CAM_OFF;
+  warnT = 0; nextMark = 200; wobbly = false;
+}
+
+// ============================================================
+//  Tutoriel (course 1, première fois seulement)
+//  étape 0 : la course attend que le joueur appuie sur AVANCER
+//  étape 1 : corriger l'équilibre avec ← →
+//  étape 2 : rappel de la règle, puis fin
+// ============================================================
+function endTuto(done) {
+  if (!tuto) return;
+  tuto = null;
+  save.tuto = true;
+  persist();
+  tutoBtn.classList.add("hidden");
+  if (done) { Sound.good(); say("Tutoriel terminé, à toi de jouer ! 👍", "#8ff0ad", true); }
+}
+
+function updateTuto(dt) {
+  if (!tuto) return;
+  tuto.t += dt;
+  const next = () => { tuto.step++; tuto.t = 0; Sound.tuto(); };
+  if (tuto.step === 0 && keys.push) next();
+  else if (tuto.step === 1 && (keys.left || keys.right) && tuto.t > 0.6) next();
+  else if (tuto.step === 1 && tuto.t > 7) next();      // ne pas bloquer si le joueur n'a pas besoin de corriger
+  else if (tuto.step === 2 && tuto.t > 4) endTuto(true);
 }
 
 function say(text, color = "#fff", big = false) {
@@ -468,8 +551,15 @@ function tick(dt) {
     p.rot += p.vr * dt;
   }
   for (let i = msgs.length - 1; i >= 0; i--) { msgs[i].t += dt; if (msgs[i].t >= msgs[i].life) msgs.splice(i, 1); }
+  fade = Math.max(0, fade - dt * 2.5);
 
   if (!course || state === "paused" || state === "results" || state === "dqshown") return;
+
+  // tutoriel : à l'étape 0, tout le monde attend que le joueur appuie sur AVANCER
+  if (state === "racing" && tuto) {
+    updateTuto(dt);
+    if (tuto && tuto.step === 0) { updateCamera(dt); return; }
+  }
 
   if (state === "countdown") {
     countT -= dt;
@@ -578,8 +668,9 @@ function updatePlayer(p, dt) {
   const vn = clamp(p.v / STABLE_V, 0, 1);
   const ramp = clamp(raceT / 2, 0, 1);
   p.noise += (-p.noise * 1.5 + (Math.random() - 0.5) * 16) * dt;
-  const instab = BAL.instab * (1 - vn) - BAL.selfFix * vn;
-  let torque = p.noise * (0.15 + BAL.noise * Math.pow(1 - vn, 1.5)) * ramp;
+  const ease = course.ease ?? 1;   // course 1 plus indulgente
+  const instab = BAL.instab * ease * (1 - vn) - BAL.selfFix * vn;
+  let torque = p.noise * (0.15 + BAL.noise * ease * Math.pow(1 - vn, 1.5)) * ramp;
   torque += p.theta * instab * ramp;
   torque += ((keys.right ? 1 : 0) - (keys.left ? 1 : 0)) * BAL.control;
   torque += slopeAt(p.x) * 0.5;
@@ -589,6 +680,24 @@ function updatePlayer(p, dt) {
   p.theta += p.omega * dt;
   if (Math.abs(p.theta) > 0.5 && Math.random() < 0.04) Sound.creak();
   if (Math.abs(p.theta) > TIP_ANGLE) return disqualify(p, "flip");
+
+  // --- encouragements ---
+  // rattrapage : on penchait fort et on s'est redressé
+  if (!wobbly && Math.abs(p.theta) > 0.55) wobbly = true;
+  else if (wobbly && Math.abs(p.theta) < 0.15) {
+    wobbly = false;
+    Sound.phew();
+    say(pick(["Ouf, rattrapée !", "Bien redressée !", "Quel équilibre !"]), "#8ff0ad");
+    emit(p.x, LANE_Y[p.lane] - terrain(p.x) - 30, 10, { speed: 90, colors: ["#8ff0ad", "#ffffff", "#ffcc4d"], life: 0.6, size: 3, grav: 120 });
+  }
+  // chaque panneau de distance franchi en étant la plus lente
+  if (p.x - START_X >= nextMark) {
+    if (liveRank() === 1 && nextMark < course.length - START_X - 100) {
+      Sound.good();
+      say(pick(["Parfait, reste derrière ! 🐢", "Toujours la plus lente, bravo !", "Tout doux… c'est parfait !"]), "#8ff0ad");
+    }
+    nextMark += 200;
+  }
 
   // --- ligne d'arrivée ---
   if (p.x >= course.length) finish(p);
@@ -681,9 +790,64 @@ function render() {
   drawFinish(true);
   drawFrontGrass();
   drawParticles();
+  drawLight();
   if (state !== "menu") drawHUD();
   if (state === "countdown") drawCountdown();
+  if (tuto && state === "racing") drawTuto();
   drawMsgs();
+
+  // fondu au noir (transition entre les écrans)
+  if (fade > 0) {
+    ctx.fillStyle = `rgba(5,15,10,${fade})`;
+    ctx.fillRect(0, 0, VW, VH);
+  }
+}
+
+// Lumière douce du soleil + coins assombris (donne de la profondeur)
+let LIGHT = null, VIGN = null;
+function drawLight() {
+  if (!LIGHT) {
+    LIGHT = ctx.createRadialGradient(760, 95, 20, 760, 95, 620);
+    LIGHT.addColorStop(0, "rgba(255,245,200,.22)");
+    LIGHT.addColorStop(1, "rgba(255,245,200,0)");
+    VIGN = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.45, VW / 2, VH / 2, VW * 0.7);
+    VIGN.addColorStop(0, "rgba(0,0,0,0)");
+    VIGN.addColorStop(1, "rgba(0,0,0,.28)");
+  }
+  ctx.globalCompositeOperation = "lighter";
+  ctx.fillStyle = LIGHT;
+  ctx.fillRect(0, 0, VW, VH);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = VIGN;
+  ctx.fillRect(0, 0, VW, VH);
+}
+
+// Bulle du tutoriel, avec les pastilles d'étapes
+function drawTuto() {
+  const pulse = 1 + Math.sin(T * 5) * 0.03;
+  ctx.save();
+  ctx.translate(VW / 2, 215);
+  ctx.scale(pulse, pulse);
+  ctx.fillStyle = "rgba(12,30,22,.85)";
+  roundRect(-250, -34, 500, 68, 18);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(143,240,173,.7)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.textAlign = "center";
+  ctx.font = "600 12px Fredoka, sans-serif";
+  ctx.fillStyle = "#ffcc4d";
+  ctx.fillText("TUTORIEL · ÉTAPE " + (tuto.step + 1) + " / 3", 0, -12);
+  ctx.font = "700 19px Fredoka, sans-serif";
+  ctx.fillStyle = "#fff";
+  ctx.fillText(TUTO_TEXT[tuto.step], 0, 12);
+  for (let k = 0; k < 3; k++) {
+    ctx.beginPath();
+    ctx.arc(-14 + k * 14, 25, 4, 0, Math.PI * 2);
+    ctx.fillStyle = k < tuto.step ? "#4cd97b" : k === tuto.step ? "#ffcc4d" : "rgba(255,255,255,.25)";
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawSky() {
@@ -1417,14 +1581,30 @@ function drawMsgs() {
 const MEDALS = ["🥇", "🥈", "🥉", "🐇"];
 
 function showOverlay(html) { overlay.innerHTML = html; overlay.classList.add("show"); }
-function hideOverlay() { overlay.classList.remove("show"); }
+function hideOverlay() {
+  overlay.classList.remove("show");
+  // le bouton cliqué garde sinon le focus : Espace (= AVANCER) le "recliquerait" en pleine course
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
 function setPlayUI(on) {
   pauseBtn.classList.toggle("hidden", !on);
   touchPad.classList.toggle("show", on && isTouch);
+  if (!on) tutoBtn.classList.add("hidden");
+}
+
+// Pluie de confettis CSS (victoire)
+function confettiHTML(n) {
+  const cols = ["#ffcc4d", "#ff6b6b", "#4cd97b", "#4fc3f7", "#b48cff"];
+  let h = "";
+  for (let i = 0; i < n; i++) {
+    h += `<i style="left:${rand(0, 100).toFixed(1)}%;background:${pick(cols)};animation-duration:${rand(1.8, 3.4).toFixed(2)}s;animation-delay:${rand(0, 0.8).toFixed(2)}s"></i>`;
+  }
+  return `<div class="confetti">${h}</div>`;
 }
 
 function showMenu() {
   state = "menu";
+  tuto = null;              // on quitte : le tutoriel reprendra la prochaine fois
   loadCourse(0);
   setPlayUI(false);
   showOverlay(`
@@ -1477,7 +1657,8 @@ function showResults() {
   if (!prev || rank < prev) save.best[courseIdx] = rank;
   if (rank <= 2) save.unlocked = Math.min(COURSES.length, Math.max(save.unlocked, courseIdx + 2));
   persist();
-  if (rank === 1) Sound.fanfare();
+  // (la fanfare a déjà été jouée au passage de la ligne : on ne la rejoue pas ici)
+  tuto = null;
 
   const titles = [
     "🏆 CHAMPIONNE DE LA LENTEUR !",
@@ -1505,6 +1686,7 @@ function showResults() {
 
   const canNext = courseIdx + 1 < COURSES.length && courseIdx + 1 < save.unlocked;
   showOverlay(`
+    ${rank <= 2 ? confettiHTML(rank === 1 ? 70 : 25) : ""}
     <div class="kicker">${course.ico} ${course.name}</div>
     <div class="big" style="color:${rank === 1 ? "#ffcc4d" : "#fff"}">${titles[Math.min(rank, 4) - 1]}</div>
     <div class="quip">${quips[Math.min(rank, 4) - 1]}${rank > 2 ? "<br><b>Termine 1re ou 2e pour débloquer la course suivante.</b>" : ""}</div>
@@ -1519,6 +1701,7 @@ function showResults() {
 
 function showDQ() {
   state = "dqshown";
+  tuto = null;
   setPlayUI(false);
   const stop = player.reason === "stop";
   showOverlay(`
@@ -1562,10 +1745,16 @@ function toggleMute() {
 function startCourse(i) {
   loadCourse(i);
   state = "countdown";
+  pausedFrom = null;
   countT = 3.99;
   lastCount = 4;
+  fade = 1;                                       // fondu d'entrée
+  keys.left = keys.right = keys.push = false;
+  // tutoriel : course 1, la toute première fois seulement
+  tuto = i === 0 && !save.tuto ? { step: 0, t: 0 } : null;
   hideOverlay();
   setPlayUI(true);
+  tutoBtn.classList.toggle("hidden", !tuto);
 }
 
 function doAction(a, el) {
@@ -1586,7 +1775,10 @@ function doAction(a, el) {
     case "resume": togglePause(); break;
     case "pause": togglePause(); break;
     case "mute": toggleMute(); break;
+    case "skiptuto": endTuto(false); break;
   }
+  // ne pas garder le focus sur un bouton (Espace le déclencherait à nouveau)
+  if (el && el.blur) el.blur();
 }
 
 document.addEventListener("click", (e) => {

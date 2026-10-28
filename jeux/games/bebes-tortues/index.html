@@ -40,6 +40,16 @@
   #hudBtns { position: absolute; right: 10px; top: 8px; z-index: 5; display: none; }
   #hudBtns button { font-family: inherit; font-size: 20px; width: 42px; height: 42px; border-radius: 50%; border: 2px solid #6d95d6;
     background: rgba(15,30,65,.75); color: #fff; cursor: pointer; margin-left: 6px; }
+  /* Apparition douce des fenêtres et des étoiles */
+  .overlay.show .panel { animation: popIn .4s cubic-bezier(.2,1.3,.4,1) both; }
+  @keyframes popIn { from { opacity: 0; transform: translateY(16px) scale(.94); } to { opacity: 1; transform: none; } }
+  .stars span { display: inline-block; animation: starPop .5s cubic-bezier(.3,1.6,.5,1) both; }
+  .stars span:nth-child(2) { animation-delay: .25s; } .stars span:nth-child(3) { animation-delay: .5s; }
+  @keyframes starPop { from { opacity: 0; transform: scale(.2) rotate(-40deg); } to { opacity: 1; transform: none; } }
+  #hudBtns button { width: 52px; height: 52px; font-size: 24px; }
+  /* Bouton « Passer » du tutoriel */
+  #bSkip { position: absolute; right: 14px; bottom: 14px; z-index: 5; display: none; font-family: inherit; font-size: 18px; font-weight: 600;
+    border: 2px solid #6d95d6; border-radius: 14px; padding: 10px 18px; background: rgba(15,30,65,.8); color: #fff; cursor: pointer; }
   .tip { background: rgba(255,233,168,.12); border: 1px dashed #ffe9a8; border-radius: 14px; padding: 10px 14px; margin-top: 12px; }
 </style>
 </head>
@@ -47,6 +57,7 @@
 <div id="stage">
   <canvas id="game"></canvas>
   <div id="hudBtns"><button id="bMute" title="Son (M)">🔊</button><button id="bPause" title="Pause (Échap)">⏸</button></div>
+  <button id="bSkip">Passer le tutoriel ⏭</button>
 
   <!-- Menu principal -->
   <div class="overlay show" id="ovMenu"><div class="panel">
@@ -212,6 +223,30 @@ function initAudio() {
     src.connect(lp); lp.connect(waveGain); waveGain.connect(master); src.start();
   } catch (e) { AC = null; }
 }
+// Musique d'ambiance de nuit : nappes très douces + petites clochettes (pentatonique)
+// Tout passe par « master », donc le bouton son coupe aussi la musique.
+const AMB = { next: 0, step: 0 };
+const PAD = [[220, 277.2, 329.6], [196, 246.9, 293.7], [174.6, 220, 261.6], [196, 246.9, 329.6]];
+const CHIME = [659.3, 740, 880, 987.8, 1108.7, 1318.5];
+function ambNote(freq, t, dur, vol, type) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || "sine"; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+}
+function ambienceTick() {
+  if (!AC || save.muted || AC.state !== "running" || (state.screen !== "play" && state.screen !== "menu")) { AMB.next = 0; return; }
+  const now = AC.currentTime;
+  if (AMB.next < now) AMB.next = now + 0.1;
+  try {
+    while (AMB.next < now + 0.5) {
+      const t = AMB.next, s = AMB.step;
+      if (s % 8 === 0) PAD[(s / 8) % PAD.length].forEach(f => ambNote(f, t, 4.2, 0.018, "sine"));   // nappe (accord tenu)
+      if (Math.random() < 0.35) ambNote(CHIME[(Math.random() * CHIME.length) | 0], t, 1.6, 0.02, "triangle"); // clochette
+      AMB.step++; AMB.next += 0.5;
+    }
+  } catch (e) {}
+}
 function tone(freq, dur, type = "sine", vol = 0.2, slide = 0) {
   if (!AC || save.muted) return;
   const t = AC.currentTime;
@@ -230,6 +265,7 @@ const SFX = {
   fill() { tone(200, 0.2, "triangle", 0.15, 120); },
   roll() { tone(120, 0.3, "sawtooth", 0.07, -40); },
   win() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.3, "triangle", 0.15), i * 130)); },
+  cheer() { [784, 988, 1175].forEach((f, i) => setTimeout(() => tone(f, 0.15, "sine", 0.1), i * 70)); },
   fail() { [392, 330, 262].forEach((f, i) => setTimeout(() => tone(f, 0.35, "sine", 0.14), i * 180)); }
 };
 function setMuted(m) {
@@ -245,12 +281,19 @@ const state = {
   babies: [], preds: [], nests: [], logs: [], holes: [], lights: [], parts: [], tracks: [], popups: [],
   total: 0, spawned: 0, saved: 0, lost: 0,
   lamp: { on: false, x: 0, y: 0 },
-  seaY: SEA_BASE, nextCrab: 0, nextBird: 0, endTimer: 0, shake: 0, stars: 0
+  seaY: SEA_BASE, nextCrab: 0, nextBird: 0, endTimer: 0, shake: 0, stars: 0,
+  fade: 0,          // fondu de transition (1 = noir)
+  streak: 0,        // tortues sauvées d'affilée (pour les encouragements)
+  tuto: null        // tutoriel interactif en cours (ou null)
 };
+const TUTO_KEY = "tortues-tuto-v1"; // clé séparée : la sauvegarde « tortues-mer-v1 » garde son format
 
 // ---------- Démarrer un niveau ----------
-function startLevel(i) {
+// fromUI = true quand le joueur lance le niveau depuis un bouton : le tutoriel n'apparaît que dans ce cas
+// (les appels directs startLevel(0) des tests gardent le comportement normal)
+function startLevel(i, fromUI) {
   i = clamp(i | 0, 0, LEVELS.length - 1);
+  state.fade = 1; state.streak = 0; state.tuto = null;
   const L = LEVELS[i];
   state.level = i; state.def = L; state.time = 0;
   state.babies = []; state.preds = []; state.parts = []; state.tracks = []; state.popups = [];
@@ -266,6 +309,15 @@ function startLevel(i) {
   state.screen = "play";
   hideAll();                       // cache toutes les fenêtres (dont le résultat)
   document.getElementById("hudBtns").style.display = "block";
+  let seen = true;
+  try { seen = !!localStorage.getItem(TUTO_KEY); } catch (e) {}
+  if (fromUI && i === 0 && !seen) state.tuto = { step: 0, t: 0 };
+  document.getElementById("bSkip").style.display = state.tuto ? "block" : "none";
+}
+function endTuto() {
+  state.tuto = null;
+  document.getElementById("bSkip").style.display = "none";
+  try { localStorage.setItem(TUTO_KEY, "1"); } catch (e) {}
 }
 
 // ---------- Création des bébés tortues ----------
@@ -286,10 +338,10 @@ function burst(x, y, col, n, sp) {
     state.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, life: rand(0.4, 0.9), max: 0.9, col, r: rand(1.5, 3.5) });
   }
 }
-function popup(x, y, txt, col) { state.popups.push({ x, y, txt, col, life: 1.2 }); }
+function popup(x, y, txt, col, big) { state.popups.push({ x, y, txt, col, life: 1.2, big: !!big }); }
 
 function loseBaby(b, why) {
-  b.dead = true; state.lost++;
+  b.dead = true; state.lost++; state.streak = 0;
   popup(b.x, b.y - 16, why, "#ff9a9a");
   SFX.lost();
 }
@@ -310,12 +362,23 @@ function spawnBird() {
 }
 function scarePred(p) {
   if (p.mode === "flee") return;
-  if (p.prey) { p.prey.carried = false; p.prey = null; }   // il lâche la tortue !
+  // Position de l'effet : pendant l'alerte, l'oiseau n'est pas encore à l'écran -> on prend son ombre
+  // (avant, le test se faisait APRÈS le passage en "flee" et l'effet partait hors écran)
+  const warn = p.kind === "bird" && p.mode === "warn";
+  const px = warn ? p.tx : p.x, py = warn ? p.ty : p.y;
+  if (p.prey) {
+    // il lâche la tortue ! Elle retombe sur le sable (jamais directement dans la mer ou hors de l'écran)
+    const b = p.prey;
+    b.carried = false; b.hole = null;
+    b.x = clamp(b.x, 12, W - 12); b.y = clamp(b.y, state.seaY + 30, ROAD_Y - 30);
+    p.prey = null;
+    popup(b.x, b.y - 16, "Ouf !", "#a8ffb8");
+  }
   p.mode = "flee"; p.t = 0;
-  const px = p.kind === "bird" && p.mode === "warn" ? p.tx : p.x;
-  burst(p.x, p.y, "#ffffff", 12, 120);
-  popup(p.x, p.y - 20, "Ouste !", "#ffe9a8");
+  burst(clamp(px, 0, W), clamp(py, 0, H), "#ffffff", 12, 120);
+  popup(clamp(px, 30, W - 30), clamp(py, 40, H) - 20, "Ouste !", "#ffe9a8");
   SFX.scare(); state.shake = 4;
+  if (state.tuto && state.tuto.step === 0) { state.tuto = { step: 1, t: 0 }; SFX.cheer(); }
 }
 
 // ---------- Boucle de simulation (appelée 60 fois par seconde) ----------
@@ -323,6 +386,13 @@ function tick(dt) {
   if (state.screen !== "play") { animateIdle(dt); return; }
   const L = state.def;
   state.time += dt;
+  state.fade = Math.max(0, state.fade - dt * 2);
+  if (state.tuto) {
+    state.tuto.t += dt;
+    // étape 2 : finie quand le joueur a utilisé sa lueur un moment, ou au bout de 7 s
+    if (state.tuto.step === 1 && state.lamp.on) state.tuto.lampT = (state.tuto.lampT || 0) + dt;
+    if (state.tuto.step === 1 && ((state.tuto.lampT || 0) > 1.2 || state.tuto.t > 7)) { endTuto(); popup(W / 2, 150, "À toi de jouer !", "#ffe9a8", true); SFX.cheer(); }
+  }
   const T = state.time;
   // Marée : le rivage avance et recule doucement
   state.seaY = SEA_BASE + (L.tide ? Math.sin(T * 0.35) * L.tide : 0) + Math.sin(T * 1.3) * 3;
@@ -356,7 +426,7 @@ function tick(dt) {
   for (const h of state.holes) if (h.filled) h.fill = Math.min(1, h.fill + dt * 3);
 
   // Particules
-  for (const p of state.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 120 * dt; p.vx *= 0.97; p.life -= dt; }
+  for (const p of state.parts) { p.x += p.vx * dt; p.y += p.vy * dt; if (!p.ring) p.vy += 120 * dt; p.vx *= 0.97; p.life -= dt; if (p.ring) p.r += 30 * dt; }
   state.parts = state.parts.filter(p => p.life > 0);
   for (const p of state.popups) { p.y -= 25 * dt; p.life -= dt; }
   state.popups = state.popups.filter(p => p.life > 0);
@@ -436,6 +506,10 @@ function updateBabies(dt) {
       burst(b.x, b.y, "#bfe6ff", 14, 90);
       popup(b.x, b.y - 10, "Sauvée !", "#a8ffef");
       SFX.splash();
+      // ronds dans l'eau
+      state.parts.push({ ring: true, x: b.x, y: b.y - 4, life: 0.9, max: 0.9, r: 4, col: "#bfe6ff", vx: 0, vy: 0 });
+      state.streak++;
+      if (state.streak % 5 === 0) { popup(W / 2, 150, ["Super !", "Génial !", "Bravo, continue !"][(state.streak / 5 - 1) % 3], "#ffe9a8", true); SFX.cheer(); }
     }
     // Arrivée sur la route = perdue
     else if (b.y > ROAD_Y - 4) loseBaby(b, "Perdue !");
@@ -466,7 +540,7 @@ function updatePreds(dt) {
         p.x += dir * (p.mode === "flee" ? 260 : 50) * dt;
         if (p.prey) { p.prey.x = p.x + dir * 6; p.prey.y = p.y - 4; }
         if (p.x < -50 || p.x > W + 50) {
-          if (p.prey) { const b = p.prey; b.carried = false; b.dead = true; state.lost++; SFX.lost(); }
+          if (p.prey) { const b = p.prey; b.carried = false; b.dead = true; state.lost++; state.streak = 0; SFX.lost(); }
           p.gone = true;
         }
       }
@@ -490,21 +564,24 @@ function updatePreds(dt) {
         p.x += dir * sp * 0.6 * dt; p.y -= sp * dt;
         if (p.prey) { p.prey.x = p.x; p.prey.y = p.y + 14; }
         if (p.y < -60) {
-          if (p.prey) { const b = p.prey; b.carried = false; b.dead = true; state.lost++; SFX.lost(); }
+          if (p.prey) { const b = p.prey; b.carried = false; b.dead = true; state.lost++; state.streak = 0; SFX.lost(); }
           p.gone = true;
         }
       }
     }
   }
   state.preds = state.preds.filter(p => !p.gone);
-  // Une tortue lâchée par un prédateur effrayé retombe et repart
-  for (const b of state.babies) if (!b.carried && b.dead && !b.savedOk && b.dropped) b.dead = false;
 }
 
 // Animation douce derrière le menu
 function animateIdle(dt) {
-  state.time += state.screen === "pause" ? 0 : dt;
+  if (state.screen === "pause") return; // tout est figé pendant la pause
+  state.time += dt;
+  state.fade = Math.max(0, state.fade - dt * 2);
   if (state.screen === "menu") state.seaY = SEA_BASE + Math.sin(state.time * 1.3) * 3;
+  // sur l'écran de résultat, les confettis continuent de tomber
+  for (const p of state.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; if (p.ring) p.r += 30 * dt; }
+  state.parts = state.parts.filter(p => p.life > 0);
 }
 
 // ---------- Fin de niveau ----------
@@ -522,10 +599,14 @@ function finishLevel() {
     save.levels[key] = { stars: Math.max(old, stars) };
     save.unlocked = Math.max(save.unlocked, Math.min(LEVELS.length, state.level + 2));
     writeSave(); SFX.win();
+    const cols = ["#ffe9a8", "#7fe0a0", "#9fd6ff", "#ff9a9a", "#ffffff"];
+    for (let i = 0; i < 80; i++) state.parts.push({ rect: true, x: rand(0, W), y: rand(-40, 0), vx: rand(-40, 40), vy: rand(60, 200), life: 2.5, max: 2.5, col: cols[i % 5], r: rand(2.5, 4.5) });
   } else SFX.fail();
+  if (state.tuto) endTuto();
   document.getElementById("rTitle").textContent = win ? (state.level === LEVELS.length - 1 ? "Toutes les nuits réussies ! 🎉" : "Bravo !") : "Pas assez de tortues sauvées...";
   document.getElementById("rStars").innerHTML = [1, 2, 3].map(s => `<span class="${s <= stars ? "" : "off"}">★</span>`).join("");
-  document.getElementById("rText").textContent = `${state.saved} bébés tortues sur ${state.total} ont rejoint la mer (${pct} %). Objectif : ${L.goal} %.`;
+  const conseil = win ? "" : pct >= L.goal - 15 ? " Tu y étais presque !" : " Astuce : touche les crabes dès qu'ils arrivent.";
+  document.getElementById("rText").textContent = `${state.saved} bébés tortues sur ${state.total} ont rejoint la mer (${pct} %). Objectif : ${L.goal} %.${conseil}`;
   document.getElementById("rNext").style.display = win && state.level < LEVELS.length - 1 ? "" : "none";
   show("ovResult");
 }
@@ -571,8 +652,6 @@ const lampOff = () => { state.lamp.on = false; };
 canvas.addEventListener("pointerup", lampOff);
 canvas.addEventListener("pointercancel", lampOff);
 
-// Correctif : quand un prédateur est effrayé, sa proie redevient libre
-const _scare = scarePred;
 
 window.addEventListener("keydown", e => {
   if (e.key === "Escape" || e.key === "p" || e.key === "P") togglePause();
@@ -584,7 +663,8 @@ const OVS = ["ovMenu", "ovLevels", "ovRules", "ovTip", "ovPause", "ovResult"];
 function hideAll() { OVS.forEach(id => document.getElementById(id).classList.remove("show")); }
 function show(id) { hideAll(); document.getElementById(id).classList.add("show"); }
 let backTo = "ovMenu";
-function goMenu() { state.screen = "menu"; state.lamp.on = false; document.getElementById("hudBtns").style.display = "none"; show("ovMenu"); }
+function goMenu() { state.screen = "menu"; state.lamp.on = false; state.parts = []; state.popups = [];
+  if (state.tuto) { state.tuto = null; document.getElementById("bSkip").style.display = "none"; } document.getElementById("hudBtns").style.display = "none"; show("ovMenu"); }
 function togglePause() {
   if (state.screen === "play") { state.screen = "pause"; state.lamp.on = false; show("ovPause"); }
   else if (state.screen === "pause") { state.screen = "play"; hideAll(); }
@@ -597,21 +677,22 @@ function buildLevels() {
     const b = document.createElement("button");
     b.className = "lvl" + (locked ? " locked" : "");
     b.innerHTML = `<b>${locked ? "🔒" : i + 1}</b>${L.name}<div class="st">${"★".repeat(st)}${"☆".repeat(3 - st)}</div>`;
-    if (!locked) b.onclick = () => { initAudio(); SFX.click(); startLevel(i); };
+    if (!locked) b.onclick = () => { initAudio(); SFX.click(); startLevel(i, true); };
     g.appendChild(b);
   });
 }
 const $ = id => document.getElementById(id);
-$("mPlay").onclick = () => { initAudio(); SFX.click(); startLevel(Math.min(save.unlocked, LEVELS.length) - 1); };
+$("mPlay").onclick = () => { initAudio(); SFX.click(); startLevel(Math.min(save.unlocked, LEVELS.length) - 1, true); };
 $("mLevels").onclick = () => { initAudio(); SFX.click(); buildLevels(); show("ovLevels"); };
 $("mRules").onclick = () => { initAudio(); SFX.click(); show("ovRules"); };
 $("mTip").onclick = () => { initAudio(); SFX.click(); show("ovTip"); };
 document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => { SFX.click(); show("ovMenu"); });
 $("pResume").onclick = () => togglePause();
-$("pRestart").onclick = () => startLevel(state.level);
+$("pRestart").onclick = () => startLevel(state.level, true);
 $("pMenu").onclick = goMenu;
-$("rNext").onclick = () => startLevel(state.level + 1);
-$("rRetry").onclick = () => startLevel(state.level);
+$("rNext").onclick = () => { SFX.click(); startLevel(state.level + 1, true); };
+$("rRetry").onclick = () => { SFX.click(); startLevel(state.level, true); };
+$("bSkip").onclick = () => { endTuto(); state.time = Math.min(state.time, 1); }; // réaffiche l'astuce du niveau
 $("rMenu").onclick = goMenu;
 $("bPause").onclick = () => togglePause();
 $("bMute").onclick = () => { initAudio(); setMuted(!save.muted); };
@@ -639,7 +720,9 @@ function render() {
     drawLamp(T);
     drawParts();
     ctx.restore();
+    drawVignette();
     drawHUD();
+    if (state.tuto) drawTuto(T);
   } else {
     drawRoad(T);
     // Quelques bébés décoratifs sur le menu
@@ -648,7 +731,43 @@ function render() {
       drawBaby({ x: 180 + i * 150, y, a: -Math.PI / 2 + Math.sin(T + i) * 0.2, flip: T * 12 + i, hole: null });
     }
     ctx.restore();
+    drawVignette();
   }
+  if (state.fade > 0) { ctx.fillStyle = `rgba(3,6,20,${state.fade})`; ctx.fillRect(0, 0, W, H); }
+}
+
+// Bords assombris : ambiance nocturne plus douce
+let vignetteGrad = null;
+function drawVignette() {
+  if (!vignetteGrad) {
+    vignetteGrad = ctx.createRadialGradient(W / 2, H * 0.55, H * 0.4, W / 2, H * 0.55, W * 0.62);
+    vignetteGrad.addColorStop(0, "rgba(0,0,10,0)"); vignetteGrad.addColorStop(1, "rgba(0,0,10,.38)");
+  }
+  ctx.fillStyle = vignetteGrad; ctx.fillRect(0, 0, W, H);
+}
+
+// Bulle du tutoriel + main qui montre le crabe
+function drawTuto(T) {
+  const tu = state.tuto;
+  const crab = state.preds.find(p => p.kind === "crab" && p.mode === "hunt");
+  const txt = tu.step === 0
+    ? (crab ? "Un crabe ! TOUCHE-LE vite pour le faire fuir !" : "Les bébés tortues sortent du nid et vont vers la mer…")
+    : "Bravo ! Garde le doigt appuyé sur le sable : ta lueur guide les tortues.";
+  const bw = 620, bx = (W - bw) / 2, by = 72;
+  ctx.globalAlpha = Math.min(1, tu.t * 4 + 0.3);
+  ctx.fillStyle = "rgba(16,34,74,.92)"; roundRect(bx, by, bw, 56, 18); ctx.fill();
+  ctx.strokeStyle = "#ffe9a8"; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = "#fff"; ctx.font = "600 20px Fredoka"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(txt, W / 2, by + 28);
+  ctx.textBaseline = "alphabetic";
+  if (tu.step === 0 && crab) {
+    // cercle qui pulse autour du crabe + main
+    const r = 30 + Math.sin(T * 8) * 5;
+    ctx.strokeStyle = "rgba(255,233,168,.9)"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(crab.x, crab.y, r, 0, 6.28); ctx.stroke();
+    ctx.font = "36px Fredoka"; ctx.fillText("👇", crab.x, crab.y - 44 - Math.abs(Math.sin(T * 5)) * 8);
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawSky(T) {
@@ -666,6 +785,14 @@ function drawSky(T) {
   halo.addColorStop(0, "rgba(255,250,220,.45)"); halo.addColorStop(1, "rgba(255,250,220,0)");
   ctx.fillStyle = halo; ctx.fillRect(mx - 110, 0, 220, 170);
   ctx.fillStyle = "#fff8dc"; ctx.beginPath(); ctx.arc(mx, my, 26, 0, 6.28); ctx.fill();
+  // Étoile filante de temps en temps (décor)
+  const sh = (T % 9) / 0.9;
+  if (sh < 1) {
+    const sx = 120 + (Math.floor(T / 9) * 173) % 500, x = sx + sh * 160, y = 20 + sh * 50;
+    const g2 = ctx.createLinearGradient(x - 60, y - 19, x, y);
+    g2.addColorStop(0, "rgba(255,255,255,0)"); g2.addColorStop(1, `rgba(255,255,255,${0.8 * (1 - sh)})`);
+    ctx.strokeStyle = g2; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 60, y - 19); ctx.lineTo(x, y); ctx.stroke();
+  }
   ctx.fillStyle = "rgba(200,190,160,.35)";
   [[-8, -6, 6], [8, 5, 4], [-3, 10, 3]].forEach(c => { ctx.beginPath(); ctx.arc(mx + c[0], my + c[1], c[2], 0, 6.28); ctx.fill(); });
 }
@@ -683,6 +810,13 @@ function drawSea(T) {
     const w = (10 + i * 3.2) * (0.6 + 0.4 * Math.sin(T * 2 + i * 1.7));
     ctx.fillStyle = `rgba(255,248,210,${0.55 - i * 0.018})`;
     ctx.fillRect(760 - w / 2 + Math.sin(T * 1.5 + i) * 6, y, w, 2);
+  }
+  // points lumineux qui scintillent dans l'eau
+  for (let i = 0; i < 26; i++) {
+    const a = Math.sin(T * 1.7 + i * 2.3);
+    if (a < 0.6) continue;
+    ctx.fillStyle = `rgba(150,240,255,${(a - 0.6) * 1.6})`;
+    ctx.beginPath(); ctx.arc((i * 131) % W, top + 10 + (i * 37) % Math.max(10, sy - top - 14), 1.6, 0, 6.28); ctx.fill();
   }
   // petites vaguelettes
   ctx.strokeStyle = "rgba(170,210,255,.18)"; ctx.lineWidth = 1.2;
@@ -713,10 +847,27 @@ function drawSand(T) {
     }
     ctx.stroke();
   }
+  // Palmiers en silhouette sur les côtés (décor, ne gênent pas le jeu)
+  drawPalm(-10, H - 10, 1, T); drawPalm(W + 10, H - 30, -1, T);
   // reflet lunaire sur le sable mouillé
   const rg = ctx.createRadialGradient(760, sy + 10, 5, 760, sy + 10, 120);
   rg.addColorStop(0, "rgba(255,248,210,.18)"); rg.addColorStop(1, "rgba(255,248,210,0)");
   ctx.fillStyle = rg; ctx.fillRect(640, sy - 10, 240, 120);
+}
+
+function drawPalm(x, y, dir, T) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1);
+  ctx.strokeStyle = "rgba(10,14,30,.85)"; ctx.lineWidth = 12; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(30, -120, 18, -230); ctx.stroke();
+  ctx.fillStyle = "rgba(10,14,30,.9)";
+  const sway = Math.sin(T * 0.8) * 0.05;
+  for (let i = 0; i < 6; i++) {
+    const a = -Math.PI * 0.95 + i * 0.42 + sway;
+    ctx.save(); ctx.translate(18, -230); ctx.rotate(a);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(45, -18, 95, 12); ctx.quadraticCurveTo(45, -4, 0, 6); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 function drawTracks() {
@@ -801,6 +952,7 @@ function drawBirdShadows(T) {
 
 // Un bébé tortue tout mignon
 function drawBaby(b) {
+  ctx.fillStyle = "rgba(255,248,210,.10)"; ctx.beginPath(); ctx.arc(b.x, b.y, 13, 0, 6.28); ctx.fill();
   ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.a + Math.PI / 2);
   if (b.hole) ctx.scale(0.85, 0.85);
   const f = Math.sin(b.flip) * 0.6;
@@ -860,10 +1012,20 @@ function drawLamp(T) {
 }
 
 function drawParts() {
-  for (const p of state.parts) { ctx.globalAlpha = clamp(p.life / p.max, 0, 1); ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill(); }
+  for (const p of state.parts) {
+    ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+    if (p.ring) { ctx.strokeStyle = p.col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * 0.4, 0, 0, 6.28); ctx.stroke(); }
+    else if (p.rect) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.life * 6); ctx.fillStyle = p.col; ctx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r); ctx.restore(); }
+    else { ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill(); }
+  }
   ctx.globalAlpha = 1;
-  ctx.textAlign = "center"; ctx.font = "600 15px Fredoka";
-  for (const p of state.popups) { ctx.globalAlpha = clamp(p.life, 0, 1); ctx.fillStyle = p.col; ctx.fillText(p.txt, p.x, p.y); }
+  ctx.textAlign = "center"; ctx.lineJoin = "round";
+  for (const p of state.popups) {
+    ctx.globalAlpha = clamp(p.life, 0, 1);
+    ctx.font = p.big ? "700 30px Fredoka" : "600 16px Fredoka";
+    ctx.strokeStyle = "rgba(5,12,35,.8)"; ctx.lineWidth = p.big ? 6 : 4; ctx.strokeText(p.txt, p.x, p.y);
+    ctx.fillStyle = p.col; ctx.fillText(p.txt, p.x, p.y);
+  }
   ctx.globalAlpha = 1;
 }
 
@@ -881,7 +1043,7 @@ function drawHUD() {
   ctx.fillStyle = pct * 100 >= L.goal ? "#7fe0a0" : "#6fb8ff"; roundRect(bx, by, Math.max(4, bw * pct), bh, 5); ctx.fill();
   ctx.fillStyle = "#ffd34d"; ctx.fillRect(bx + bw * L.goal / 100 - 1, by - 4, 2, bh + 8);
   ctx.font = "500 12px Fredoka"; ctx.fillStyle = "#ffd34d"; ctx.fillText(`objectif ${L.goal} %`, bx + 20, by - 6);
-  if (state.time < 4) {
+  if (state.time < 4 && !state.tuto) {
     ctx.globalAlpha = Math.min(1, 4 - state.time);
     ctx.fillStyle = "rgba(8,18,45,.7)"; roundRect(W / 2 - 230, H / 2 - 30, 460, 54, 16); ctx.fill();
     ctx.fillStyle = "#fff"; ctx.font = "500 18px Fredoka"; ctx.textAlign = "center";
@@ -903,13 +1065,21 @@ const STEP = 1 / 60;
 let last = performance.now(), acc = 0;
 function frame(now) {
   acc += Math.min(0.25, (now - last) / 1000); last = now;
-  while (acc >= STEP) { tick(STEP); acc -= STEP; }
+  // Tutoriel : ralenti tant qu'un crabe approche et que le joueur ne l'a pas encore chassé
+  const slow = state.tuto && state.tuto.step === 0 && state.preds.some(p => p.kind === "crab" && p.mode === "hunt") ? 0.35 : 1;
+  while (acc >= STEP) { tick(STEP * slow); acc -= STEP; }
   render();
+  ambienceTick();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 // Pause automatique si on quitte l'onglet
 document.addEventListener("visibilitychange", () => { if (document.hidden && state.screen === "play") togglePause(); });
+window.addEventListener("blur", () => { if (state.screen === "play") togglePause(); });
+// Empêche le zoom / défilement par geste sur mobile (y compris dans une iframe)
+document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+document.addEventListener("dblclick", e => e.preventDefault());
+canvas.addEventListener("contextmenu", e => e.preventDefault());
 </script>
 </body>
 </html>

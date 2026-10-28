@@ -25,6 +25,7 @@
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
+    overscroll-behavior: none;
   }
 
   /* La scène fait toujours 480x800 "virtuels", puis on l'agrandit pour remplir l'écran */
@@ -134,16 +135,38 @@
   }
   .round.hidden { display: none; }
 
-  #touch { position: absolute; left: 0; right: 0; bottom: 22px; display: none; justify-content: space-between; padding: 0 22px; z-index: 2; }
+  /* --tk : facteur d'agrandissement des boutons tactiles (calculé en JS pour qu'ils restent assez gros sur petit écran) */
+  #touch { --tk: 1; position: absolute; left: 0; right: 0; bottom: 18px; display: none; justify-content: space-between; align-items: flex-end; padding: 0 16px; z-index: 2; }
   #touch.show { display: flex; }
   .tbtn {
-    width: 86px; height: 86px; border-radius: 50%;
+    width: calc(96px * var(--tk)); height: calc(96px * var(--tk)); border-radius: 50%;
+    -webkit-touch-callout: none; touch-action: none;
     background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.28);
     color: #fff; font-size: 34px; font-family: inherit;
     display: flex; align-items: center; justify-content: center;
     backdrop-filter: blur(3px);
   }
   .tbtn:active { background: rgba(255,255,255,.28); }
+
+  /* Bouton "Passer le tutoriel" */
+  #tutoSkip {
+    position: absolute; left: 50%; top: 214px; transform: translateX(-50%); z-index: 2;
+    font-family: inherit; font-size: 14px; color: #fff; cursor: pointer;
+    background: rgba(20,16,40,.75); border: 1px solid rgba(255,255,255,.2); border-radius: 20px; padding: 6px 16px;
+  }
+  #tutoSkip.hidden { display: none; }
+
+  /* Confettis de fin de niveau (pur CSS) */
+  .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .confetti i {
+    position: absolute; top: -20px; width: 9px; height: 14px; border-radius: 2px;
+    animation: fall linear forwards;
+  }
+  @keyframes fall { to { transform: translateY(860px) rotate(720deg); } }
+  .overlay > * { animation: rise .35s ease-out both; }
+  .overlay > .confetti { animation: none; }
+  @keyframes rise { from { transform: translateY(14px); opacity: 0; } }
+  .overlay > .title { animation: rise .35s ease-out both, float 3s ease-in-out .35s infinite; }
 
   @keyframes pop { to { transform: scale(1); } }
   @keyframes float { 0%,100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-8px) rotate(1.5deg); } }
@@ -163,6 +186,8 @@
       <button class="tbtn" data-k="down">▼</button>
       <button class="tbtn" data-k="right">▶</button>
     </div>
+
+    <button id="tutoSkip" class="hidden" data-a="skiptuto">Passer le tutoriel ✕</button>
 
     <div class="overlay" id="overlay"></div>
   </div>
@@ -202,15 +227,16 @@ const LEVELS = [
   {
     name: "Le filet",
     hint: "Faufile-toi dans le trou vert pour tomber dans la lave.",
-    nets: [{ y: 520, gap: 170, speed: 1.0, x: 0.15, min: 100 }],
+    nets: [{ y: 520, gap: 170, speed: 1.0, x: 0.15, min: 110 }],
+    shrink: 0.6,   // niveau 1 : le trou rétrécit deux fois moins vite
     stars: [4, 9],
   },
   {
     name: "Double peine",
     hint: "Deux filets. Attends que les trous s'alignent.",
     nets: [
-      { y: 330, gap: 150, speed: 1.3, x: 0.2 },
-      { y: 560, gap: 140, speed: 1.9, x: 0.8, dir: -1 },
+      { y: 330, gap: 155, speed: 1.2, x: 0.2 },
+      { y: 560, gap: 145, speed: 1.5, x: 0.8, dir: -1 },
     ],
     stars: [7, 15],
   },
@@ -296,6 +322,8 @@ function resize() {
   canvas.width = Math.round(VW * S * DPR);
   canvas.height = Math.round(VH * S * DPR);
   stage.style.transform = `translate(-50%, -50%) scale(${S})`;
+  // boutons tactiles : au moins ~64 px réels à l'écran, même si la scène est très réduite
+  touchPad.style.setProperty("--tk", Math.max(1, Math.min(1.35, 64 / (96 * S))).toFixed(3));
 }
 window.addEventListener("resize", resize);
 resize();
@@ -322,6 +350,7 @@ const Sound = {
       try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
     }
     if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+    this.startMusic();
   },
   tone(freq, dur, type = "sine", vol = 0.2, slideTo = null, delay = 0) {
     if (save.muted || !this.ctx) return;
@@ -354,6 +383,24 @@ const Sound = {
   splash(){ this.noise(0.9, 0.5, 500, 0.6); this.tone(240, 0.6, "sawtooth", 0.05, 50); },
   win()   { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.35, "triangle", 0.14, null, 0.35 + i * 0.1)); },
   click() { this.tone(700, 0.06, "triangle", 0.1); },
+  // passage réussi dans un trou : petit "ding" qui monte avec le combo
+  pass(k) { const b = 520 * Math.pow(1.122, Math.min(k, 6)); this.tone(b, 0.14, "triangle", 0.12); this.tone(b * 1.5, 0.2, "sine", 0.08, null, 0.07); },
+  tuto()  { this.tone(660, 0.1, "sine", 0.1); this.tone(990, 0.16, "sine", 0.08, null, 0.08); },
+
+  // --- Petite musique de fond : quelques notes douces en boucle ---
+  // Démarre seulement après un geste du joueur (init) et se tait si le son est coupé.
+  musicTimer: null,
+  musicStep: 0,
+  startMusic() {
+    if (this.musicTimer || !this.ctx) return;
+    const NOTES = [220, 0, 262, 330, 0, 294, 262, 0, 196, 0, 247, 294, 0, 262, 220, 0];
+    this.musicTimer = setInterval(() => {
+      if (save.muted || document.hidden || !this.ctx || this.ctx.state !== "running") return;
+      const f = NOTES[this.musicStep++ % NOTES.length];
+      if (f) this.tone(f, 1.1, "sine", 0.03);
+      if (this.musicStep % 8 === 1) this.tone(110, 2.2, "triangle", 0.025); // basse
+    }, 420);
+  },
 };
 
 // ============================================================
@@ -373,8 +420,12 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" || e.key === "p" || e.key === "P") togglePause();
   if ((e.key === "r" || e.key === "R") && world && state !== "menu") startLevel(world.idx);
   if (e.key === "m" || e.key === "M") toggleMute();
-  if ((e.key === "Enter" || e.key === " ") && state === "complete") doAction("next");
+  // (preventDefault : évite qu'un bouton qui a le focus soit aussi "cliqué" → double action)
+  if ((e.key === "Enter" || e.key === " ") && state === "complete") { e.preventDefault(); if (!e.repeat) doAction("next"); }
 });
+// pas de défilement / zoom de la page pendant qu'on joue (mobile, iframe)
+document.addEventListener("touchmove", (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+document.addEventListener("contextmenu", (e) => { if (e.target.closest(".tbtn")) e.preventDefault(); });
 window.addEventListener("keyup", (e) => { const k = KEYMAP[e.key]; if (k) keys[k] = false; });
 window.addEventListener("blur", () => { keys.left = keys.right = keys.down = false; });
 document.addEventListener("visibilitychange", () => { if (document.hidden && (state === "playing" || state === "intro")) togglePause(); });
@@ -402,6 +453,12 @@ let introT = 0, sinkT = 0;
 let shake = 0;
 let msg = null;
 let lastLine = -1;
+let fade = 0;            // fondu au noir entre les écrans (1 = noir, 0 = rien)
+let streak = 0;          // combo : trous franchis d'affilée sans être sauvé
+let savesAtPass = 0;
+let hintShown = false;   // astuce affichée une seule fois par niveau
+let tuto = null;         // tutoriel interactif : { step, t } ou null
+const tutoBtn = document.getElementById("tutoSkip");
 
 const P = { x: VW / 2, y: SPAWN_Y, px: 0, py: 0, vx: 0, vy: 0, r: 16, sq: 1, sv: 0, mood: 0, alpha: 1, trail: [] };
 const parts = [];
@@ -428,8 +485,50 @@ function loadLevel(i) {
     bumpers: (L.bumpers || []).map((b) => ({ ...b, cx: b.x, cy: b.y, r: b.r || 22, ax: b.ax || 0, speed: b.speed || 1, hit: 0 })),
   };
   resetPlayer();
-  levelT = 0; saves = 0; msg = null;
+  levelT = 0; saves = 0; msg = null; finalTime = 0;
+  streak = 0; savesAtPass = 0; hintShown = false; shake = 0;
   parts.length = 0;
+}
+
+// ============================================================
+//  Tutoriel interactif (une seule fois, mémorisé dans save.tuto)
+//  étape 0 : bouger ← →   étape 1 : plonger ↓   étape 2 : passer dans le trou
+// ============================================================
+const TUTO_TEXT = isTouch
+  ? ["Touche ◀ ou ▶ pour te déplacer", "Maintiens ▼ pour plonger plus vite", "Vise le trou VERT du filet !"]
+  : ["Appuie sur ← ou → pour te déplacer", "Maintiens ↓ pour plonger plus vite", "Vise le trou VERT du filet !"];
+
+function endTuto(done) {
+  if (!tuto) return;
+  tuto = null;
+  save.tuto = true;
+  persist();
+  tutoBtn.classList.add("hidden");
+  if (done) say("Bravo, tu as compris ! 👍", { x: VW / 2, y: 300, color: "#5cf2a8", big: true, life: 1.5 });
+}
+
+function tutoNext() {
+  tuto.step++;
+  tuto.t = 0;
+  Sound.tuto();
+}
+
+function updateTuto(dt) {
+  if (!tuto || state !== "playing") return;
+  tuto.t += dt;
+  if (tuto.step === 0 && (keys.left || keys.right) && tuto.t > 0.4) tutoNext();
+  else if (tuto.step === 1 && keys.down && tuto.t > 0.4) tutoNext();
+}
+
+// Le joueur vient de passer dans un trou : encouragement + combo
+function onNetPassed(n) {
+  streak = saves === savesAtPass ? streak + 1 : 1;
+  savesAtPass = saves;
+  Sound.pass(streak);
+  emit(P.x, n.y + 6, 18, { angle: Math.PI / 2, spread: 2.2, speed: 3, colors: ["#5cf2a8", "#b8ffd9", "#ffffff"], life: 0.6, size: 2.6, grav: 0.05, glow: true });
+  const txt = streak >= 3 ? `COMBO ×${streak} ! 🔥` : streak === 2 ? "Enchaîné ! ×2" : pick(["Bien visé !", "Ça passe !", "Joli !", "Parfait !"]);
+  say(txt, { color: "#5cf2a8", big: streak >= 2 });
+  if (tuto && tuto.step === 2) endTuto(true);
 }
 
 // ============================================================
@@ -487,6 +586,13 @@ function tick(dt) {
   }
 
   if (state === "playing" || state === "menu") updatePlayer();
+  updateTuto(dt);
+
+  // astuce si le joueur galère (une fois par niveau, hors tutoriel)
+  if (state === "playing" && !hintShown && !tuto && saves >= 6 && levelT > 8) {
+    hintShown = true;
+    say("Astuce : attends que le trou passe sous toi, puis plonge ↓", { x: VW / 2, y: 190, color: "#ffd166", life: 3.2 });
+  }
 
   if (state === "sinking") {
     P.y += 0.55;
@@ -529,6 +635,7 @@ function updateAmbient(dt) {
   // message flottant
   if (msg) { msg.t += dt; if (msg.t >= msg.life) msg = null; }
   shake *= 0.88;
+  fade = Math.max(0, fade - dt * 2.5);
 }
 
 function updateHazards(dt) {
@@ -610,6 +717,8 @@ function updatePlayer() {
         n.amp = 16; n.ix = P.x; n.it = T;
         emit(P.x, n.y, 10, { angle: -Math.PI / 2, spread: 2.4, speed: 3, colors: ["#ff8a96", "#ffffff"], life: 0.45, size: 2.5, grav: 0.15 });
         if (ctl) { saves++; P.mood = 0.8; Sound.boing(); shake = Math.max(shake, 3); sayRandomSave(); }
+      } else if (ctl) {
+        onNetPassed(n); // passé dans le trou !
       }
     }
   }
@@ -670,6 +779,7 @@ function enterLava() {
 
   if (state === "menu") { resetPlayer(); return; } // mode démo du menu
 
+  if (tuto) endTuto(false);
   state = "sinking";
   finalTime = levelT;
   sinkT = 1.4;
@@ -721,11 +831,59 @@ function render() {
   drawLava();
   drawParticles();
   drawWalls();
+  drawVignette();
   ctx.restore();
 
   if (world && state !== "menu") drawHUD();
   if (state === "intro") drawIntro();
+  if (tuto && state === "playing") drawTuto();
   drawMsg();
+
+  // fondu au noir (transition entre les écrans)
+  if (fade > 0) {
+    ctx.fillStyle = `rgba(6,4,13,${fade})`;
+    ctx.fillRect(0, 0, VW, VH);
+  }
+}
+
+// Assombrit les coins pour concentrer le regard au centre
+let VIGNETTE = null;
+function drawVignette() {
+  if (!VIGNETTE) {
+    VIGNETTE = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.3, VW / 2, VH / 2, VH * 0.75);
+    VIGNETTE.addColorStop(0, "rgba(0,0,0,0)");
+    VIGNETTE.addColorStop(1, "rgba(0,0,0,.45)");
+  }
+  ctx.fillStyle = VIGNETTE;
+  ctx.fillRect(-30, -30, VW + 60, VH + 60);
+}
+
+// Bulle du tutoriel, avec 3 pastilles d'étapes
+function drawTuto() {
+  const pulse = 1 + Math.sin(T * 5) * 0.03;
+  ctx.save();
+  ctx.translate(VW / 2, 160);
+  ctx.scale(pulse, pulse);
+  ctx.fillStyle = "rgba(10,7,26,.85)";
+  roundRect(-185, -36, 370, 72, 18);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(92,242,168,.6)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.textAlign = "center";
+  ctx.font = "600 12px Fredoka, sans-serif";
+  ctx.fillStyle = "#ffd166";
+  ctx.fillText("TUTORIEL · ÉTAPE " + (tuto.step + 1) + " / 3", 0, -14);
+  ctx.font = "700 18px Fredoka, sans-serif";
+  ctx.fillStyle = "#fff";
+  ctx.fillText(TUTO_TEXT[tuto.step], 0, 10);
+  for (let k = 0; k < 3; k++) {
+    ctx.beginPath();
+    ctx.arc(-14 + k * 14, 24, 4, 0, Math.PI * 2);
+    ctx.fillStyle = k < tuto.step ? "#5cf2a8" : k === tuto.step ? "#ffd166" : "rgba(255,255,255,.25)";
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function drawBackground() {
@@ -1270,15 +1428,32 @@ function showOverlay(html) {
   overlay.innerHTML = html;
   overlay.classList.add("show");
 }
-function hideOverlay() { overlay.classList.remove("show"); }
+function hideOverlay() {
+  overlay.classList.remove("show");
+  // le bouton cliqué garde sinon le focus : Espace/Entrée le "recliquerait" pendant la partie
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+
+// Pluie de confettis CSS (fin de niveau)
+function confettiHTML(n) {
+  const cols = ["#5cf2a8", "#ffd166", "#ff4d5e", "#9fd8ff", "#ff8bd1"];
+  let h = "";
+  for (let i = 0; i < n; i++) {
+    h += `<i style="left:${rand(0, 100).toFixed(1)}%;background:${pick(cols)};animation-duration:${rand(1.8, 3.4).toFixed(2)}s;animation-delay:${rand(0, 0.8).toFixed(2)}s"></i>`;
+  }
+  return `<div class="confetti">${h}</div>`;
+}
 
 function setPlayUI(on) {
   pauseBtn.classList.toggle("hidden", !on);
   touchPad.classList.toggle("show", on && isTouch);
+  if (!on) tutoBtn.classList.add("hidden");
 }
 
 function showMenu() {
   state = "menu";
+  tuto = null;                       // on quitte : le tutoriel reprendra la prochaine fois
+  tutoBtn.classList.add("hidden");
   loadLevel(0);
   setPlayUI(false);
   showOverlay(`
@@ -1340,6 +1515,7 @@ function showComplete() {
   else note = "Défaite parfaite.";
 
   showOverlay(`
+    ${confettiHTML(stars === 3 ? 60 : 30)}
     <div class="kicker">Niveau ${i + 1} · ${L.name}</div>
     <div class="big">${last ? "🏆 TU AS TOUT PERDU !" : "🎉 PERDU !"}</div>
     <div class="stars">${[1, 2, 3].map((k) => `<span class="${k <= stars ? "on" : ""}">★</span>`).join("")}</div>
@@ -1384,7 +1560,13 @@ function toggleMute() {
 function startLevel(i) {
   loadLevel(i);
   state = "intro";
+  pausedFrom = null;
   introT = 2.4;
+  fade = 1;                                   // fondu d'entrée
+  keys.left = keys.right = keys.down = false;
+  // tutoriel : seulement au niveau 1, la toute première fois
+  tuto = i === 0 && !save.tuto ? { step: 0, t: 0 } : null;
+  tutoBtn.classList.toggle("hidden", !tuto);
   hideOverlay();
   setPlayUI(true);
 }
@@ -1410,7 +1592,10 @@ function doAction(a, el) {
     case "resume": togglePause(); break;
     case "pause": togglePause(); break;
     case "mute": toggleMute(); break;
+    case "skiptuto": endTuto(false); break;
   }
+  // ne pas garder le focus sur un bouton (Espace le déclencherait à nouveau)
+  if (el && el.blur) el.blur();
 }
 
 document.addEventListener("click", (e) => {

@@ -6,30 +6,52 @@
 <title>La récolte d'ylang-ylang</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  html,body{margin:0;height:100%;background:#1d2b22;overflow:hidden;font-family:'Fredoka',sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
-  #stage{position:absolute;left:0;top:0;width:960px;height:540px;transform-origin:0 0}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:#1d2b22;overflow:hidden;font-family:'Fredoka',sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+  #stage{position:absolute;left:0;top:0;width:960px;height:540px;transform-origin:0 0;overflow:hidden}
   canvas{position:absolute;left:0;top:0;width:960px;height:540px;display:block}
-  .ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,35,25,.55);backdrop-filter:blur(3px)}
-  .ov.on{display:flex}
-  .card{background:#fff8e6;border-radius:22px;padding:24px 32px;max-width:640px;text-align:center;color:#4a3a1a;box-shadow:0 10px 40px rgba(0,0,0,.35);border:4px solid #e9c046}
-  h1{margin:0 0 6px;font-size:40px;color:#b8860b}
+  /* Les écrans apparaissent en fondu */
+  .ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,35,25,.55);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .3s}
+  .ov.on{opacity:1;pointer-events:auto}
+  .ov .card{transform:scale(.92) translateY(10px);transition:transform .3s cubic-bezier(.2,1.4,.4,1)}
+  .ov.on .card{transform:none}
+  .card{background:linear-gradient(170deg,#fffdf3,#fff1cf);border-radius:24px;padding:24px 32px;max-width:660px;text-align:center;color:#4a3a1a;box-shadow:0 14px 44px rgba(0,0,0,.4),inset 0 -6px 0 rgba(200,150,30,.18);border:4px solid #e9c046}
+  h1{margin:0 0 6px;font-size:42px;color:#b8860b;text-shadow:0 3px 0 #ffe9a0}
   h2{margin:0 0 10px;font-size:30px;color:#b8860b}
   p{margin:8px 0;font-size:17px;line-height:1.4}
-  button{font-family:inherit;font-size:19px;font-weight:600;border:0;border-radius:14px;padding:10px 22px;margin:6px;cursor:pointer;background:#f2c230;color:#4a3000;box-shadow:0 4px 0 #b88a10}
+  button{font-family:inherit;font-size:19px;font-weight:600;border:0;border-radius:14px;padding:12px 24px;margin:6px;cursor:pointer;background:linear-gradient(#ffd85a,#f2b820);color:#4a3000;box-shadow:0 4px 0 #b88a10,0 6px 12px rgba(0,0,0,.18);transition:transform .08s}
+  button:hover{transform:translateY(-2px)}
   button:active{transform:translateY(2px);box-shadow:0 2px 0 #b88a10}
-  button.sec{background:#cfe3c4;color:#2f4a25;box-shadow:0 4px 0 #8aa87c}
-  button:disabled{background:#ccc;color:#888;box-shadow:0 4px 0 #999;cursor:default}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
-  .grid button{margin:0;font-size:16px;padding:10px 6px}
+  button.sec{background:linear-gradient(#e1efd8,#c4dcb6);color:#2f4a25;box-shadow:0 4px 0 #8aa87c,0 6px 12px rgba(0,0,0,.15)}
+  button:disabled{background:#ccc;color:#888;box-shadow:0 4px 0 #999;cursor:default;transform:none}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+  .grid button{margin:0;font-size:16px;padding:12px 6px}
   .stars{color:#e0a800;font-size:18px;display:block}
   ul{text-align:left;font-size:16px;margin:6px 0;padding-left:22px}
   li{margin:4px 0}
-  .big{font-size:22px;font-weight:600}
+  .big{font-size:24px;font-weight:600}
+  .sw{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin:0 3px;border:1px solid rgba(0,0,0,.2)}
+  /* Boutons pause / son pendant la partie (gros pour le tactile) */
+  #hudBtns{position:absolute;right:12px;top:64px;display:none;gap:8px}
+  #hudBtns.on{display:flex}
+  .round{width:48px;height:48px;border-radius:50%;padding:0;margin:0;font-size:20px;background:rgba(255,248,230,.92);color:#4a3a1a;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+  /* Bulle du tutoriel */
+  #tuto{position:absolute;left:50%;top:104px;transform:translateX(-50%);width:560px;background:#fffbe9;border:3px solid #e9c046;border-radius:18px;padding:12px 18px;color:#4a3a1a;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.3);display:none;animation:pop .35s}
+  #tuto.on{display:block}
+  #tuto p{margin:4px 0 8px;font-size:18px}
+  #tuto button{font-size:16px;padding:8px 16px;margin:2px 4px}
+  @keyframes pop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
 </style>
 </head>
 <body>
 <div id="stage">
   <canvas id="cv"></canvas>
+
+  <!-- Boutons pendant la partie -->
+  <div id="hudBtns"><button class="round" id="bMute" title="Son (M)">♪</button><button class="round" id="bPause" title="Pause (Échap / P)">II</button></div>
+
+  <!-- Bulle du tutoriel (première partie) -->
+  <div id="tuto"><p id="tutoText"></p><button id="tutoNext">Suivant</button><button class="sec" id="tutoSkip">Passer</button></div>
 
   <!-- Menu principal -->
   <div class="ov on" id="ovMenu"><div class="card">
@@ -51,11 +73,12 @@
     <h2>Règles</h2>
     <p>Mayotte est surnommée l'île aux parfums. On y cultive l'ylang-ylang, dont on cueille les fleurs quand elles deviennent jaunes. Voici notre version.</p>
     <ul>
-      <li>Clique (ou touche) les fleurs pour les cueillir. Elles passent du <b>vert</b> au <b>jaune clair</b>, puis au <b>jaune doré</b> (parfait !), puis au <b>brun</b> (perdu).</li>
+      <li>Clique (ou touche) les fleurs pour les cueillir. Elles passent du <span class="sw" style="background:#78aa46"></span><b>vert</b> au <span class="sw" style="background:#e1e678"></span><b>jaune clair</b>, puis au <span class="sw" style="background:#f5c31e"></span><b>jaune doré</b> (parfait !), puis au <span class="sw" style="background:#82552a"></span><b>brun</b> (perdu).</li>
+      <li>Une fleur <b>verte</b> ou <b>brune</b> cueillie fait <b>perdre</b> des fleurs du panier : regarde bien la couleur !</li>
       <li>Les cueillettes dorées à la suite forment un <b>combo</b>.</li>
       <li>Les fleurs qui tombent : attrape-les avec le <b>panier</b> (il suit la souris / ton doigt).</li>
       <li>Ne clique pas sur les <b>abeilles</b> : piqûre = du temps perdu.</li>
-      <li>Atteins l'objectif en kg avant la fin de la journée, puis porte le panier à l'alambic sans renverser (garde-le droit avec la souris ou ← →).</li>
+      <li>Atteins l'objectif en kg avant la fin de la journée, puis porte le panier à l'alambic sans renverser (garde-le droit avec la souris, le doigt ou ← →).</li>
       <li>Échap / P : pause — M : son.</li>
     </ul>
     <button class="sec" data-back>Retour</button>
@@ -88,8 +111,8 @@ let S = 1, DPR = 1;              // échelle écran et densité de pixels
 
 // ---------- Mise à l'échelle de la scène ----------
 function resize() {
-  S = Math.min(innerWidth / W, innerHeight / H);
-  DPR = window.devicePixelRatio || 1;
+  S = Math.min(innerWidth / W, innerHeight / H) || 1;
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
   stage.style.transform = 'scale(' + S + ')';
   stage.style.left = ((innerWidth - W * S) / 2) + 'px';
   stage.style.top = ((innerHeight - H * S) / 2) + 'px';
@@ -108,6 +131,9 @@ function mixColor(c1, c2, t) { // mélange deux couleurs [r,g,b]
   return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
 }
 const rgb = c => 'rgb(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ')';
+const rgba = (c, a) => 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' + a + ')';
+// Générateur aléatoire « à graine » : le décor reste identique d'une partie à l'autre
+function seeded(seed) { let s = seed; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
 
 // ---------- Les niveaux ----------
 // trees : nombre d'arbres, time : durée de la journée (s), target : kg à atteindre
@@ -122,10 +148,18 @@ const LEVELS = [
 ];
 const INFINITE = { name: 'Mode infini', trees: 3, time: 45, target: 0, ripen: 0.13, spawn: 2.0, wind: 0.15, rain: false, bees: 2, stars: [0, 0, 0] };
 
+// Poids gagnés / perdus selon la maturité (la maturité compte vraiment !)
+const KG_PERFECT = 0.1, KG_LIGHT = 0.04, KG_GREEN = -0.05, KG_FADED = -0.03;
+
 // ---------- Sauvegarde ----------
 let save = { unlocked: 1, levels: {}, best: 0, muted: false };
 try { const s = JSON.parse(localStorage.getItem('ylang-v1')); if (s) save = Object.assign(save, s); } catch (e) {}
+if (!save.levels) save.levels = {};
 function writeSave() { try { localStorage.setItem('ylang-v1', JSON.stringify(save)); } catch (e) {} }
+// Le tutoriel vu est noté dans une clé à part (le format de 'ylang-v1' ne change pas)
+const TUTO_KEY = 'ylang-v1-tuto';
+let tutoDone = false;
+try { tutoDone = localStorage.getItem(TUTO_KEY) === '1'; } catch (e) {}
 
 // ---------- Sons (WebAudio) ----------
 let AC = null;
@@ -134,28 +168,40 @@ function audio() {
   if (AC && AC.state === 'suspended') AC.resume();
   return AC;
 }
-function tone(freq, dur, type, vol, slide) {
-  if (save.muted) return;
-  const a = audio(); if (!a) return;
+function tone(freq, dur, type, vol, slide, delay) {
+  if (save.muted || !AC) return;
+  const a = AC, t0 = a.currentTime + (delay || 0);
   const o = a.createOscillator(), g = a.createGain();
   o.type = type || 'sine';
-  o.frequency.setValueAtTime(freq, a.currentTime);
-  if (slide) o.frequency.exponentialRampToValueAtTime(slide, a.currentTime + dur);
-  g.gain.setValueAtTime(vol || 0.15, a.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+  o.frequency.setValueAtTime(freq, t0);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol || 0.15, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   o.connect(g); g.connect(a.destination);
-  o.start(); o.stop(a.currentTime + dur);
+  o.start(t0); o.stop(t0 + dur + 0.05);
 }
 const SFX = {
   pick:    () => tone(520, 0.12, 'triangle', 0.15, 700),
-  perfect: () => { tone(880, 0.25, 'sine', 0.13); setTimeout(() => tone(1320, 0.3, 'sine', 0.1), 70); },
+  perfect: () => { tone(880, 0.25, 'sine', 0.13); tone(1320, 0.3, 'sine', 0.1, 0, 0.07); },
   combo:   n => tone(600 + n * 80, 0.2, 'square', 0.06, 900 + n * 80),
-  bad:     () => tone(220, 0.2, 'sawtooth', 0.08, 140),
+  bad:     () => tone(220, 0.25, 'sawtooth', 0.08, 140),
   buzz:    () => tone(180, 0.4, 'sawtooth', 0.1, 120),
   catch:   () => tone(400, 0.1, 'triangle', 0.12, 600),
-  win:     () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.3, 'triangle', 0.12), i * 120)),
-  lose:    () => [400, 330, 260].forEach((f, i) => setTimeout(() => tone(f, 0.3, 'triangle', 0.1), i * 150)),
+  click:   () => tone(660, 0.07, 'square', 0.04),
+  win:     () => [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, 0.32, 'triangle', 0.12, 0, i * 0.12)),
+  lose:    () => [400, 330, 260].forEach((f, i) => tone(f, 0.3, 'triangle', 0.1, 0, i * 0.15)),
 };
+// Musique de fond très douce : petite mélodie pentatonique, seulement pendant la partie
+const MELODY = [523, 587, 659, 784, 880, 784, 659, 587, 523, 659, 784, 1046, 880, 784, 659, 587];
+const BASS = [131, 131, 196, 196, 147, 147, 196, 196];
+let musicStep = 0;
+setInterval(() => {
+  if (!AC || save.muted || state.paused || !(state.screen === 'play' || state.screen === 'bonus')) return;
+  if (musicStep % 2 === 0 || Math.random() < 0.5) tone(MELODY[musicStep % MELODY.length], 0.5, 'sine', 0.028);
+  if (musicStep % 4 === 0) tone(BASS[(musicStep / 4 | 0) % BASS.length], 1.2, 'triangle', 0.035);
+  musicStep++;
+}, 320);
 
 // ---------- État du jeu ----------
 let state = { screen: 'menu', paused: false };
@@ -189,19 +235,23 @@ function bezier(b, t) {
 function startLevel(i) {
   audio();
   hideAll();
+  i = (i | 0); if (i >= LEVELS.length) i = LEVELS.length - 1;
   const L = i < 0 ? INFINITE : LEVELS[i];
   const trees = [];
   const xs = L.trees === 1 ? [480] : L.trees === 2 ? [300, 660] : [200, 480, 760];
   xs.forEach(x => trees.push(makeTree(x, L.trees === 1 ? 1.25 : L.trees === 2 ? 1.05 : 0.9)));
   state = {
     screen: 'play', paused: false, levelIndex: i, L: L,
-    time: L.time, kg: 0, score: 0, combo: 0, bestCombo: 0, perfects: 0,
-    trees: trees, flowers: [], bees: [], falling: [], particles: [], texts: [], drops: [],
+    time: L.time, kg: 0, score: 0, combo: 0, bestCombo: 0, perfects: 0, misses: 0,
+    trees: trees, flowers: [], bees: [], falling: [], particles: [], texts: [], drops: [], confetti: [],
     spawnT: 0.3, basketX: 480, pointer: { x: 480, y: 300 }, stingT: 0, windT: 0, t: 0,
-    nextId: 1, bonus: null,
+    nextId: 1, bonus: null, fade: 1, big: null, kgFlash: 0, tuto: null,
   };
   for (let k = 0; k < 4; k++) spawnFlower(true);
   for (let k = 0; k < L.bees; k++) spawnBee();
+  // Tutoriel interactif la toute première fois (niveau 1)
+  if (i === 0 && !tutoDone) startTuto(); else hideTuto();
+  $('hudBtns').classList.add('on');
 }
 
 // Fait éclore une fleur sur une branche au hasard
@@ -228,26 +278,39 @@ function flowerColor(r) {
   return mixColor(GO, BR, Math.min(1, (r - 0.88) / 0.08));
 }
 
+// Retire du poids au panier (fleur mal choisie)
+function loseKg(v) { state.kg = Math.max(0, state.kg + v); state.kgFlash = 0.6; }
+
+// Messages d'encouragement selon le combo
+const CHEERS = { 3: 'Bien joué !', 6: 'Super !', 10: 'Magnifique !', 15: 'Incroyable !', 20: 'Reine de la récolte !' };
+
 // Donne les points et le poids d'une fleur selon son stade
 function harvest(f, x, y, caught) {
   const st = stage_(f.ripe);
-  if (st === 0) { // trop verte : rien gagné, combo cassé
-    state.combo = 0; SFX.bad();
-    addText(x, y, 'Trop verte !', '#7fbf5a'); return false;
+  if (st === 0) { // trop verte : on perd des fleurs et le combo
+    state.combo = 0; state.misses++; loseKg(KG_GREEN); state.score = Math.max(0, state.score - 5); SFX.bad();
+    addText(x, y, 'Trop verte ! −' + Math.abs(KG_GREEN) + ' kg', '#9fe07a'); puff(x, y, '#6f9e45');
+    return false;
   }
-  if (st === 3) { state.combo = 0; SFX.bad(); addText(x, y, 'Fanée…', '#8a5a2a'); return false; }
+  if (st === 3) {
+    state.combo = 0; state.misses++; loseKg(KG_FADED); SFX.bad();
+    addText(x, y, 'Fanée… −' + Math.abs(KG_FADED) + ' kg', '#c89060'); puff(x, y, '#8a5a2a');
+    return false;
+  }
   if (st === 2) {
     state.combo++; state.perfects++;
     state.bestCombo = Math.max(state.bestCombo, state.combo);
     const pts = 20 * Math.min(5, 1 + Math.floor(state.combo / 3));
-    state.score += pts; state.kg += 0.1;
+    state.score += pts; state.kg += KG_PERFECT;
     SFX.perfect(); if (state.combo >= 3 && state.combo % 3 === 0) SFX.combo(state.combo / 3);
     addText(x, y, 'Parfait ! +' + pts + (state.combo > 1 ? '  x' + state.combo : ''), '#ffd23a');
-    burst(x, y, '#ffe27a', 14);
+    burst(x, y, '#ffe27a', 16); sparkle(x, y);
+    if (CHEERS[state.combo]) state.big = { s: CHEERS[state.combo], t: 1.4 };
     if (state.levelIndex < 0) state.time += 0.6; // mode infini : bonus de temps
+    if (state.tuto && state.tuto.step === 1) tutoAdvance();
   } else {
-    state.combo = 0; state.score += 8; state.kg += 0.06;
-    SFX.pick(); addText(x, y, '+8', '#f4f0a0'); burst(x, y, '#f4f0a0', 6);
+    state.combo = 0; state.score += 8; state.kg += KG_LIGHT;
+    SFX.pick(); addText(x, y, '+8  (presque mûre)', '#f4f0a0'); burst(x, y, '#f4f0a0', 6);
   }
   if (caught) SFX.catch();
   return true;
@@ -258,7 +321,7 @@ function pickFlower(f) {
   if (typeof f === 'number') f = state.flowers.find(o => o.id === f);
   if (!f || state.screen !== 'play') return false;
   const ok = harvest(f, f.x, f.y, false);
-  state.flowers.splice(state.flowers.indexOf(f), 1);
+  const k = state.flowers.indexOf(f); if (k >= 0) state.flowers.splice(k, 1);
   return ok;
 }
 
@@ -272,30 +335,41 @@ function clickAt(x, y) {
       SFX.buzz(); addText(x, y, 'Aïe ! −5 s', '#ff6a4a'); return;
     }
   }
-  let best = null, bd = 30;
+  // zone de toucher généreuse pour les petits doigts
+  let best = null, bd = 34;
   for (const f of state.flowers) {
-    const d = Math.hypot(f.x - x, f.y + 6 - y);
+    const d = Math.hypot(f.x - x, f.y + 8 - y);
     if (d < bd) { bd = d; best = f; }
   }
   if (best) pickFlower(best);
+  else state.particles.push({ x, y, vx: 0, vy: 0, t: 0.35, c: 'ring' }); // petit cercle de clic
 }
 
 function addText(x, y, s, c) { state.texts.push({ x, y, s, c, t: 1.2 }); }
 function burst(x, y, c, n) {
   for (let i = 0; i < n; i++) state.particles.push({ x, y, vx: rand(-90, 90), vy: rand(-130, 20), t: rand(0.5, 1), c });
 }
+function puff(x, y, c) { for (let i = 0; i < 6; i++) state.particles.push({ x, y, vx: rand(-40, 40), vy: rand(-20, 40), t: rand(0.4, 0.8), c }); }
+// petites étoiles qui s'envolent vers le compteur de kg
+function sparkle(x, y) { for (let i = 0; i < 5; i++) state.particles.push({ x, y, vx: (640 - x) * rand(0.6, 1), vy: (33 - y) * rand(0.6, 1) - 60, t: 0.9, c: 'star', g: 0 }); }
 
 // ---------- Mise à jour (60 fois par seconde) ----------
 function tick(dt) {
   state.t = (state.t || 0) + dt;
-  if (state.screen === 'play' && !state.paused) updatePlay(dt);
-  else if (state.screen === 'bonus' && !state.paused) updateBonus(dt);
+  if (state.paused) return;               // rien ne bouge en pause
+  if (state.screen === 'play') updatePlay(dt);
+  else if (state.screen === 'bonus') updateBonus(dt);
+  else if (state.screen === 'end' && state.particles) { updateFx(dt); updateConfetti(dt); }
 }
 
 function updatePlay(dt) {
   const L = state.L;
-  state.time -= dt;
+  // le chrono s'arrête pendant le tutoriel
+  if (!state.tuto) state.time -= dt;
   if (state.stingT > 0) state.stingT -= dt;
+  if (state.fade > 0) state.fade = Math.max(0, state.fade - dt * 2);
+  if (state.kgFlash > 0) state.kgFlash -= dt;
+  if (state.big) { state.big.t -= dt; if (state.big.t <= 0) state.big = null; }
   // mode infini : ça accélère petit à petit
   const diff = state.levelIndex < 0 ? 1 + state.t / 90 : 1;
 
@@ -306,7 +380,8 @@ function updatePlay(dt) {
   }
   // le vent souffle par rafales
   state.windT += dt;
-  const gust = L.wind * Math.max(0, Math.sin(state.windT * 0.7)) ;
+  const gust = L.wind * Math.max(0, Math.sin(state.windT * 0.7));
+  state.gust = gust;
   // maturation des fleurs
   for (let i = state.flowers.length - 1; i >= 0; i--) {
     const f = state.flowers[i];
@@ -348,23 +423,42 @@ function updatePlay(dt) {
   // pluie
   if (L.rain) for (let k = 0; k < 3; k++) state.drops.push({ x: rand(0, 1000), y: -10, v: rand(500, 700) });
   for (let i = state.drops.length - 1; i >= 0; i--) { const d = state.drops[i]; d.y += d.v * dt; d.x -= 80 * dt; if (d.y > 540) state.drops.splice(i, 1); }
+  // pétales portés par le vent (décor)
+  if (Math.random() < dt * (0.6 + gust * 6)) state.particles.push({ x: -10, y: rand(120, 420), vx: rand(60, 140) + gust * 200, vy: rand(-10, 20), t: 4, c: 'petal', g: 0 });
   updateFx(dt);
   if (state.time <= 0) { state.time = 0; endDay(); }
 }
 
 function updateFx(dt) {
   for (let i = state.particles.length - 1; i >= 0; i--) {
-    const p = state.particles[i]; p.t -= dt; p.vy += 200 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
-    if (p.t <= 0) state.particles.splice(i, 1);
+    const p = state.particles[i]; p.t -= dt;
+    const g = p.g === undefined ? 200 : p.g;
+    p.vy += g * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.c === 'petal') p.vy += Math.sin(state.t * 3 + p.x * 0.02) * 20 * dt;
+    if (p.t <= 0 || p.x > W + 20) state.particles.splice(i, 1);
   }
   for (let i = state.texts.length - 1; i >= 0; i--) { const t = state.texts[i]; t.t -= dt; t.y -= 30 * dt; if (t.t <= 0) state.texts.splice(i, 1); }
 }
 
+// Confettis de fête (écran de fin réussi)
+function launchConfetti() {
+  const cols = ['#ffd23a', '#f5c51e', '#ffffff', '#9fd18a', '#ff9f6a'];
+  for (let i = 0; i < 110; i++) state.confetti.push({ x: rand(0, W), y: rand(-300, -10), vx: rand(-30, 30), vy: rand(60, 160), r: rand(0, 6), vr: rand(-6, 6), c: cols[i % cols.length] });
+}
+function updateConfetti(dt) {
+  for (const c of state.confetti) { c.x += c.vx * dt; c.y += c.vy * dt; c.r += c.vr * dt; }
+  state.confetti = state.confetti.filter(c => c.y < H + 20);
+}
+
 // Fin de la journée : objectif atteint → phase bonus, sinon échec
 function endDay() {
+  if (state.screen !== 'play') return;
+  hideTuto();
   if (state.levelIndex >= 0 && state.kg + 1e-6 < state.L.target) { finish(false); return; }
   state.screen = 'bonus';
   state.bonus = { dist: 0, tilt: 0, vel: 0, spilled: 0, push: 0, keys: 0 };
+  state.pointer = { x: 480, y: 300 };   // on repart le panier bien droit
+  state.big = { s: "En route vers l'alambic !", t: 1.6 };
 }
 
 // ---------- Phase bonus : porter le panier à l'alambic ----------
@@ -373,23 +467,26 @@ function updateBonus(dt) {
   B.dist += dt / 9;                         // 9 secondes de marche
   // le panier penche tout seul (chemin cahoteux)
   B.vel += (Math.sin(state.t * 2.3) * 0.9 + rand(-1.6, 1.6) + B.tilt * 1.4) * dt;
-  // le joueur corrige : la souris (gauche/droite du centre) ou les flèches
+  // le joueur corrige : la souris / le doigt (gauche/droite du centre) ou les flèches
   const ctrl = B.keys !== 0 ? B.keys : clamp((state.pointer.x - 480) / 200, -1, 1);
   B.vel -= ctrl * 3.2 * dt;
   B.vel *= 0.985;
   B.tilt = clamp(B.tilt + B.vel * dt, -1, 1);
   if (Math.abs(B.tilt) > 0.6) {
     B.spilled = Math.min(1, B.spilled + dt * 0.12);
-    if (Math.random() < dt * 20) state.particles.push({ x: 300 + B.tilt * 60, y: 380, vx: B.tilt * 80, vy: -40, t: 1, c: '#ffd23a' });
+    if (Math.random() < dt * 20) state.particles.push({ x: 120 + B.dist * 560 + B.tilt * 60, y: 340, vx: B.tilt * 80, vy: -40, t: 1, c: '#ffd23a' });
   }
   if (Math.abs(B.tilt) >= 1) B.vel *= -0.3;
+  if (state.big) { state.big.t -= dt; if (state.big.t <= 0) state.big = null; }
   updateFx(dt);
   if (B.dist >= 1) finish(true);
 }
 
 // Calcule le résultat, les étoiles et affiche l'écran de fin
 function finish(success) {
-  state.screen = 'end';
+  if (state.screen === 'end') return;     // évite un double appel
+  state.screen = 'end'; state.paused = false;
+  hideTuto(); $('hudBtns').classList.remove('on');
   const i = state.levelIndex;
   let bonusPts = 0;
   if (success && state.bonus) {
@@ -404,135 +501,275 @@ function finish(success) {
     save.levels[i] = { stars: Math.max(prev, stars) };
     if (i + 2 > save.unlocked) save.unlocked = Math.min(LEVELS.length, i + 2);
   }
-  if (i < 0 && state.score > save.best) save.best = state.score;
+  let record = false;
+  if (i < 0 && state.score > save.best) { save.best = state.score; record = true; }
   writeSave();
   success ? SFX.win() : SFX.lose();
+  if (state.confetti && success) launchConfetti();
 
-  const title = i < 0 ? 'Fin de la journée' : success ? 'Récolte réussie !' : 'Objectif manqué…';
+  const title = i < 0 ? 'Fin de la journée' : success ? (stars === 3 ? 'Récolte parfaite !' : 'Récolte réussie !') : 'Objectif manqué…';
   let html = '<p class="big">Score : ' + state.score + '</p>';
   html += '<p>Fleurs : ' + state.kg.toFixed(2) + ' kg' + (i >= 0 ? ' / objectif ' + state.L.target + ' kg' : '') + '</p>';
   html += '<p>Cueillettes parfaites : ' + state.perfects + ' — meilleur combo : x' + state.bestCombo + '</p>';
+  if (state.misses) html += '<p>Fleurs vertes ou fanées cueillies : ' + state.misses + '</p>';
   if (success && state.bonus) html += '<p>Bonus alambic : +' + bonusPts + ' (' + Math.round((1 - state.bonus.spilled) * 100) + ' % livré)</p>';
-  if (i >= 0 && success) html += '<p style="font-size:34px;color:#e0a800;margin:4px">' + '★'.repeat(stars) + '<span style="color:#d8cfb5">' + '★'.repeat(3 - stars) + '</span></p>';
-  if (i < 0) html += '<p>Record : ' + save.best + '</p>';
+  if (i >= 0 && success) html += '<p style="font-size:38px;color:#e0a800;margin:4px">' + '★'.repeat(stars) + '<span style="color:#d8cfb5">' + '★'.repeat(3 - stars) + '</span></p>';
+  if (i >= 0 && success && stars < 3) html += '<p style="font-size:15px">Prochaine étoile à ' + state.L.stars[stars] + ' points.</p>';
+  if (i >= 0 && !success) html += '<p style="font-size:15px">Astuce : attends que la fleur devienne <b>dorée</b> (elle brille) avant de la cueillir.</p>';
+  if (i < 0) html += '<p>' + (record ? 'Nouveau record ! ' : 'Record : ') + save.best + '</p>';
   document.getElementById('endTitle').textContent = title;
   document.getElementById('endText').innerHTML = html;
   const btns = document.getElementById('endBtns'); btns.innerHTML = '';
-  const mk = (txt, fn, sec) => { const b = document.createElement('button'); b.textContent = txt; if (sec) b.className = 'sec'; b.onclick = fn; btns.appendChild(b); };
+  const mk = (txt, fn, sec) => { const b = document.createElement('button'); b.textContent = txt; if (sec) b.className = 'sec'; b.onclick = () => { SFX.click(); fn(); }; btns.appendChild(b); };
   if (success && i >= 0 && i < LEVELS.length - 1) mk('Niveau suivant', () => startLevel(i + 1));
   mk('Rejouer', () => startLevel(i), success && i >= 0 && i < LEVELS.length - 1);
   mk('Menu', showMenu, true);
-  show('ovEnd');
+  // petit délai pour laisser voir la fin de l'action
+  setTimeout(() => { if (state.screen === 'end') show('ovEnd'); }, success ? 500 : 300);
 }
 
-// ---------- Dessin ----------
-function drawBackground() {
-  // ciel du matin
-  const sky = ctx.createLinearGradient(0, 0, 0, 300);
-  if (state.L && state.L.rain) { sky.addColorStop(0, '#8a9aa8'); sky.addColorStop(1, '#c9d2cf'); }
-  else { sky.addColorStop(0, '#8fc9ea'); sky.addColorStop(0.6, '#f7dfb0'); sky.addColorStop(1, '#ffe9c4'); }
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-  // soleil levant
-  if (!(state.L && state.L.rain)) {
-    const g = ctx.createRadialGradient(780, 120, 10, 780, 120, 140);
-    g.addColorStop(0, 'rgba(255,245,200,1)'); g.addColorStop(0.25, 'rgba(255,225,150,.6)'); g.addColorStop(1, 'rgba(255,220,150,0)');
-    ctx.fillStyle = g; ctx.fillRect(600, 0, 360, 300);
-  }
-  // nuages
-  const t = state.t || 0;
-  ctx.fillStyle = 'rgba(255,255,255,.7)';
-  for (let i = 0; i < 4; i++) {
-    const x = ((i * 280 + t * 8) % 1200) - 120, y = 50 + i * 22;
-    ctx.beginPath(); ctx.ellipse(x, y, 50, 14, 0, 0, 7); ctx.ellipse(x + 30, y - 8, 30, 14, 0, 0, 7); ctx.fill();
-  }
-  // lagon
-  const lag = ctx.createLinearGradient(0, 220, 0, 290);
-  lag.addColorStop(0, '#5cc6d0'); lag.addColorStop(1, '#2f9fb3');
-  ctx.fillStyle = lag; ctx.fillRect(0, 225, W, 70);
-  ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5;
-  for (let i = 0; i < 12; i++) { const x = (i * 97 + t * 10) % W; ctx.beginPath(); ctx.moveTo(x, 240 + (i % 3) * 14); ctx.lineTo(x + 25, 240 + (i % 3) * 14); ctx.stroke(); }
-  // collines lointaines
-  hill('#7fa77a', 230, [0, 60, 160, 40, 330, 75, 520, 30, 700, 65, 960, 35]);
-  hill('#5f8c55', 270, [0, 30, 200, 55, 420, 25, 640, 50, 820, 20, 960, 40]);
-  // sol de la plantation
-  const gr = ctx.createLinearGradient(0, 300, 0, 540);
-  gr.addColorStop(0, '#6fa24c'); gr.addColorStop(1, '#3f6e2e');
-  ctx.fillStyle = gr; ctx.fillRect(0, 300, W, 240);
-  // rangées d'arbustes lointains
-  ctx.fillStyle = '#4f8a3c';
-  for (let i = 0; i < 14; i++) { ctx.beginPath(); ctx.ellipse(i * 75 + 20, 312, 30, 14, 0, 0, 7); ctx.fill(); }
-  // chemin de terre
-  ctx.fillStyle = '#b48a5a';
-  ctx.beginPath(); ctx.moveTo(0, 480); ctx.quadraticCurveTo(480, 455, 960, 485); ctx.lineTo(960, 540); ctx.lineTo(0, 540); ctx.fill();
+// =============================================================
+//  DESSIN
+// =============================================================
+
+// --- Décor pré-dessiné (plus rapide) : arrière-plan et premier plan ---
+const bgBack = document.createElement('canvas'), bgFront = document.createElement('canvas');
+bgBack.width = bgFront.width = W * 2; bgBack.height = bgFront.height = H * 2;
+let bgBuiltFor = null;
+
+// Colline au profil doux (somme de sinus), remplie d'un dégradé éclairé par le soleil (à droite)
+function hillShape(b, base, amp, f1, ph, top, bot) {
+  b.beginPath(); b.moveTo(0, H);
+  for (let x = 0; x <= W; x += 8) b.lineTo(x, base - amp * (0.6 + 0.4 * Math.sin(x * f1 + ph)) - amp * 0.3 * Math.sin(x * f1 * 2.3 + ph * 2));
+  b.lineTo(W, H); b.closePath();
+  const g = b.createLinearGradient(0, base - amp, 0, base + 60);
+  g.addColorStop(0, top); g.addColorStop(1, bot);
+  b.fillStyle = g; b.fill();
+  // lumière du soleil venant de la droite
+  const l = b.createLinearGradient(0, 0, W, 0);
+  l.addColorStop(0, 'rgba(0,30,10,.12)'); l.addColorStop(0.7, 'rgba(255,240,180,0)'); l.addColorStop(1, 'rgba(255,240,180,.16)');
+  b.fillStyle = l; b.fill();
 }
-function hill(c, base, pts) {
-  ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, base);
-  for (let i = 0; i < pts.length; i += 2) ctx.lineTo(pts[i], base - pts[i + 1]);
-  ctx.lineTo(W, base + 40); ctx.lineTo(0, base + 40); ctx.fill();
+function hillY(base, amp, f1, ph, x) { return base - amp * (0.6 + 0.4 * Math.sin(x * f1 + ph)) - amp * 0.3 * Math.sin(x * f1 * 2.3 + ph * 2); }
+
+// Petit arbre d'ylang-ylang lointain (rangées de la plantation)
+function miniTree(b, x, y, s, col, shade) {
+  b.fillStyle = 'rgba(0,0,0,.15)'; b.beginPath(); b.ellipse(x + 3 * s, y + 1, 12 * s, 3 * s, 0, 0, 7); b.fill();
+  b.strokeStyle = '#5a4030'; b.lineWidth = 2 * s; b.beginPath(); b.moveTo(x, y); b.lineTo(x, y - 9 * s); b.stroke();
+  // ramure en parapluie qui retombe
+  b.fillStyle = shade; b.beginPath(); b.ellipse(x, y - 11 * s, 15 * s, 8 * s, 0, Math.PI, 0); b.lineTo(x + 15 * s, y - 6 * s); b.quadraticCurveTo(x, y - 9 * s, x - 15 * s, y - 6 * s); b.fill();
+  b.fillStyle = col; b.beginPath(); b.ellipse(x + 2 * s, y - 13 * s, 11 * s, 6 * s, 0, Math.PI, 0); b.fill();
+}
+
+function buildBg(rain) {
+  const r = seeded(7);
+  // ===== Arrière-plan : ciel, montagne, lagon =====
+  let b = bgBack.getContext('2d');
+  b.setTransform(2, 0, 0, 2, 0, 0); b.clearRect(0, 0, W, H);
+  const sky = b.createLinearGradient(0, 0, 0, 260);
+  if (rain) { sky.addColorStop(0, '#7d8f9e'); sky.addColorStop(1, '#c3cdc9'); }
+  else { sky.addColorStop(0, '#6fb6e4'); sky.addColorStop(0.55, '#bfe0ee'); sky.addColorStop(0.85, '#fbe3b4'); sky.addColorStop(1, '#ffe9c4'); }
+  b.fillStyle = sky; b.fillRect(0, 0, W, H);
+  // montagne lointaine (voile bleuté = profondeur)
+  b.fillStyle = rain ? '#8d9ca4' : '#93b4c6';
+  b.beginPath(); b.moveTo(0, 230);
+  for (let x = 0; x <= W; x += 10) b.lineTo(x, 205 - 45 * Math.exp(-Math.pow((x - 300) / 140, 2)) - 25 * Math.exp(-Math.pow((x - 650) / 110, 2)) - 8 * Math.sin(x * 0.03));
+  b.lineTo(W, 240); b.lineTo(0, 240); b.fill();
+  b.fillStyle = 'rgba(255,255,255,.18)'; b.fillRect(0, 195, W, 40);
+  // lagon turquoise
+  const lag = b.createLinearGradient(0, 205, 0, 280);
+  if (rain) { lag.addColorStop(0, '#7fb0b4'); lag.addColorStop(1, '#4f8f9a'); }
+  else { lag.addColorStop(0, '#8fe0e0'); lag.addColorStop(0.4, '#4cc3cf'); lag.addColorStop(1, '#2a95ad'); }
+  b.fillStyle = lag; b.fillRect(0, 212, W, 80);
+  // barrière de corail (ligne d'écume au loin) et petit îlot
+  b.strokeStyle = 'rgba(255,255,255,.55)'; b.lineWidth = 1.5;
+  b.beginPath(); for (let x = 0; x <= W; x += 12) b.lineTo(x, 218 + Math.sin(x * 0.05) * 1.2); b.stroke();
+  b.fillStyle = '#6f9a68'; b.beginPath(); b.ellipse(150, 222, 40, 7, 0, Math.PI, 0); b.fill();
+  b.fillStyle = '#e8d8a8'; b.fillRect(110, 221, 80, 2);
+
+  // ===== Premier plan : collines, plantation, sol =====
+  b = bgFront.getContext('2d');
+  b.setTransform(2, 0, 0, 2, 0, 0); b.clearRect(0, 0, W, H);
+  hillShape(b, 262, 34, 0.009, 1.2, '#97c08a', '#6f9a62');
+  // rangées d'arbres sur la colline du fond (petits = loin)
+  for (let x = 10; x < W; x += 26) miniTree(b, x + r() * 6, hillY(262, 34, 0.009, 1.2, x) + 12, 0.45, '#5f9a4e', '#467a3a');
+  hillShape(b, 300, 38, 0.007, 3.4, '#7fb064', '#4f7f3c');
+  // deux rangées de plantation, de plus en plus grandes vers l'avant
+  for (let row = 0; row < 2; row++) {
+    const s = 0.65 + row * 0.25, dy = 10 + row * 14;
+    for (let x = row * 18; x < W + 20; x += 38 + row * 10) miniTree(b, x + r() * 8, hillY(300, 38, 0.007, 3.4, x) + dy, s, row ? '#4f9040' : '#58964a', '#3a6e30');
+  }
+  // sol de la plantation
+  const gr = b.createLinearGradient(0, 320, 0, H);
+  gr.addColorStop(0, '#79ac52'); gr.addColorStop(0.5, '#5f9140'); gr.addColorStop(1, '#3d6a2c');
+  b.fillStyle = gr; b.beginPath(); b.moveTo(0, 335);
+  for (let x = 0; x <= W; x += 20) b.lineTo(x, 330 + Math.sin(x * 0.012) * 6);
+  b.lineTo(W, H); b.lineTo(0, H); b.fill();
+  // touffes d'herbe et petites fleurs au sol
+  for (let i = 0; i < 160; i++) {
+    const x = r() * W, y = 340 + r() * 190, s = 0.5 + (y - 340) / 190;
+    b.strokeStyle = r() < 0.5 ? 'rgba(40,80,25,.55)' : 'rgba(150,200,90,.5)'; b.lineWidth = 1.4 * s;
+    for (let j = -1; j <= 1; j++) { b.beginPath(); b.moveTo(x, y); b.quadraticCurveTo(x + j * 3 * s, y - 5 * s, x + j * 6 * s, y - 9 * s); b.stroke(); }
+  }
+  for (let i = 0; i < 30; i++) { b.fillStyle = r() < 0.5 ? 'rgba(245,210,70,.8)' : 'rgba(255,255,255,.7)'; b.beginPath(); b.arc(r() * W, 350 + r() * 120, 1.6, 0, 7); b.fill(); }
+  // chemin de terre
+  const pg = b.createLinearGradient(0, 460, 0, H);
+  pg.addColorStop(0, '#c49a66'); pg.addColorStop(1, '#9d7347');
+  b.fillStyle = pg;
+  b.beginPath(); b.moveTo(0, 480); b.quadraticCurveTo(480, 455, 960, 485); b.lineTo(960, 540); b.lineTo(0, 540); b.fill();
+  b.fillStyle = 'rgba(80,50,20,.25)';
+  for (let i = 0; i < 40; i++) { b.beginPath(); b.ellipse(r() * W, 490 + r() * 45, 2 + r() * 3, 1 + r() * 2, 0, 0, 7); b.fill(); }
+  // légère brume de lointain (perspective atmosphérique)
+  const mist = b.createLinearGradient(0, 220, 0, 320);
+  mist.addColorStop(0, rain ? 'rgba(200,210,210,.35)' : 'rgba(255,245,220,.25)'); mist.addColorStop(1, 'rgba(255,245,220,0)');
+  b.fillStyle = mist; b.fillRect(0, 220, W, 100);
+  bgBuiltFor = rain ? 'rain' : 'clear';
+}
+
+function drawBackground() {
+  const rain = !!(state.L && state.L.rain);
+  if (bgBuiltFor !== (rain ? 'rain' : 'clear')) buildBg(rain);
+  const t = state.t || 0;
+  ctx.drawImage(bgBack, 0, 0, W, H);
+  // soleil levant et son halo
+  if (!rain) {
+    const pulse = 1 + Math.sin(t * 0.8) * 0.03;
+    const g = ctx.createRadialGradient(780, 110, 10, 780, 110, 170 * pulse);
+    g.addColorStop(0, 'rgba(255,250,215,1)'); g.addColorStop(0.18, 'rgba(255,232,160,.75)'); g.addColorStop(1, 'rgba(255,220,150,0)');
+    ctx.fillStyle = g; ctx.fillRect(560, 0, 400, 300);
+  }
+  // nuages en couches (les plus lointains vont moins vite)
+  for (let i = 0; i < 6; i++) {
+    const sp = 5 + (i % 3) * 4, sc = 0.6 + (i % 3) * 0.25;
+    const x = ((i * 230 + t * sp) % 1240) - 140, y = 40 + (i % 3) * 30 + i * 4;
+    ctx.fillStyle = rain ? 'rgba(220,225,230,.75)' : 'rgba(255,255,255,' + (0.55 + (i % 3) * 0.12) + ')';
+    ctx.beginPath();
+    ctx.ellipse(x, y, 55 * sc, 15 * sc, 0, 0, 7); ctx.ellipse(x + 30 * sc, y - 9 * sc, 32 * sc, 16 * sc, 0, 0, 7); ctx.ellipse(x - 26 * sc, y - 4 * sc, 24 * sc, 12 * sc, 0, 0, 7);
+    ctx.fill();
+  }
+  // reflets qui scintillent sur le lagon
+  ctx.fillStyle = 'rgba(255,255,255,.7)';
+  for (let i = 0; i < 26; i++) {
+    const x = (i * 83 + t * (6 + i % 4)) % W, y = 224 + (i * 37 % 40);
+    const a = Math.sin(t * 2.2 + i * 1.9);
+    if (a > 0.3) { ctx.globalAlpha = (a - 0.3); ctx.fillRect(x, y, 10 + (i % 3) * 6, 1.3); }
+  }
+  ctx.globalAlpha = 1;
+  ctx.drawImage(bgFront, 0, 0, W, H);
+  // rayons de soleil très doux
+  if (!rain) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 4; i++) {
+      const a = 0.035 + 0.02 * Math.sin(t * 0.6 + i * 1.7);
+      ctx.fillStyle = 'rgba(255,240,190,' + a + ')';
+      ctx.beginPath(); ctx.moveTo(780, 110); ctx.lineTo(380 + i * 120, 540); ctx.lineTo(450 + i * 120, 540); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
 }
 
 function drawTree(tr) {
-  const sway = Math.sin((state.t || 0) * 0.8 + tr.x) * 2;
-  // tronc tordu
-  ctx.strokeStyle = '#6b4a2e'; ctx.lineCap = 'round';
-  ctx.lineWidth = 22 * tr.scale;
-  ctx.beginPath(); ctx.moveTo(tr.x, 475); ctx.quadraticCurveTo(tr.x - 25 * tr.scale, (475 + tr.trunkTop) / 2, tr.x, tr.trunkTop); ctx.stroke();
+  const sway = Math.sin((state.t || 0) * 0.8 + tr.x) * (2 + (state.gust || 0) * 10);
+  const s = tr.scale;
+  // ombre au sol
+  ctx.fillStyle = 'rgba(20,40,10,.28)';
+  ctx.beginPath(); ctx.ellipse(tr.x + 20 * s, 478, 150 * s, 16 * s, 0, 0, 7); ctx.fill();
+  // feuillage arrière (plus sombre = profondeur)
+  for (const b of tr.branches) {
+    for (let k = 0.25; k <= 1; k += 0.15) {
+      const p = bezier(b, k);
+      ctx.fillStyle = '#244f22';
+      ctx.beginPath(); ctx.ellipse(p.x + 4, p.y - 2, 9 * s, 17 * s, Math.sin(k * 13) * 0.6, 0, 7); ctx.fill();
+    }
+  }
+  // tronc tordu (ombre + lumière)
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#563a22'; ctx.lineWidth = 24 * s;
+  ctx.beginPath(); ctx.moveTo(tr.x, 475); ctx.quadraticCurveTo(tr.x - 25 * s, (475 + tr.trunkTop) / 2, tr.x, tr.trunkTop); ctx.stroke();
+  ctx.strokeStyle = '#7a5636'; ctx.lineWidth = 9 * s;
+  ctx.beginPath(); ctx.moveTo(tr.x + 5 * s, 472); ctx.quadraticCurveTo(tr.x - 16 * s, (475 + tr.trunkTop) / 2, tr.x + 5 * s, tr.trunkTop + 4); ctx.stroke();
   // branches
   for (const b of tr.branches) {
-    ctx.strokeStyle = '#6b4a2e'; ctx.lineWidth = 9 * tr.scale;
+    ctx.strokeStyle = '#5e4129'; ctx.lineWidth = 9 * s;
     ctx.beginPath(); ctx.moveTo(b.p0.x, b.p0.y); ctx.quadraticCurveTo(b.p1.x, b.p1.y, b.p2.x + sway, b.p2.y); ctx.stroke();
-    ctx.strokeStyle = '#8a6440'; ctx.lineWidth = 3 * tr.scale;
+    ctx.strokeStyle = '#94704a'; ctx.lineWidth = 3 * s;
     ctx.beginPath(); ctx.moveTo(b.p0.x, b.p0.y - 2); ctx.quadraticCurveTo(b.p1.x, b.p1.y - 3, b.p2.x + sway, b.p2.y - 2); ctx.stroke();
   }
-  // feuilles le long des branches
+  // feuilles le long des branches (deux tons + nervure)
   for (const b of tr.branches) {
     for (let k = 0.2; k <= 1; k += 0.12) {
       const p = bezier(b, k);
-      for (const s of [-1, 1]) {
-        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s * 0.9 + Math.sin(k * 20) * 0.3 + sway * 0.02);
+      for (const sd of [-1, 1]) {
+        ctx.save(); ctx.translate(p.x + sway * k, p.y); ctx.rotate(sd * 0.9 + Math.sin(k * 20) * 0.3 + sway * 0.02);
         ctx.fillStyle = (k * 10 | 0) % 2 ? '#2f6b2a' : '#3f8236';
-        ctx.beginPath(); ctx.ellipse(0, 14 * tr.scale, 6 * tr.scale, 15 * tr.scale, 0, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(0, 14 * s, 6 * s, 15 * s, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(190,240,140,.22)';
+        ctx.beginPath(); ctx.ellipse(1.5 * s, 11 * s, 2.5 * s, 10 * s, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = 'rgba(20,50,15,.45)'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(0, 1); ctx.lineTo(0, 27 * s); ctx.stroke();
         ctx.restore();
       }
     }
   }
 }
 
-// Fleur d'ylang-ylang : longs pétales étroits et tombants en étoile
-function drawFlower(x, y, r, size, rot) {
+// Fleur d'ylang-ylang : longs pétales étroits, ondulés et tombants en étoile
+function drawFlower(x, y, r, size, rot, glow) {
   const c = flowerColor(r);
+  const light = mixColor(c, [255, 255, 255], 0.35), dark = mixColor(c, [60, 40, 10], 0.3);
   ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(size, size);
+  if (glow) { // halo doré autour des fleurs parfaites
+    const g = ctx.createRadialGradient(0, 12, 2, 0, 12, 34);
+    g.addColorStop(0, 'rgba(255,230,110,.55)'); g.addColorStop(1, 'rgba(255,230,110,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 12, 34, 0, 7); ctx.fill();
+  }
   // petite tige
   ctx.strokeStyle = '#4e7a32'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(0, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, -12); ctx.quadraticCurveTo(2, -6, 0, 0); ctx.stroke();
   const droop = 0.4 + Math.min(r, 1) * 0.6;   // plus mûre = plus tombante
-  for (let i = 0; i < 6; i++) {
-    const a = Math.PI / 2 + (i - 2.5) * 0.42 * (1.2 - droop * 0.4);
-    const len = 22 + (i % 2) * 4;
-    const ex = Math.cos(a) * len, ey = Math.sin(a) * len * (0.6 + droop * 0.5);
-    ctx.fillStyle = rgb(mixColor(c, [255, 255, 255], i % 2 ? 0.08 : 0));
-    ctx.beginPath(); ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(ex * 0.5 + Math.sin(a) * 5, ey * 0.4 - 4, ex, ey);
-    ctx.quadraticCurveTo(ex * 0.5 - Math.sin(a) * 4, ey * 0.5 + 3, 0, 0);
-    ctx.fill();
+  const wave = Math.sin((state.t || 0) * 2 + x) * 0.6;
+  for (let pass = 0; pass < 2; pass++) {       // pétales arrière puis avant
+    for (let i = pass; i < 6; i += 2) {
+      const a = Math.PI / 2 + (i - 2.5) * 0.42 * (1.2 - droop * 0.4);
+      const len = 23 + (i % 2) * 5;
+      const ex = Math.cos(a) * len, ey = Math.sin(a) * len * (0.6 + droop * 0.5);
+      const nx = -Math.sin(a), ny = Math.cos(a);          // perpendiculaire (ondulation)
+      ctx.fillStyle = rgb(pass ? c : dark);
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      const w = 5.5;                                       // largeur du pétale
+      ctx.bezierCurveTo(ex * 0.3 + nx * w, ey * 0.3 + ny * w, ex * 0.7 + nx * (w * 0.7 + wave), ey * 0.7 + ny * w * 0.7, ex, ey);
+      ctx.bezierCurveTo(ex * 0.7 - nx * (w * 0.6 - wave), ey * 0.7 - ny * w * 0.6, ex * 0.3 - nx * w, ey * 0.3 - ny * w, 0, 0);
+      ctx.fill();
+      if (pass) { // nervure claire
+        ctx.strokeStyle = rgba(light, 0.8); ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(ex * 0.5 + nx * 1.5, ey * 0.5, ex * 0.92, ey * 0.92); ctx.stroke();
+      }
+    }
   }
-  // cœur
-  ctx.fillStyle = r > 0.88 ? '#5a3a1a' : '#c0602a';
-  ctx.beginPath(); ctx.arc(0, 1, 2.6, 0, 7); ctx.fill();
+  // cœur de la fleur
+  ctx.fillStyle = r > 0.88 ? '#5a3a1a' : r > 0.6 ? '#b8562a' : '#7aa040';
+  ctx.beginPath(); ctx.arc(0, 1, 3.2, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,240,180,.8)';
+  ctx.beginPath(); ctx.arc(-1, 0, 1, 0, 7); ctx.fill();
   ctx.restore();
 }
 
 function drawBasket(x, y, tilt) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(tilt || 0);
-  // fleurs dans le panier
-  for (let i = 0; i < 7; i++) { ctx.fillStyle = i % 2 ? '#f5c51e' : '#e9d65a'; ctx.beginPath(); ctx.arc(-36 + i * 12, -6 + (i % 2) * 3, 8, 0, 7); ctx.fill(); }
+  // ombre
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, 34, 46, 7, 0, 0, 7); ctx.fill();
+  // fleurs dans le panier (plus il y a de kg, plus il est rempli)
+  const fill = state.kg ? clamp(state.kg / ((state.L && state.L.target) || 3), 0.3, 1.2) : 0.3;
+  for (let i = 0; i < 9; i++) { ctx.fillStyle = i % 2 ? '#f5c51e' : '#e9d65a'; ctx.beginPath(); ctx.arc(-40 + i * 10, -6 + (i % 2) * 3 - fill * 5, 7 + fill * 2, 0, 7); ctx.fill(); }
   // corps en osier
-  ctx.fillStyle = '#b07a3e';
+  const g = ctx.createLinearGradient(0, -4, 0, 30); g.addColorStop(0, '#c48a4a'); g.addColorStop(1, '#8e5e2c');
+  ctx.fillStyle = g;
   ctx.beginPath(); ctx.moveTo(-50, -4); ctx.lineTo(50, -4); ctx.lineTo(40, 30); ctx.lineTo(-40, 30); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = '#7d5226'; ctx.lineWidth = 2;
+  ctx.strokeStyle = '#6d4520'; ctx.lineWidth = 2;
   for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(-48 + k * 2, 4 + k * 7); ctx.lineTo(48 - k * 2, 4 + k * 7); ctx.stroke(); }
   for (let k = -4; k <= 4; k++) { ctx.beginPath(); ctx.moveTo(k * 11, -4); ctx.lineTo(k * 9, 30); ctx.stroke(); }
   ctx.fillStyle = '#8c5a2a'; ctx.fillRect(-53, -8, 106, 7);
+  ctx.fillStyle = 'rgba(255,220,160,.35)'; ctx.fillRect(-53, -8, 106, 2);
   // anse
   ctx.strokeStyle = '#8c5a2a'; ctx.lineWidth = 5;
   ctx.beginPath(); ctx.arc(0, -6, 42, Math.PI, 0); ctx.stroke();
@@ -540,11 +777,11 @@ function drawBasket(x, y, tilt) {
 }
 
 function drawBee(b) {
-  ctx.save(); ctx.translate(b.x, b.y); if (b.vx < 0) ctx.scale(-1, 1);
+  ctx.save(); ctx.translate(b.x, b.y + Math.sin(b.t * 8) * 2); if (b.vx < 0) ctx.scale(-1, 1);
   // ailes floues (plusieurs positions transparentes)
   for (let k = 0; k < 3; k++) {
     const a = Math.sin(b.t * 60 + k) * 0.6;
-    ctx.fillStyle = 'rgba(220,240,255,.35)';
+    ctx.fillStyle = 'rgba(220,240,255,.4)';
     ctx.save(); ctx.rotate(a - 0.5); ctx.beginPath(); ctx.ellipse(-2, -9, 5, 10, 0, 0, 7); ctx.fill(); ctx.restore();
   }
   ctx.fillStyle = '#f2b81a'; ctx.beginPath(); ctx.ellipse(0, 0, 12, 8, 0, 0, 7); ctx.fill();
@@ -552,6 +789,7 @@ function drawBee(b) {
   ctx.fillRect(-5, -7, 3, 14); ctx.fillRect(2, -7, 3, 14);
   ctx.beginPath(); ctx.arc(11, -1, 4, 0, 7); ctx.fill();
   ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(-17, 1); ctx.lineTo(-12, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(-1, -4, 4, 1.6, 0, 0, 7); ctx.fill();
   ctx.restore();
 }
 
@@ -560,6 +798,7 @@ function drawAlambic(x, y) {
   ctx.fillStyle = '#6a6a6a'; ctx.fillRect(x - 55, y + 40, 110, 30);
   const fl = Math.sin((state.t || 0) * 20) * 4;
   ctx.fillStyle = '#ff8a1a'; ctx.beginPath(); ctx.moveTo(x - 30, y + 45); ctx.quadraticCurveTo(x, y + 15 + fl, x + 30, y + 45); ctx.fill();
+  ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.moveTo(x - 14, y + 45); ctx.quadraticCurveTo(x, y + 28 - fl, x + 14, y + 45); ctx.fill();
   // cuve en cuivre
   const g = ctx.createLinearGradient(x - 50, 0, x + 50, 0);
   g.addColorStop(0, '#8a4a1e'); g.addColorStop(0.4, '#e09050'); g.addColorStop(1, '#7a3e18');
@@ -579,46 +818,108 @@ function drawAlambic(x, y) {
   ctx.globalAlpha = 1;
 }
 
-function drawHUD() {
-  ctx.fillStyle = 'rgba(255,248,230,.88)';
-  roundRect(10, 10, 940, 46, 14); ctx.fill();
-  ctx.fillStyle = '#4a3a1a'; ctx.font = '600 20px Fredoka'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText(state.L.name, 26, 33);
-  ctx.fillText('⏱ ' + Math.ceil(state.time) + ' s', 260, 33);
-  ctx.fillText('Score ' + state.score, 380, 33);
-  // jauge de kg
-  const tgt = state.levelIndex < 0 ? 0 : state.L.target;
-  ctx.fillText(state.kg.toFixed(2) + (tgt ? ' / ' + tgt : '') + ' kg', 540, 33);
-  if (tgt) {
-    ctx.fillStyle = '#e4d6b0'; roundRect(700, 24, 160, 18, 9); ctx.fill();
-    ctx.fillStyle = state.kg >= tgt ? '#6cbf4a' : '#f2c230'; roundRect(700, 24, 160 * Math.min(1, state.kg / tgt), 18, 9); ctx.fill();
-  }
-  if (state.combo > 1) { ctx.fillStyle = '#d08a00'; ctx.fillText('x' + state.combo, 880, 33); }
-  ctx.font = '500 13px Fredoka'; ctx.fillStyle = '#fff'; ctx.textAlign = 'right';
-  ctx.fillText((save.muted ? 'Son coupé (M)' : 'M : son') + '   Échap : pause', 950, 530);
-}
 function roundRect(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
+// Panneau arrondi au style « carte »
+function panel(x, y, w, h) {
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, 'rgba(255,252,240,.95)'); g.addColorStop(1, 'rgba(255,238,200,.95)');
+  ctx.fillStyle = g; roundRect(x, y, w, h, 14); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = 'rgba(233,192,70,.9)'; ctx.lineWidth = 2; roundRect(x, y, w, h, 14); ctx.stroke();
+}
+
+function drawHUD() {
+  panel(10, 10, 940, 46);
+  ctx.fillStyle = '#4a3a1a'; ctx.font = '600 20px Fredoka'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(state.L.name, 26, 33);
+  // chrono : rouge et clignotant à la fin
+  const low = state.time < 10 && state.levelIndex >= -1;
+  ctx.fillStyle = low && Math.sin(state.t * 10) > 0 ? '#d23a1a' : '#4a3a1a';
+  ctx.fillText('⏱ ' + Math.ceil(state.time) + ' s', 250, 33);
+  ctx.fillStyle = '#4a3a1a';
+  ctx.fillText('Score ' + state.score, 370, 33);
+  // jauge de kg (rougit quand on perd des fleurs)
+  const tgt = state.levelIndex < 0 ? 0 : state.L.target;
+  ctx.fillStyle = state.kgFlash > 0 ? '#d23a1a' : '#4a3a1a';
+  ctx.fillText(state.kg.toFixed(2) + (tgt ? ' / ' + tgt : '') + ' kg', 520, 33);
+  if (tgt) {
+    ctx.fillStyle = '#e4d6b0'; roundRect(690, 24, 170, 18, 9); ctx.fill();
+    const w = 170 * Math.min(1, state.kg / tgt);
+    if (w > 2) {
+      const g = ctx.createLinearGradient(690, 0, 860, 0);
+      g.addColorStop(0, state.kg >= tgt ? '#8fd46a' : '#ffe07a'); g.addColorStop(1, state.kg >= tgt ? '#4caf3a' : '#f2b820');
+      ctx.fillStyle = g; roundRect(690, 24, w, 18, 9); ctx.fill();
+    }
+    if (state.kg >= tgt) { ctx.fillStyle = '#2f6b2a'; ctx.font = '700 14px Fredoka'; ctx.textAlign = 'center'; ctx.fillText('Objectif ✓', 775, 34); ctx.textAlign = 'left'; ctx.font = '600 20px Fredoka'; }
+  }
+  // badge de combo
+  if (state.combo > 1) {
+    const pz = 1 + Math.max(0, Math.sin(state.t * 8)) * 0.08;
+    ctx.save(); ctx.translate(905, 33); ctx.scale(pz, pz);
+    ctx.fillStyle = '#f2b820'; ctx.beginPath(); ctx.arc(0, 0, 18, 0, 7); ctx.fill();
+    ctx.fillStyle = '#4a3000'; ctx.font = '700 16px Fredoka'; ctx.textAlign = 'center'; ctx.fillText('x' + state.combo, 0, 1);
+    ctx.restore();
+  }
+  drawLegend();
+}
+
+// Légende des couleurs de maturité (toujours visible en bas à gauche)
+function drawLegend() {
+  const items = [[0.2, 'Verte'], [0.6, 'Jaune'], [0.78, 'Dorée ★'], [0.97, 'Fanée']];
+  const x0 = 12, y0 = 64, hl = state.tuto && state.tuto.step === 0;
+  panel(x0, y0, 380, 32);
+  if (hl) { ctx.strokeStyle = 'rgba(255,90,40,' + (0.6 + 0.4 * Math.sin(state.t * 8)) + ')'; ctx.lineWidth = 4; roundRect(x0 - 3, y0 - 3, 386, 38, 16); ctx.stroke(); }
+  ctx.font = '600 15px Fredoka'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  items.forEach((it, i) => {
+    const x = x0 + 14 + i * 92;
+    ctx.fillStyle = rgb(flowerColor(it[0])); ctx.beginPath(); ctx.arc(x + 6, y0 + 16, 7, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = i === 2 ? '#b8860b' : '#4a3a1a'; ctx.fillText(it[1], x + 17, y0 + 17);
+    if (i < 3) { ctx.fillStyle = '#b8a070'; ctx.fillText('›', x + 80, y0 + 16); }
+  });
+}
 
 function drawFx() {
-  for (const p of state.particles) { ctx.globalAlpha = clamp(p.t, 0, 1); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 7); ctx.fill(); }
-  ctx.globalAlpha = 1; ctx.textAlign = 'center'; ctx.font = '700 20px Fredoka';
+  for (const p of state.particles) {
+    ctx.globalAlpha = clamp(p.t, 0, 1);
+    if (p.c === 'ring') { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 8 + (0.35 - p.t) * 50, 0, 7); ctx.stroke(); continue; }
+    if (p.c === 'star') { ctx.fillStyle = '#fff3a0'; ctx.beginPath(); ctx.moveTo(p.x, p.y - 5); ctx.lineTo(p.x + 1.6, p.y); ctx.lineTo(p.x, p.y + 5); ctx.lineTo(p.x - 1.6, p.y); ctx.fill(); ctx.fillRect(p.x - 4, p.y - 0.8, 8, 1.6); continue; }
+    if (p.c === 'petal') { ctx.globalAlpha = 0.8; ctx.fillStyle = '#f2dc6a'; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.x * 0.05); ctx.beginPath(); ctx.ellipse(0, 0, 5, 1.8, 0, 0, 7); ctx.fill(); ctx.restore(); continue; }
+    ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '700 20px Fredoka';
   for (const t of state.texts) {
     ctx.globalAlpha = clamp(t.t, 0, 1);
-    ctx.strokeStyle = 'rgba(60,40,10,.7)'; ctx.lineWidth = 4; ctx.strokeText(t.s, t.x, t.y);
+    ctx.strokeStyle = 'rgba(60,40,10,.75)'; ctx.lineWidth = 4; ctx.strokeText(t.s, t.x, t.y);
     ctx.fillStyle = t.c; ctx.fillText(t.s, t.x, t.y);
   }
   ctx.globalAlpha = 1;
+  // gros message d'encouragement au centre
+  if (state.big) {
+    const k = state.big.t, sc = 1 + Math.max(0, k - 1.1) * 1.5;
+    ctx.save(); ctx.globalAlpha = clamp(k * 2, 0, 1); ctx.translate(480, 150); ctx.scale(sc, sc);
+    ctx.font = '700 44px Fredoka'; ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(120,70,0,.8)'; ctx.strokeText(state.big.s, 0, 0);
+    ctx.fillStyle = '#ffe14a'; ctx.fillText(state.big.s, 0, 0);
+    ctx.restore();
+  }
+  // confettis
+  if (state.confetti) for (const c of state.confetti) {
+    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.r); ctx.fillStyle = c.c; ctx.fillRect(-4, -2, 8, 4); ctx.restore();
+  }
 }
 
 function render() {
   ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
   if (!state.L) { // décor du menu
-    state.L = null; drawBackground();
+    drawBackground();
     const tr = render._tree || (render._tree = makeTree(480, 1.2));
     drawTree(tr);
+    // quelques fleurs décoratives sur l'arbre du menu
+    if (!render._fl) { render._fl = []; for (let i = 0; i < 9; i++) { const b = tr.branches[i % tr.branches.length]; const p = bezier(b, 0.4 + (i % 3) * 0.25); render._fl.push({ x: p.x, y: p.y + 10, r: 0.3 + i * 0.07 }); } }
+    for (const f of render._fl) drawFlower(f.x, f.y, f.r, 1, Math.sin((state.t || 0) + f.x) * 0.1, stage_(f.r) === 2);
     return;
   }
   drawBackground();
@@ -627,9 +928,10 @@ function render() {
   const t = state.t;
   for (const f of state.flowers) {
     const sw = Math.sin(f.sway) * 0.15;
-    drawFlower(f.x, f.y, f.ripe, 0.4 + f.grow * 0.6, f.rot + sw);
+    const gold = stage_(f.ripe) === 2;
+    drawFlower(f.x, f.y, f.ripe, 0.4 + f.grow * 0.6, f.rot + sw, gold);
     // étincelles sur les fleurs dorées (parfaites)
-    if (stage_(f.ripe) === 2) {
+    if (gold) {
       for (let k = 0; k < 3; k++) {
         const a = t * 3 + k * 2.1 + f.id, rr = 18 + Math.sin(t * 5 + k) * 4;
         const sx = f.x + Math.cos(a) * rr, sy = f.y + 8 + Math.sin(a) * rr * 0.7;
@@ -638,17 +940,19 @@ function render() {
       }
     }
   }
-  for (const f of state.falling) drawFlower(f.x, f.y, f.ripe, 0.9, f.rot);
+  for (const f of state.falling) drawFlower(f.x, f.y, f.ripe, 0.9, f.rot, false);
   for (const b of state.bees) drawBee(b);
   drawBasket(state.basketX, 490, 0);
   if (state.drops.length) {
     ctx.strokeStyle = 'rgba(200,220,255,.6)'; ctx.lineWidth = 1.5; ctx.beginPath();
     for (const d of state.drops) { ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - 3, d.y + 12); }
     ctx.stroke();
+    ctx.fillStyle = 'rgba(60,70,90,.12)'; ctx.fillRect(0, 0, W, H);
   }
   drawFx();
   if (state.stingT > 0) { ctx.fillStyle = 'rgba(255,60,40,' + state.stingT * 0.4 + ')'; ctx.fillRect(0, 0, W, H); }
   drawHUD();
+  if (state.fade > 0) { ctx.fillStyle = 'rgba(20,35,25,' + state.fade + ')'; ctx.fillRect(0, 0, W, H); }
 }
 
 function renderBonus() {
@@ -666,13 +970,18 @@ function renderBonus() {
   drawBasket(x + B.tilt * 20, 335, B.tilt * 0.8);
   drawFx();
   // jauge d'équilibre
-  ctx.fillStyle = 'rgba(255,248,230,.9)'; roundRect(280, 14, 400, 80, 14); ctx.fill();
+  panel(280, 14, 400, 84);
   ctx.fillStyle = '#4a3a1a'; ctx.font = '600 20px Fredoka'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText("Vers l'alambic ! Garde le panier droit", 480, 34);
-  ctx.fillStyle = '#e8b0a0'; ctx.fillRect(300, 56, 360, 18);
+  ctx.fillStyle = '#e8b0a0'; roundRect(300, 56, 360, 18, 9); ctx.fill();
   ctx.fillStyle = '#9fd18a'; ctx.fillRect(300 + 360 * 0.2, 56, 360 * 0.6, 18);
-  ctx.fillStyle = '#4a3a1a'; ctx.fillRect(480 + B.tilt * 180 - 3, 52, 6, 26);
-  ctx.font = '500 15px Fredoka'; ctx.fillText('Renversé : ' + Math.round(B.spilled * 100) + ' %  —  souris ou ← →', 480, 110);
+  const danger = Math.abs(B.tilt) > 0.6;
+  ctx.fillStyle = danger ? '#d23a1a' : '#4a3a1a'; roundRect(480 + B.tilt * 180 - 4, 51, 8, 28, 4); ctx.fill();
+  ctx.font = '500 15px Fredoka'; ctx.fillStyle = '#4a3a1a';
+  ctx.fillText('Renversé : ' + Math.round(B.spilled * 100) + ' %  —  souris, doigt ou ← →', 480, 88);
+  // barre de progression du trajet
+  ctx.fillStyle = 'rgba(255,255,255,.6)'; roundRect(120, 515, 560, 8, 4); ctx.fill();
+  ctx.fillStyle = '#f2b820'; roundRect(120, 515, Math.max(8, 560 * B.dist), 8, 4); ctx.fill();
 }
 
 // ---------- Boucle à pas fixe (60 Hz) ----------
@@ -692,13 +1001,18 @@ function toGame(e) {
   return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
 }
 cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  audio();
   const p = toGame(e); state.pointer = p;
   if (state.screen === 'play') clickAt(p.x, p.y);
 });
 cv.addEventListener('pointermove', e => { if (state.pointer) state.pointer = toGame(e); });
+// Au tactile, lever le doigt pendant le trajet remet la commande au centre
+cv.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse' && state.screen === 'bonus' && state.pointer) state.pointer.x = 480; });
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
-  if (k === 'm') { save.muted = !save.muted; writeSave(); }
+  if (e.key.startsWith('Arrow') || e.key === ' ') e.preventDefault(); // pas de défilement dans une iframe
+  if (k === 'm') toggleMute();
   if ((k === 'escape' || k === 'p') && (state.screen === 'play' || state.screen === 'bonus')) togglePause();
   if (state.bonus && state.screen === 'bonus') {
     if (e.key === 'ArrowLeft') state.bonus.keys = -1;
@@ -706,6 +1020,13 @@ addEventListener('keydown', e => {
   }
 });
 addEventListener('keyup', e => { if (state.bonus && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) state.bonus.keys = 0; });
+// Pause automatique quand on change d'onglet / quitte la fenêtre
+function autoPause() { if ((state.screen === 'play' || state.screen === 'bonus') && !state.paused) togglePause(); }
+addEventListener('blur', autoPause);
+document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+// empêche le zoom par geste / double-tap (iOS)
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
 
 // ---------- Écrans (DOM) ----------
 const $ = id => document.getElementById(id);
@@ -713,13 +1034,19 @@ function hideAll() { document.querySelectorAll('.ov').forEach(o => o.classList.r
 function show(id) { hideAll(); $(id).classList.add('on'); }
 function showMenu() {
   state = { screen: 'menu', paused: false };
+  hideTuto(); $('hudBtns').classList.remove('on');
   $('menuBest').textContent = save.best ? 'Record mode infini : ' + save.best : '';
   show('ovMenu');
 }
 function togglePause() {
+  if (!(state.screen === 'play' || state.screen === 'bonus')) return;
   state.paused = !state.paused;
+  if (state.bonus) state.bonus.keys = 0;
   state.paused ? show('ovPause') : hideAll();
+  $('tuto').style.visibility = state.paused ? 'hidden' : '';
 }
+function toggleMute() { save.muted = !save.muted; writeSave(); updateMuteBtn(); }
+function updateMuteBtn() { $('bMute').textContent = save.muted ? '✕' : '♪'; }
 function buildLevels() {
   const g = $('lvGrid'); g.innerHTML = '';
   LEVELS.forEach((L, i) => {
@@ -733,14 +1060,51 @@ function buildLevels() {
   });
   show('ovLevels');
 }
+
+// ---------- Tutoriel interactif (une seule fois, on peut le passer) ----------
+const TUTO = [
+  { txt: 'Les fleurs mûrissent : <b>verte</b> → <b>jaune</b> → <b>dorée</b> → <b>fanée</b>. Regarde la légende en bas à gauche !', btn: 'Suivant' },
+  { txt: 'Touche une fleur <b>dorée</b> (elle brille ✦) pour la cueillir.', btn: null },
+  { txt: 'Bravo ! Attention : une fleur <b>verte</b> ou <b>fanée</b> fait <b>perdre</b> des fleurs du panier.', btn: 'Suivant' },
+  { txt: 'Les fleurs qui tombent : attrape-les avec le <b>panier</b> en bas. Atteins l\'objectif en kg !', btn: "C'est parti !" },
+];
+function startTuto() { state.tuto = { step: 0 }; showTutoStep(); }
+function showTutoStep() {
+  const st = TUTO[state.tuto.step];
+  $('tutoText').innerHTML = st.txt;
+  $('tutoNext').style.display = st.btn ? '' : 'none';
+  $('tutoNext').textContent = st.btn || '';
+  $('tuto').classList.remove('on'); void $('tuto').offsetWidth; $('tuto').classList.add('on');
+  // étape « cueille une dorée » : on s'assure qu'une fleur devient dorée tout de suite
+  if (state.tuto.step === 1) {
+    const f = state.flowers.find(o => stage_(o.ripe) < 2) || state.flowers[0];
+    if (f) { f.ripe = 0.72; f.speed = state.L.ripen * 0.5; }
+  }
+}
+function tutoAdvance() {
+  if (!state.tuto) return;
+  state.tuto.step++;
+  if (state.tuto.step >= TUTO.length) endTuto(); else showTutoStep();
+}
+function endTuto() {
+  tutoDone = true; try { localStorage.setItem(TUTO_KEY, '1'); } catch (e) {}
+  hideTuto();
+}
+function hideTuto() { if (state) state.tuto = null; $('tuto').classList.remove('on'); $('tuto').style.visibility = ''; }
+
+$('tutoNext').onclick = () => { SFX.click(); tutoAdvance(); };
+$('tutoSkip').onclick = () => { SFX.click(); endTuto(); };
 $('bPlay').onclick = () => startLevel(Math.min(save.unlocked, LEVELS.length) - 1);
-$('bLevels').onclick = buildLevels;
-$('bRules').onclick = () => show('ovRules');
+$('bLevels').onclick = () => { audio(); SFX.click(); buildLevels(); };
+$('bRules').onclick = () => { audio(); SFX.click(); show('ovRules'); };
 $('bInf').onclick = () => startLevel(-1);
 $('bResume').onclick = togglePause;
 $('bRestart').onclick = () => startLevel(state.levelIndex);
 $('bQuit').onclick = showMenu;
-document.querySelectorAll('[data-back]').forEach(b => b.onclick = showMenu);
+$('bPause').onclick = togglePause;
+$('bMute').onclick = () => { audio(); toggleMute(); };
+document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => { SFX.click(); showMenu(); });
+updateMuteBtn();
 showMenu();
 </script>
 </body>

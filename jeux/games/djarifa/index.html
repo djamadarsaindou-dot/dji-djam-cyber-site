@@ -16,6 +16,15 @@
   #game { position: absolute; left: 0; top: 0; width: 960px; height: 540px; display: block; cursor: crosshair; }
   .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4, 40, 58, 0.55); backdrop-filter: blur(2px); }
   .hidden { display: none !important; }
+  /* Les écrans apparaissent / disparaissent en fondu */
+  .overlay { transition: opacity .3s; }
+  .overlay.hidden { display: flex !important; opacity: 0; pointer-events: none; }
+  .overlay .panel { transition: transform .3s cubic-bezier(.2,1.4,.4,1); }
+  .overlay.hidden .panel { transform: scale(.92) translateY(10px); }
+  /* Bulle du tutoriel */
+  #tuto { position: absolute; left: 50%; top: 66px; transform: translateX(-50%); width: 560px; background: linear-gradient(160deg,#ffffff,#e1faf7); color: #0d4a5a; border-radius: 18px; padding: 10px 18px; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,.35); border: 3px solid #2ed3c6; }
+  #tuto p { margin: 4px 0 8px; font-size: 18px; }
+  #tuto .btn { font-size: 16px; padding: 7px 18px; }
   .panel { background: linear-gradient(160deg, rgba(255,255,255,0.97), rgba(225,250,247,0.97)); color: #0d4a5a; border-radius: 26px; padding: 26px 34px; text-align: center; box-shadow: 0 14px 40px rgba(0,0,0,0.35), inset 0 -6px 0 rgba(0,150,160,0.15); max-width: 640px; }
   h1 { margin: 0; font-size: 72px; font-weight: 700; letter-spacing: 2px; color: #fff; text-shadow: 0 4px 0 #0a7d8c, 0 8px 18px rgba(0,0,0,0.35); }
   h2 { margin: 0 0 12px; font-size: 34px; color: #0b6f7e; }
@@ -37,7 +46,7 @@
   .stars .off { color: #cfdfe0; text-shadow: none; }
   #topBtns { position: absolute; right: 12px; top: 10px; display: flex; gap: 8px; }
   .round { width: 44px; height: 44px; border-radius: 50%; border: 0; font-family: inherit; font-size: 18px; font-weight: 700; color: #0b5d6a; background: rgba(255,255,255,0.85); cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,0.2); }
-  #touchLower { position: absolute; right: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.9); background: rgba(255,140,60,0.75); color: #fff; font-family: inherit; font-size: 20px; font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
+  #touchLower { position: absolute; right: 22px; bottom: 22px; width: 132px; height: 132px; touch-action: none; border-radius: 50%; border: 4px solid rgba(255,255,255,0.9); background: rgba(255,140,60,0.75); color: #fff; font-family: inherit; font-size: 20px; font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
   #touchLower.on { background: rgba(20,160,170,0.85); transform: scale(0.94); }
   .rules { text-align: left; font-size: 16px; }
   .rules li { margin: 5px 0; }
@@ -53,6 +62,9 @@
     <button class="round" id="btnPause" title="Pause (Échap / P)">II</button>
   </div>
   <button id="touchLower" class="hidden">Baisser</button>
+
+  <!-- Bulle du tutoriel (première partie) -->
+  <div id="tuto" class="hidden"><p id="tutoText"></p><button class="btn small" id="tutoNext">Suivant</button><button class="btn teal small" id="tutoSkip">Passer</button></div>
 
   <!-- Menu principal -->
   <div id="menu" class="overlay">
@@ -80,7 +92,7 @@
       <h2>Règles</h2>
       <ul class="rules">
         <li><b>Déplacer le tissu :</b> souris, doigt (glisser) ou flèches du clavier.</li>
-        <li><b>Baisser le tissu :</b> maintenir clic / Espace / bouton « Baisser ». <b>Relâcher</b> pour le remonter et attraper les poissons au-dessus.</li>
+        <li><b>Baisser le tissu :</b> maintenir clic / Espace / bouton « Baisser ». Attends que le cercle devienne <b>vert</b> (tissu assez profond), puis <b>relâche</b> pour le remonter et attraper les poissons au-dessus.</li>
         <li>Baisse le tissu <b>devant</b> un banc et attends qu'il passe dessus : si tu bouges vite, les poissons s'enfuient.</li>
         <li>Évite les <b>crabes</b> et les <b>oursins</b> : tu perds des poissons et le tissu s'emmêle.</li>
         <li>Garde le lagon propre : ramasse les <b>déchets plastiques</b>, ils comptent en bonus pour les étoiles.</li>
@@ -134,7 +146,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // ---------- Les 6 niveaux ----------
 // time = durée avant la marée haute (secondes), target = poissons à attraper
 const LEVELS = [
-  { name: 'Lagon calme',        tip: 'Baisse le tissu devant un banc, puis relâche !', time: 75, target: 10, schools: 3, fishPer: 12, speed: 0.9,  flee: 0.2,  crabs: 0, urchins: 0, waste: 2, wind: 0,   night: false, cloth: 0 },
+  { name: 'Lagon calme',        tip: 'Baisse le tissu devant un banc, puis relâche !', time: 75, target: 12, schools: 3, fishPer: 10, speed: 0.9,  flee: 0.2,  crabs: 0, urchins: 0, waste: 2, wind: 0,   night: false, cloth: 0 },
   { name: 'Les crabes du bord', tip: 'Attention aux crabes qui marchent sur le sable.', time: 70, target: 16, schools: 3, fishPer: 12, speed: 1.0,  flee: 0.35, crabs: 3, urchins: 0, waste: 3, wind: 0,   night: false, cloth: 1 },
   { name: 'Coup de vent',       tip: 'Le vent pousse le tissu et les déchets.',         time: 70, target: 18, schools: 3, fishPer: 13, speed: 1.05, flee: 0.4,  crabs: 1, urchins: 3, waste: 5, wind: 1,   night: false, cloth: 2 },
   { name: 'Marée rapide',       tip: 'Les poissons filent vite, la marée aussi !',      time: 55, target: 20, schools: 4, fishPer: 11, speed: 1.3,  flee: 0.5,  crabs: 2, urchins: 2, waste: 3, wind: 0.3, night: false, cloth: 3 },
@@ -158,6 +170,10 @@ function loadSave() {
 }
 function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
 loadSave();
+// Tutoriel vu : clé séparée, le format de 'djarifa-v1' ne change pas
+const TUTO_KEY = 'djarifa-v1-tuto';
+let tutoDone = false;
+try { tutoDone = localStorage.getItem(TUTO_KEY) === '1'; } catch (e) {}
 
 // ---------- État du jeu (global pour les tests) ----------
 const state = {
@@ -167,6 +183,7 @@ const state = {
   cloth: { x: 480, y: 360, tx: 480, ty: 360, vx: 0, vy: 0, w: 170, h: 62, depth: 0, down: false, armed: false, tangle: 0 },
   fish: [], schools: [], hazards: [], waste: [], particles: [], popups: [], scoopFx: null,
   wind: { x: 0, y: 0 }, windAng: 0, banner: 0, shake: 0, keys: {}, outfits: [0, 1],
+  wasteQueue: [], streak: 0, bestStreak: 0, big: null, fade: 0, confetti: [], bubbles: [], tuto: null, moved: 0,
 };
 
 // =====================================================================
@@ -210,7 +227,19 @@ const sfx = {
   win()   { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, 'triangle', 0.14, null, i * 0.12)); },
   lose()  { [392, 330, 262].forEach((f, i) => tone(f, 0.35, 'triangle', 0.12, null, i * 0.15)); },
   click() { tone(660, 0.08, 'square', 0.05); },
+  ready() { tone(990, 0.08, 'sine', 0.06); },
+  early() { tone(300, 0.15, 'triangle', 0.07, 220); },
 };
+// Musique de fond très douce (pentatonique), seulement pendant la partie
+const MELODY = [392, 440, 523, 587, 659, 587, 523, 440, 392, 523, 659, 784, 659, 587, 523, 440];
+const BASS = [98, 98, 131, 131, 110, 110, 147, 147];
+let musicStep = 0;
+setInterval(() => {
+  if (!actx || save.muted || state.screen !== 'play') return;
+  if (musicStep % 2 === 0 || Math.random() < 0.45) tone(MELODY[musicStep % MELODY.length], 0.6, 'sine', 0.03);
+  if (musicStep % 4 === 0) tone(BASS[(musicStep / 4 | 0) % BASS.length], 1.3, 'triangle', 0.04);
+  musicStep++;
+}, 340);
 
 // =====================================================================
 //  DÉCOR PRÉ-DESSINÉ (sable + mangrove) dans des canvas cachés
@@ -336,6 +365,9 @@ function setupScene(i) {
   state.caught = 0; state.wasteCount = 0; state.penalties = 0;
   Object.assign(state.cloth, { x: 480, y: 360, tx: 480, ty: 360, vx: 0, vy: 0, depth: 0, down: false, armed: false, tangle: 0 });
   state.fish = []; state.schools = []; state.particles = []; state.popups = []; state.waste = []; state.scoopFx = null;
+  state.wasteQueue = []; state.streak = 0; state.bestStreak = 0; state.big = null; state.confetti = []; state.shake = 0; state.banner = 0;
+  state.keys = {}; state.moved = 0; state.tuto = null;
+  state.bubbles = []; for (let k = 0; k < 18; k++) state.bubbles.push({ x: rand(0, W), y: rand(140, H), r: rand(1, 3), sp: rand(8, 22), ph: rand(0, 6) });
   state.windAng = rand(0, 6.28); state.wind.x = state.wind.y = 0;
   state.outfits = [i % OUTFITS.length, (i + 1) % OUTFITS.length];
   for (let s = 0; s < L.schools; s++) spawnSchool(s, true);
@@ -368,6 +400,7 @@ function liftCloth() {
   if (!c.down) return;
   c.down = false;
   if (state.screen === 'play' && c.armed && c.depth >= 0.7) doScoop();
+  else if (state.screen === 'play' && c.armed) { sfx.early(); popup(c.x, c.y - 40, 'Trop tôt ! Attends le cercle vert', '#ffe0a0'); state.streak = 0; }
   c.armed = false;
 }
 
@@ -397,10 +430,16 @@ function doScoop() {
   }
   if (n > 0) {
     state.caught += n; sfx.catch(n);
-    popup(c.x, c.y - 40, '+' + n + (n >= 10 ? '  Belle prise !' : ''), '#fff6a8');
+    state.streak++; state.bestStreak = Math.max(state.bestStreak, state.streak);
+    popup(c.x, c.y - 40, '+' + n + (n >= 8 ? '  Belle prise !' : '') + (state.streak > 1 ? '  Série x' + state.streak : ''), '#fff6a8');
     state.scoopFx = { t: 0.9, n: Math.min(n, 14) };
-  } else if (!bad && !w) popup(c.x, c.y - 40, 'Raté…', '#d6f6ff');
-  if (w > 0) { state.wasteCount += w; sfx.waste(); popup(c.x, c.y - 66, 'Lagon propre ! +' + w, '#9ff5c8'); setTimeout(() => { if (state.screen === 'play') for (let k = 0; k < w; k++) spawnWaste(true); }, 9000); }
+    for (let k = 0; k < Math.min(n, 12); k++) state.particles.push({ x: c.x + rand(-50, 50), y: c.y, vx: rand(-60, 60), vy: rand(-180, -80), life: 0.7, max: 0.7, r: 3, kind: 'spark' });
+    const cheer = n >= 10 ? 'Incroyable !' : state.streak === 3 ? 'Bien joué !' : state.streak === 5 ? 'Super pêcheuse !' : state.streak === 8 ? 'Magnifique !' : null;
+    if (cheer) state.big = { s: cheer, t: 1.4 };
+    if (state.caught >= state.L.target && state.caught - n < state.L.target) { state.big = { s: 'Objectif atteint !', t: 1.6 }; sfx.waste(); }
+  } else { state.streak = 0; if (!bad && !w) popup(c.x, c.y - 40, 'Raté…', '#d6f6ff'); }
+  if (w > 0) { state.wasteCount += w; sfx.waste(); popup(c.x, c.y - 66, 'Lagon propre ! +' + w, '#9ff5c8'); for (let k = 0; k < w; k++) state.wasteQueue.push(9); }
+  if (state.tuto && state.tuto.step === 2) tutoAdvance();
   if (bad > 0) {
     const lost = Math.min(state.caught, 3 * bad);
     state.caught -= lost; state.penalties += bad; c.tangle = 1.5; state.shake = 8; sfx.bad();
@@ -427,12 +466,17 @@ function tick(dt) {
   state.t += dt;
   if (state.screen === 'play') updatePlay(dt);
   else if (state.screen === 'menu') updateFish(dt); // poissons qui nagent derrière le menu
+  else if (state.screen === 'result') updateConfetti(dt);
 }
 
 function updatePlay(dt) {
   const L = state.L, c = state.cloth;
-  // --- Marée ---
-  state.timeLeft -= dt;
+  // --- Marée (le chrono s'arrête pendant le tutoriel) ---
+  if (!state.tuto) state.timeLeft -= dt;
+  if (state.fade > 0) state.fade = Math.max(0, state.fade - dt * 2);
+  if (state.big) { state.big.t -= dt; if (state.big.t <= 0) state.big = null; }
+  // déchets qui reviennent dériver après un moment (minuteur du jeu : il s'arrête en pause)
+  for (let k = state.wasteQueue.length - 1; k >= 0; k--) { state.wasteQueue[k] -= dt; if (state.wasteQueue[k] <= 0) { state.wasteQueue.splice(k, 1); spawnWaste(true); } }
   state.tide = clamp(1 - state.timeLeft / L.time, 0, 1);
   state.waterTop = 125 - state.tide * 38;
   if (state.timeLeft <= 0) { state.timeLeft = 0; endLevel(); return; }
@@ -456,8 +500,16 @@ function updatePlay(dt) {
   let vx = (c.tx - c.x) * 7, vy = (c.ty - c.y) * 7;
   const sp = Math.hypot(vx, vy); if (sp > maxSp) { vx *= maxSp / sp; vy *= maxSp / sp; }
   c.vx = vx + state.wind.x * 0.5; c.vy = vy + state.wind.y * 0.5;
+  const ox = c.x, oy = c.y;
   c.x = clamp(c.x + c.vx * dt, minX, maxX); c.y = clamp(c.y + c.vy * dt, minY, maxY);
+  state.moved += Math.hypot(c.x - ox, c.y - oy);
+  const wasReady = c.depth >= 0.7;
   c.depth = c.down ? Math.min(1, c.depth + dt * 3) : Math.max(0, c.depth - dt * 5);
+  if (c.down && !wasReady && c.depth >= 0.7) { sfx.ready(); state.particles.push({ x: c.x, y: c.y, life: 0.5, max: 0.5, r: 30, kind: 'ring' }); }
+  // remous derrière les femmes quand elles marchent
+  if (Math.hypot(c.vx, c.vy) > 60 && Math.random() < dt * 12) for (const sd of [-1, 1]) state.particles.push({ x: c.x + sd * (c.w / 2 + 16), y: c.y + 6, life: 0.9, max: 0.9, r: 8, kind: 'ring' });
+  // tutoriel : étapes qui avancent toutes seules
+  if (state.tuto) { if (state.tuto.step === 0 && state.moved > 120) tutoAdvance(); else if (state.tuto.step === 1 && c.depth >= 0.7) tutoAdvance(); }
   if (c.tangle > 0) { c.tangle -= dt; if (c.down) liftClothSilently(); }
   if (state.scoopFx) { state.scoopFx.t -= dt; if (state.scoopFx.t <= 0) state.scoopFx = null; }
 
@@ -491,7 +543,8 @@ function updatePlay(dt) {
   }
 
   // --- Particules et textes ---
-  for (const p of state.particles) { p.life -= dt; if (p.kind === 'drop') { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 220 * dt; } else p.r += 60 * dt; }
+  for (const p of state.particles) { p.life -= dt; if (p.kind === 'drop' || p.kind === 'spark') { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 220 * dt; } else p.r += 60 * dt; }
+  for (const b of state.bubbles) { b.y -= b.sp * dt; b.x += Math.sin(state.t * 2 + b.ph) * 6 * dt; if (b.y < state.waterTop + 10) { b.y = H + 5; b.x = rand(0, W); } }
   state.particles = state.particles.filter(p => p.life > 0);
   for (const p of state.popups) { p.life -= dt; p.y -= 28 * dt; }
   state.popups = state.popups.filter(p => p.life > 0);
@@ -500,6 +553,15 @@ function updatePlay(dt) {
 
   if (state.banner > 0) state.banner -= dt;
   if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 30);
+}
+// Confettis de fête
+function launchConfetti() {
+  const cols = ['#ffd166', '#ef476f', '#06d6a0', '#4cc9f0', '#ffffff', '#f77f00'];
+  for (let i = 0; i < 120; i++) state.confetti.push({ x: rand(0, W), y: rand(-300, -10), vx: rand(-30, 30), vy: rand(70, 170), r: rand(0, 6), vr: rand(-6, 6), c: cols[i % cols.length] });
+}
+function updateConfetti(dt) {
+  for (const c of state.confetti) { c.x += c.vx * dt; c.y += c.vy * dt; c.r += c.vr * dt; }
+  state.confetti = state.confetti.filter(c => c.y < H + 20);
 }
 // Le tissu emmêlé remonte sans rien attraper
 function liftClothSilently() { state.cloth.down = false; state.cloth.armed = false; }
@@ -581,6 +643,10 @@ function render() {
   ctx.fillStyle = wg; ctx.fillRect(0, wt, W, H - wt);
   drawCaustics(t, wt);
 
+  // bulles qui remontent
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1;
+  for (const b of state.bubbles) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke(); }
+
   // 4) Poissons (dans l'eau)
   for (const f of state.fish) drawFish(f);
 
@@ -607,7 +673,14 @@ function render() {
   if (c.depth <= 0.5) drawCloth(false);
   drawWomen();
 
-  // 8) Gouttes
+  // indicateur de profondeur du tissu (vert = assez profond, on peut relâcher)
+  if (state.screen === 'play' && (c.down || c.depth > 0.05)) drawDepthGauge();
+
+  // 8) Gouttes et étincelles
+  for (const p of state.particles) if (p.kind === 'spark') {
+    ctx.fillStyle = `rgba(255,240,150,${p.life / p.max})`;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y - 5); ctx.lineTo(p.x + 1.6, p.y); ctx.lineTo(p.x, p.y + 5); ctx.lineTo(p.x - 1.6, p.y); ctx.fill();
+  }
   for (const p of state.particles) if (p.kind === 'drop') {
     ctx.fillStyle = `rgba(230,255,255,${p.life / p.max})`;
     ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
@@ -624,8 +697,37 @@ function render() {
     ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y);
     ctx.globalAlpha = 1;
   }
+  // gros message d'encouragement
+  if (state.big) {
+    const k = state.big.t, sc = 1 + Math.max(0, k - 1.1) * 1.5;
+    ctx.save(); ctx.globalAlpha = clamp(k * 2, 0, 1); ctx.translate(480, 180); ctx.scale(sc, sc);
+    ctx.font = '700 46px Fredoka'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(0,60,80,0.8)'; ctx.strokeText(state.big.s, 0, 0);
+    ctx.fillStyle = '#ffe066'; ctx.fillText(state.big.s, 0, 0);
+    ctx.restore();
+  }
   ctx.restore();
   if (state.screen !== 'menu') drawHUD();
+  for (const k of state.confetti) { ctx.save(); ctx.translate(k.x, k.y); ctx.rotate(k.r); ctx.fillStyle = k.c; ctx.fillRect(-4, -2, 8, 4); ctx.restore(); }
+  if (state.fade > 0) { ctx.fillStyle = `rgba(4,40,58,${state.fade})`; ctx.fillRect(0, 0, W, H); }
+}
+
+// Cercle qui se remplit quand on baisse le tissu : vert = assez profond
+function drawDepthGauge() {
+  const c = state.cloth, x = c.x, y = c.y - c.h / 2 - 34, d = c.depth, ok = d >= 0.7;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,50,70,0.6)'; ctx.beginPath(); ctx.arc(x, y, 17, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, 13, 0, 7); ctx.stroke();
+  ctx.strokeStyle = ok ? '#5ef08a' : '#ffb347';
+  ctx.beginPath(); ctx.arc(x, y, 13, -Math.PI / 2, -Math.PI / 2 + Math.min(1, d / 0.7) * Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = '700 14px Fredoka'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(ok ? '✓' : '…', x, y + 1);
+  if (ok && c.down) {
+    ctx.font = '600 15px Fredoka'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,50,60,0.75)';
+    const txt = 'Prêt ! Relâche sous les poissons';
+    ctx.strokeText(txt, x, y - 28); ctx.fillStyle = '#c8ffd6'; ctx.fillText(txt, x, y - 28);
+  }
+  ctx.restore();
 }
 
 function drawCaustics(t, wt) {
@@ -672,6 +774,9 @@ function drawFish(f) {
   g.addColorStop(0, '#5f8796'); g.addColorStop(0.5, '#eef7fa'); g.addColorStop(1, '#c7d9df');
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.ellipse(0, 0, 7.5, 2.8, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(120,170,190,0.8)'; ctx.beginPath(); ctx.moveTo(-1, -2.4); ctx.lineTo(-4, -5 + wig * 2); ctx.lineTo(-4.5, -2); ctx.fill();
+  const sh = 0.25 + 0.35 * Math.max(0, Math.sin(f.wig * 0.7));   // reflet argenté qui scintille
+  ctx.fillStyle = `rgba(255,255,255,${sh})`; ctx.beginPath(); ctx.ellipse(0.5, -0.9, 4.5, 0.8, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#123'; ctx.beginPath(); ctx.arc(4.5, -0.6, 0.8, 0, 7); ctx.fill();
   ctx.restore();
 }
@@ -759,12 +864,17 @@ function drawWoman(x, y, outfit, facing, bob, lantern) {
   const [col, scarf] = OUTFITS[outfit];
   const c = state.cloth;
   ctx.save(); ctx.translate(x, y + bob);
+  ctx.rotate(Math.sin(state.t * 1.6 + outfit) * 0.05);       // léger balancement
+  // ombre sous l'eau
+  ctx.fillStyle = 'rgba(0,50,60,0.22)'; ctx.beginPath(); ctx.ellipse(5, 10, 24, 14, 0, 0, 7); ctx.fill();
   // remous autour de la taille
   ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.ellipse(0, 4, 26 + Math.sin(state.t * 3) * 2, 15, 0, 0, 7); ctx.stroke();
   // corps (vêtement coloré)
   ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(0, 2, 17, 13, 0, 0, 7); ctx.fill();
   ctx.fillStyle = scarf; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.arc(i * 7, 4 + Math.abs(i) * 2, 2, 0, 7); ctx.fill(); }
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(0, 2, 12, 8, 0, 0.3, 2.8); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.ellipse(-5, -3, 7, 4, -0.4, 0, 7); ctx.fill();
   // bras qui tiennent les coins du tissu
   ctx.strokeStyle = '#7a4a2a'; ctx.lineWidth = 4.5; ctx.lineCap = 'round';
   const hx = facing * (c.w / 2 > 0 ? 18 : 18);
@@ -832,9 +942,12 @@ function drawHUD() {
   const g = ctx.createLinearGradient(bx + 82, 0, bx + bw - 14, 0); g.addColorStop(0, '#62e3d6'); g.addColorStop(1, '#1d6fd1');
   ctx.fillStyle = g; pill(bx + 82, 25, Math.max(14, (bw - 96) * state.tide), 14); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText('Marée', bx + 14, 33);
-  ctx.font = '500 15px Fredoka'; ctx.textAlign = 'right'; ctx.fillText(Math.ceil(state.timeLeft) + ' s', bx + bw - 18, 33);
+  ctx.font = '500 15px Fredoka'; ctx.textAlign = 'right';
+  ctx.fillStyle = state.timeLeft < 10 && Math.sin(state.t * 10) > 0 ? '#ffb0a0' : '#fff';
+  ctx.fillText(Math.ceil(state.timeLeft) + ' s', bx + bw - 18, 33);
+  if (state.streak > 1) { ctx.fillStyle = 'rgba(0,50,70,0.55)'; pill(640, 12, 120, 40); ctx.fill(); ctx.fillStyle = '#ffe066'; ctx.font = '600 18px Fredoka'; ctx.textAlign = 'center'; ctx.fillText('Série x' + state.streak, 700, 33); }
   // nom du niveau (bandeau de début)
-  if (state.banner > 0) {
+  if (state.banner > 0 && !state.tuto) {
     ctx.globalAlpha = Math.min(1, state.banner);
     ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,50,70,0.6)'; pill(250, 220, 460, 100); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.font = '700 32px Fredoka'; ctx.fillText('Niveau ' + (state.lvl + 1) + ' — ' + L.name, 480, 255);
@@ -854,14 +967,42 @@ function show(id) {
   const playing = id === null || id === 'pause';
   $('topBtns').classList.toggle('hidden', !playing);
   $('touchLower').classList.toggle('hidden', !(id === null && isCoarse));
+  $('tuto').classList.toggle('hidden', !(id === null && state.tuto));
 }
 const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
 function startLevel(i) {
   i = clamp(i | 0, 0, LEVELS.length - 1);
   setupScene(i);
-  state.screen = 'play'; state.banner = 3.2;
+  state.screen = 'play'; state.banner = 3.2; state.fade = 1;
+  touchDrag = null; $('touchLower').classList.remove('on');
+  if (i === 0 && !tutoDone) state.tuto = { step: 0 };
   show(null); // cache tous les overlays, y compris l'écran de résultat
+  if (state.tuto) showTutoStep();
+}
+
+// ---------- Tutoriel interactif (une seule fois, on peut le passer) ----------
+const TUTO = [
+  { txt: (isCoarse ? 'Glisse le doigt' : 'Bouge la souris (ou les flèches)') + ' pour placer le tissu <b>devant</b> un banc de poissons.', btn: null },
+  { txt: 'Maintiens ' + (isCoarse ? 'le bouton « Baisser »' : 'le clic (ou Espace)') + ' pour baisser le tissu. Attends que le cercle devienne <b>vert</b>.', btn: null },
+  { txt: 'Quand des poissons nagent au-dessus du tissu, <b>relâche</b> pour le remonter !', btn: null },
+  { txt: 'Bravo ! Attrape assez de poissons avant que la <b>marée</b> monte. Évite crabes et oursins.', btn: "C'est parti !" },
+];
+function showTutoStep() {
+  const st = TUTO[state.tuto.step];
+  $('tutoText').innerHTML = st.txt;
+  $('tutoNext').classList.toggle('hidden', !st.btn);
+  $('tutoNext').textContent = st.btn || '';
+  $('tuto').classList.remove('hidden');
+}
+function tutoAdvance() {
+  if (!state.tuto) return;
+  state.tuto.step++; sfx.ready();
+  if (state.tuto.step >= TUTO.length) endTuto(); else showTutoStep();
+}
+function endTuto() {
+  tutoDone = true; try { localStorage.setItem(TUTO_KEY, '1'); } catch (e) {}
+  state.tuto = null; $('tuto').classList.add('hidden'); state.banner = 3;
 }
 
 function starsFor(L, caught, waste) {
@@ -879,12 +1020,14 @@ function endLevel() {
     const prev = (save.levels[i] && save.levels[i].stars) || 0;
     save.levels[i] = { stars: Math.max(prev, stars) };
     save.unlocked = Math.max(save.unlocked, Math.min(LEVELS.length, i + 2));
-    writeSave(); sfx.win();
+    writeSave(); sfx.win(); launchConfetti();
   } else sfx.lose();
+  state.tuto = null; state.big = null;
   $('resTitle').textContent = stars ? (stars === 3 ? 'Magnifique !' : 'Bravo !') : 'La marée est haute…';
   $('resStars').innerHTML = [0, 1, 2].map(k => k < stars ? '★' : '<span class="off">★</span>').join('');
   $('resText').innerHTML = `Poissons : <b>${state.caught}</b> / ${L.target} &nbsp;·&nbsp; Déchets ramassés : <b>${state.wasteCount}</b>` +
     (state.penalties ? ` &nbsp;·&nbsp; Accrocs : ${state.penalties}` : '') +
+    (state.bestStreak > 1 ? `<br>Meilleure série : x${state.bestStreak}` : '') +
     (stars ? (stars < 3 ? `<br>3 étoiles à ${Math.ceil(L.target * 1.7)} (poissons + déchets).` : '') : '<br>Réessaie : baisse le tissu devant les bancs !');
   $('btnNext').classList.toggle('hidden', !(stars > 0 && i < LEVELS.length - 1));
   show('result');
@@ -905,7 +1048,7 @@ function buildLevelGrid() {
 
 function pauseGame() { if (state.screen === 'play') { liftClothSilently(); state.screen = 'pause'; show('pause'); } }
 function resumeGame() { if (state.screen === 'pause') { state.screen = 'play'; show(null); } }
-function goMenu() { setupScene(0); state.screen = 'menu'; show('menu'); }
+function goMenu() { setupScene(0); state.screen = 'menu'; state.confetti = []; show('menu'); }
 function toggleMute() { save.muted = !save.muted; writeSave(); $('btnMute').textContent = save.muted ? '×' : '♪'; }
 
 $('btnPlay').onclick = () => { ensureAudio(); sfx.click(); startLevel(Math.min(save.unlocked, LEVELS.length) - 1); };
@@ -920,6 +1063,8 @@ $('btnRetry').onclick = () => startLevel(state.lvl);
 $('btnMenu').onclick = goMenu;
 $('btnPause').onclick = () => state.screen === 'play' ? pauseGame() : resumeGame();
 $('btnMute').onclick = toggleMute;
+$('tutoNext').onclick = () => { sfx.click(); tutoAdvance(); };
+$('tutoSkip').onclick = () => { sfx.click(); endTuto(); };
 $('btnMute').textContent = save.muted ? '×' : '♪';
 
 // =====================================================================
@@ -948,7 +1093,11 @@ window.addEventListener('pointerup', e => {
 });
 // Gros bouton tactile « Baisser »
 const tl = $('touchLower');
-tl.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); tl.classList.add('on'); lowerCloth(); });
+tl.addEventListener('pointerdown', e => {
+  e.preventDefault(); e.stopPropagation(); ensureAudio(); tl.classList.add('on');
+  try { tl.setPointerCapture(e.pointerId); } catch (err) {}   // le doigt peut glisser sans relâcher le tissu
+  lowerCloth();
+});
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => tl.addEventListener(ev, () => { tl.classList.remove('on'); liftCloth(); }));
 
 window.addEventListener('keydown', e => {
@@ -962,6 +1111,8 @@ window.addEventListener('keyup', e => {
   else if (e.key.startsWith('Arrow')) state.keys[e.key] = false;
 });
 window.addEventListener('blur', () => { state.keys = {}; pauseGame(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { state.keys = {}; pauseGame(); } });
+document.addEventListener('gesturestart', e => e.preventDefault());   // pas de zoom par geste (iOS)
 
 // =====================================================================
 //  REDIMENSIONNEMENT (la scène 960x540 s'adapte à la fenêtre)

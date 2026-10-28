@@ -35,6 +35,16 @@
   @media (pointer: coarse) { .touch-only { display: block; } .key-only { display: none; } }
   .bigstars { font-size: 56px; letter-spacing: 8px; color: #ffd166; text-shadow: 0 3px 0 #7a4a1a; }
   .bigstars .off { color: rgba(255,255,255,.25); text-shadow: none; }
+  .bigstars span { display: inline-block; animation: starPop .5s cubic-bezier(.3,1.6,.5,1) both; }
+  .bigstars span:nth-child(2) { animation-delay: .25s; } .bigstars span:nth-child(3) { animation-delay: .5s; }
+  /* Apparition douce des fenêtres */
+  .ov.show > * { animation: popIn .35s cubic-bezier(.2,1.3,.4,1) both; }
+  .ov.show > *:nth-child(2) { animation-delay: .05s; } .ov.show > *:nth-child(3) { animation-delay: .1s; } .ov.show > *:nth-child(n+4) { animation-delay: .15s; }
+  @keyframes popIn { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+  @keyframes starPop { from { opacity: 0; transform: scale(.2) rotate(-40deg); } to { opacity: 1; transform: none; } }
+  #hudbtn button { width: 52px; height: 52px; font-size: 24px; }
+  /* Bouton « Passer » du tutoriel */
+  #bSkip { position: absolute; right: 14px; bottom: 14px; display: none; font-family: inherit; font-size: 18px; font-weight: 600; border: none; border-radius: 14px; padding: 10px 18px; background: rgba(0,0,0,.45); color: #fff; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -42,6 +52,7 @@
   <canvas id="c"></canvas>
 
   <div id="hudbtn"><button id="bPause" title="Pause (Échap)">⏸</button><button id="bMute" title="Son (M)">🔊</button></div>
+  <button id="bSkip">Passer le tutoriel ⏭</button>
 
   <!-- Menu principal -->
   <div class="ov show" id="menu">
@@ -65,6 +76,7 @@
     <p class="key-only">Maintiens <b>Espace</b> (ou clic) puis relâche : plus tu appuies longtemps, plus le saut est grand.<br>En l'air, appuie encore pour un <b>double saut</b> avec la queue, et garde appuyé pour <b>planer</b>.</p>
     <p class="touch-only">Touche l'écran et relâche : plus tu restes appuyé, plus le saut est grand.<br>En l'air, touche encore pour un <b>double saut</b>, garde le doigt pour <b>planer</b>.</p>
     <p>Ramasse les mangues, bananes, papayes et fruits à pain. Évite les nids de guêpes, les chiens en bas et les fils électriques. Ne tombe pas !</p>
+    <p>Pendant que tu charges, des <b>pointillés</b> montrent où le maki va retomber : vert = sur un arbre, rouge = dans le vide.</p>
     <p>Atteins la distance du niveau. Les ⭐ dépendent des fruits ramassés.</p>
     <p class="key-only" style="font-size:16px">Échap / P : pause — M : couper le son</p>
     <div class="tip">🌿 Dans la vraie vie, on ne nourrit pas les makis.</div>
@@ -104,8 +116,9 @@ const MAKI_X = 240;              // position du maki à l'écran
 // gap = écart entre les arbres, types = sortes de plateformes
 // nest / dog / wire = probabilité des dangers
 const LEVELS = [
-  { name: 'La forêt', theme: 'foret', dist: 320, speed: 235, hearts: 5, gap: [50, 120], types: ['mango', 'mango', 'baobab', 'ylang'], nest: 0.06, dog: 0, wire: 0 },
-  { name: 'Le village', theme: 'village', dist: 420, speed: 255, hearts: 4, gap: [60, 150], types: ['roof', 'roof', 'mango', 'palm'], nest: 0.1, dog: 0.35, wire: 0.12 },
+  // Niveau 1 indulgent : arbres plus larges (widen), écarts plus courts, temps de grâce au bord (coyote) plus long
+  { name: 'La forêt', theme: 'foret', dist: 320, speed: 230, hearts: 5, gap: [45, 110], widen: 35, coyote: 0.2, types: ['mango', 'mango', 'baobab', 'ylang'], nest: 0.06, dog: 0, wire: 0 },
+  { name: 'Le village', theme: 'village', dist: 420, speed: 250, hearts: 4, gap: [55, 145], widen: 15, coyote: 0.14, types: ['roof', 'roof', 'mango', 'palm'], nest: 0.1, dog: 0.35, wire: 0.12 },
   { name: 'La plage', theme: 'plage', dist: 480, speed: 270, hearts: 4, gap: [70, 165], types: ['palm', 'palm', 'palm', 'baobab'], nest: 0.12, dog: 0.3, wire: 0 },
   { name: 'Les ylang-ylang', theme: 'ylang', dist: 540, speed: 285, hearts: 4, gap: [70, 170], types: ['ylang', 'ylang', 'mango', 'roof'], nest: 0.16, dog: 0.35, wire: 0.15 },
   { name: 'Coucher de soleil', theme: 'sunset', dist: 600, speed: 300, hearts: 3, gap: [80, 180], types: ['palm', 'roof', 'mango', 'baobab'], nest: 0.18, dog: 0.4, wire: 0.25 },
@@ -162,8 +175,35 @@ const SFX = {
   zap: () => beep(1200, 0.25, 'square', 0.08, 200),
   win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.2, 'triangle', 0.14), i * 120)),
   lose: () => [392, 330, 262].forEach((f, i) => setTimeout(() => beep(f, 0.25, 'triangle', 0.13), i * 160)),
-  bark: () => beep(220, 0.12, 'sawtooth', 0.07, 140)
+  bark: () => beep(220, 0.12, 'sawtooth', 0.07, 140),
+  cheer: () => [784, 988, 1175].forEach((f, i) => setTimeout(() => beep(f, 0.12, 'sine', 0.1), i * 70))
 };
+
+// ---------- Petite musique de fond (douce, en boucle) ----------
+// Elle ne démarre qu'après un geste du joueur (le contexte audio est créé par un son) et se tait si le son est coupé.
+const MUSIC = { next: 0, step: 0 };
+const MELODY = [0, 4, 7, 9, 7, 4, 2, 4, 0, 2, 4, 7, 9, 12, 9, 7]; // gamme pentatonique (demi-tons)
+function musicNote(freq, t, dur, type, vol) {
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur + 0.05);
+}
+function musicTick() {
+  if (!actx || save.muted || state.mode !== 'play' || actx.state !== 'running') { MUSIC.next = 0; return; }
+  const now = actx.currentTime;
+  if (MUSIC.next < now) MUSIC.next = now + 0.05;
+  try {
+    while (MUSIC.next < now + 0.3) {
+      const s = MUSIC.step, t = MUSIC.next;
+      // une note sur deux de mélodie, très douce (style marimba)
+      if (s % 2 === 0) musicNote(523.25 * Math.pow(2, MELODY[(s / 2) % MELODY.length] / 12), t, 0.35, 'triangle', 0.035);
+      // basse toutes les 8 croches
+      if (s % 8 === 0) musicNote([130.8, 110, 146.8, 98][(s / 8) % 4], t, 0.9, 'sine', 0.05);
+      MUSIC.step++; MUSIC.next += 0.2;
+    }
+  } catch (e) {}
+}
 
 // ---------- Écran et mise à l'échelle ----------
 const stage = document.getElementById('stage');
@@ -188,8 +228,15 @@ const state = {
   maki: null, held: false,
   platforms: [], fruits: [], nests: [], dogs: [], wires: [], parts: [], rain: [],
   hearts: 3, fruitsGot: 0, fruitsTotal: 0, dist: 0, goalX: 0, genX: 0, startX: 0,
-  rng: Math.random, lastY: 380, hint: 0, result: null
+  rng: Math.random, lastY: 380, hint: 0, result: null,
+  popups: [],        // petits textes qui montent (« +1 », « Super ! »)
+  fade: 0,           // fondu noir de transition (1 = noir)
+  hurtFx: 0,         // bord rouge quand on est touché
+  airFruits: 0,      // fruits pris pendant le saut en cours (pour les encouragements)
+  milestone: 0,      // paliers de distance déjà annoncés
+  tuto: null         // tutoriel interactif en cours (ou null)
 };
+const TUTO_KEY = 'maki-tuto-v1'; // clé séparée : la sauvegarde « maki-v1 » garde son format
 
 function newMaki() {
   return { x: 120, y: 380, vy: 0, ground: true, coy: 0, charging: false, charge: 0, jumps: 0, squash: 0, inv: 0, blink: 0, tailT: 0, gliding: false };
@@ -228,6 +275,7 @@ function genNext() {
   const gap = (L.gap[0] + r() * (L.gap[1] - L.gap[0])) * hard;
   const type = L.types[Math.floor(r() * L.types.length)];
   const sz = platformSize(type, r);
+  sz.w += L.widen || 0; // niveaux faciles : arbres plus larges
   let y = prev.y + (r() * 160 - 90);
   y = Math.max(sz.y[0], Math.min(sz.y[1], y));
   if (prev.y - y > 150) y = prev.y - 150; // jamais trop haut à atteindre
@@ -263,8 +311,12 @@ function genNext() {
 }
 
 // ---------- Démarrer un niveau ----------
-function startLevel(i) {
+// fromUI = true quand le joueur lance le niveau depuis un bouton (le tutoriel n'apparaît que dans ce cas,
+// pour que les appels directs startLevel(0) des tests gardent le comportement normal)
+function startLevel(i, fromUI) {
   hideAll();
+  state.popups = []; state.fade = 1; state.hurtFx = 0; state.airFruits = 0; state.milestone = 0;
+  state.tuto = null; acc = 0;
   const endless = (i === 'infini' || i < 0);
   state.endless = endless;
   state.levelIndex = endless ? -1 : i;
@@ -291,6 +343,16 @@ function startLevel(i) {
   state.mode = 'play';
   document.getElementById('hudbtn').style.display = 'flex';
   makeRain();
+  // Tutoriel interactif : seulement la toute première fois, au niveau 1
+  let seen = true;
+  try { seen = !!localStorage.getItem(TUTO_KEY); } catch (e) {}
+  if (fromUI && i === 0 && !seen) { state.tuto = { step: 0, t: 0 }; state.hint = 0; }
+  document.getElementById('bSkip').style.display = state.tuto ? 'block' : 'none';
+}
+function endTuto() {
+  state.tuto = null;
+  document.getElementById('bSkip').style.display = 'none';
+  try { localStorage.setItem(TUTO_KEY, '1'); } catch (e) {}
 }
 
 // ---------- Les commandes ----------
@@ -299,7 +361,7 @@ function press() {
   if (state.held) return;
   state.held = true;
   const m = state.maki;
-  if (m.ground || m.coy > 0) { m.charging = true; m.charge = 0; }
+  if (m.ground || m.coy > 0) { m.charging = true; m.charge = 0; if (state.tuto && state.tuto.step === 0) state.tuto = { step: 1, t: 0 }; }
   else if (m.jumps < 2) doubleJump();
 }
 function release() {
@@ -312,14 +374,17 @@ function doJump(c) {
   const m = state.maki;
   m.vy = -(560 + 420 * c);
   m.jumps = 1; m.charging = false; m.charge = 0; m.ground = false; m.coy = 0; m.squash = -0.35;
+  state.airFruits = 0;
   SFX.jump();
   leaves(m.x, m.y, 5);
+  if (state.tuto && state.tuto.step <= 1) state.tuto = { step: 2, t: 0 };
 }
 function doubleJump() {
   const m = state.maki;
   m.vy = -640; m.jumps = 2; m.squash = -0.3; m.tailT = 0.4;
   SFX.double();
   for (let i = 0; i < 8; i++) state.parts.push({ x: m.x - 20, y: m.y - 10, vx: rand(-120, -20), vy: rand(-60, 80), life: 0.5, max: 0.5, kind: 'puff', size: rand(4, 8) });
+  if (state.tuto && state.tuto.step === 2) state.tuto = { step: 3, t: 0 };
 }
 // jump() : pour les tests — saut moyen au sol, double saut en l'air
 function jump() {
@@ -339,6 +404,12 @@ cv.addEventListener('pointerdown', e => { e.preventDefault(); press(); });
 addEventListener('pointerup', release);
 addEventListener('pointercancel', release);
 addEventListener('blur', () => { release(); if (state.mode === 'play') togglePause(); });
+// Onglet caché (ou iframe masquée) : pause automatique
+document.addEventListener('visibilitychange', () => { if (document.hidden) { release(); if (state.mode === 'play') togglePause(); } });
+// Empêche le zoom / défilement par geste sur mobile (y compris dans une iframe)
+document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+document.addEventListener('dblclick', e => e.preventDefault());
+cv.addEventListener('contextmenu', e => e.preventDefault());
 
 // ---------- Particules ----------
 function leaves(x, y, n) {
@@ -346,6 +417,13 @@ function leaves(x, y, n) {
 }
 function sparkles(x, y, col) {
   for (let i = 0; i < 10; i++) { const a = Math.random() * 6.28, s = rand(60, 200); state.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5, max: 0.5, kind: 'spark', size: rand(2, 4), col }); }
+}
+// Petit texte qui monte (coordonnées du monde)
+function popup(x, y, txt, col, big) { state.popups.push({ x, y, txt, col: col || '#fff', life: 1.1, max: 1.1, big: !!big }); }
+// Confettis de victoire
+function confetti() {
+  const cols = ['#ffd166', '#ff6b6b', '#4fc3f7', '#81c784', '#f48fb1', '#fff'];
+  for (let i = 0; i < 90; i++) state.parts.push({ x: state.cam + rand(0, W), y: rand(-60, -10), vx: rand(-60, 60), vy: rand(60, 220), life: 2.6, max: 2.6, kind: 'confetti', size: rand(4, 8), rot: rand(0, 6), vr: rand(-8, 8), col: cols[i % cols.length] });
 }
 function makeRain() {
   state.rain = [];
@@ -359,31 +437,52 @@ function hurt(kind) {
   if (m.inv > 0) return;
   state.hearts--;
   m.inv = 1.6; m.vy = -380; m.jumps = 1; m.charging = false;
-  state.shake = 0.35;
+  state.shake = 0.35; state.hurtFx = 0.5;
   if (kind === 'zap') { SFX.zap(); state.flash = 0.25; } else SFX.hurt();
   sparkles(m.x, m.y - 18, '#ff6b6b');
   if (state.hearts <= 0) endGame(false);
 }
 function fallRespawn() {
   state.hearts--;
-  SFX.hurt(); state.shake = 0.3;
+  SFX.hurt(); state.shake = 0.3; state.hurtFx = 0.5;
   if (state.hearts <= 0) { endGame(false); return; }
   const m = state.maki;
-  // On replace le maki sur la prochaine plateforme visible
-  let best = null;
-  for (const p of state.platforms) if (p.x + p.w > m.x + 20) { best = p; break; }
-  if (!best) best = state.platforms[state.platforms.length - 1];
-  m.x = Math.max(m.x, best.x + 10); if (m.x > best.x + best.w - 30) m.x = best.x + 10;
-  m.y = best.y - 120; m.vy = 0; m.jumps = 1; m.inv = 2; m.charging = false;
+  // On replace le maki JUSTE DEVANT lui, jamais en arrière :
+  // première plateforme dont il reste au moins 90 px de piste après la position de reprise.
+  // (Avant, il pouvait être renvoyé au début d'une longue plateforme = retour en arrière.)
+  let best = null, nx = m.x;
+  for (const p of state.platforms) {
+    const x = Math.max(m.x, p.x + 16);
+    if (p.x + p.w - x >= 90) { best = p; nx = x; break; }
+  }
+  if (!best) { best = state.platforms[state.platforms.length - 1]; nx = Math.max(m.x, best.x + 16); }
+  m.x = nx;
+  m.y = best.y; m.vy = 0; m.ground = true; m.coy = 0.1; m.jumps = 0; m.inv = 2;
+  m.charging = false; m.charge = 0; state.held = false;
+  state.cam = m.x - MAKI_X;
+  sparkles(m.x, m.y - 20, '#fff');
+  popup(m.x, m.y - 70, 'On repart !', '#fff');
 }
 
 // ---------- Mise à jour (une étape de 1/60 s) ----------
+// Vitesse actuelle de course
+function currentSpeed() {
+  const L = state.level;
+  if (state.endless) return Math.min(380, L.speed + state.dist * 0.06);
+  return L.speed;
+}
 function update(dt) {
+  if (state.mode === 'pause') return; // tout est figé pendant la pause (particules, éclairs, chronos)
   state.t += dt;
+  state.fade = Math.max(0, state.fade - dt * 2.2);
+  state.hurtFx = Math.max(0, state.hurtFx - dt);
+  for (const p of state.popups) { p.life -= dt; p.y -= 40 * dt; }
+  state.popups = state.popups.filter(p => p.life > 0);
   // Particules (même hors jeu pour que ce soit joli)
   for (const p of state.parts) {
     p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
     if (p.kind === 'leaf') { p.vy += 300 * dt; p.vx *= 0.98; p.rot += p.vr * dt; }
+    else if (p.kind === 'confetti') { p.vx += Math.sin(state.t * 4 + p.size) * 6; p.rot += p.vr * dt; }
     else if (p.kind === 'spark') { p.vx *= 0.92; p.vy *= 0.92; }
     else { p.vx *= 0.95; p.vy *= 0.95; }
   }
@@ -392,8 +491,13 @@ function update(dt) {
   if (state.mode !== 'play') return;
 
   const L = state.level, m = state.maki;
-  let speed = L.speed;
-  if (state.endless) speed = Math.min(380, L.speed + state.dist * 0.06);
+  let speed = currentSpeed();
+  // Tutoriel : le maki attend sur la branche tant que le joueur n'a pas appuyé
+  if (state.tuto) {
+    state.tuto.t += dt;
+    if (state.tuto.step === 0) speed = 0;
+    if (state.tuto.step === 3 && state.tuto.t > 3.5) { endTuto(); popup(m.x + 120, m.y - 90, 'À toi de jouer !', '#ffd166', true); SFX.cheer(); }
+  }
   if (state.hint > 0) state.hint -= dt;
   state.shake = Math.max(0, state.shake - dt);
   state.flash = Math.max(0, state.flash - dt);
@@ -428,11 +532,20 @@ function update(dt) {
     if (p.x > m.x + 40) break;
     if (m.x + 12 > p.x && m.x - 12 < p.x + p.w && m.vy >= 0 && prevY <= p.y + 4 && m.y >= p.y) {
       m.y = p.y; m.vy = 0; m.ground = true; m.jumps = 0;
-      if (!wasGround) { m.squash = 0.35; SFX.land(); leaves(m.x, m.y, p.type === 'roof' ? 0 : 4); }
+      if (!wasGround) {
+        m.squash = 0.35; SFX.land(); leaves(m.x, m.y, p.type === 'roof' ? 0 : 4);
+        for (let i = 0; i < 6; i++) state.parts.push({ x: m.x + rand(-14, 14), y: m.y - 2, vx: rand(-90, 90), vy: rand(-50, -10), life: 0.35, max: 0.35, kind: 'puff', size: rand(2, 4) });
+        // Encouragements selon les fruits pris pendant le saut
+        if (state.airFruits >= 3) { popup(m.x + 30, m.y - 80, 'Génial !', '#ffd166', true); SFX.cheer(); }
+        else if (state.airFruits === 2) popup(m.x + 30, m.y - 80, 'Super !', '#c8f7c5', true);
+        state.airFruits = 0;
+        if (state.tuto && state.tuto.step === 2) state.tuto = { step: 3, t: 0 };
+      }
       break;
     }
   }
-  if (m.ground) m.coy = 0.1; else m.coy -= dt;
+  // Temps de grâce (« coyote ») : on peut encore sauter un court instant après avoir quitté le bord
+  if (m.ground) m.coy = L.coyote || 0.1; else m.coy -= dt;
 
   const cx = m.x, cy = m.y - 20; // centre du corps
 
@@ -442,6 +555,8 @@ function update(dt) {
     if (Math.hypot(f.x - cx, f.y - cy) < 32) {
       f.got = true; state.fruitsGot++; SFX.fruit();
       sparkles(f.x, f.y, '#ffe680');
+      popup(f.x, f.y - 10, '+1', '#ffe680');
+      if (!m.ground) state.airFruits++;
     }
   }
   // Nids de guêpes
@@ -472,6 +587,14 @@ function update(dt) {
   // Distance et caméra
   state.dist = Math.max(0, (m.x - state.startX) / 40);
   state.cam = m.x - MAKI_X;
+  // Paliers de distance : petits messages d'encouragement
+  if (!state.endless) {
+    const k = state.dist / L.dist, msgs = ['', 'Un quart du chemin !', 'À mi-chemin, courage !', 'Presque arrivé !'];
+    const lvl = k >= 0.75 ? 3 : k >= 0.5 ? 2 : k >= 0.25 ? 1 : 0;
+    if (lvl > state.milestone) { state.milestone = lvl; popup(m.x + 150, 170, msgs[lvl], '#fff', true); }
+  } else if (Math.floor(state.dist / 100) > state.milestone) {
+    state.milestone = Math.floor(state.dist / 100); popup(m.x + 150, 170, `${state.milestone * 100} m !`, '#fff', true);
+  }
 
   // Mode infini : continuer à fabriquer le parcours et nettoyer derrière
   if (state.endless) {
@@ -491,7 +614,32 @@ function update(dt) {
 let acc = 0;
 function tick(dt) {
   acc += Math.min(dt, 0.25);
-  while (acc >= STEP) { update(STEP); acc -= STEP; }
+  // Pendant le tutoriel, ralenti pendant la charge et le premier saut pour bien voir l'arc
+  const tu = state.tuto, k = tu ? (tu.step === 1 ? 0.35 : tu.step === 2 ? 0.6 : 1) : 1;
+  while (acc >= STEP) { update(STEP * k); acc -= STEP; }
+}
+
+// ---------- Aperçu de la trajectoire (arc en pointillés) ----------
+// Simule le saut qu'on obtiendrait en relâchant maintenant, avec la même physique que update().
+function predictJump() {
+  const m = state.maki;
+  if (!m) return null;
+  const speed = currentSpeed();
+  let x = m.x, y = m.y, vy = -(560 + 420 * m.charge);
+  const pts = [], dt = 1 / 60;
+  for (let i = 0; i < 160; i++) {
+    const py = y;
+    vy += 2200 * dt; x += speed * dt; y += vy * dt;
+    if (i % 3 === 0) pts.push(x, y - 20);
+    if (vy >= 0) {
+      for (const p of state.platforms) {
+        if (p.x > x + 40) break;
+        if (x + 12 > p.x && x - 12 < p.x + p.w && py <= p.y + 4 && y >= p.y) return { pts, x, y: p.y, ok: true };
+      }
+    }
+    if (y > GROUND + 30) return { pts, x, y: GROUND, ok: false };
+  }
+  return { pts, x, y, ok: false };
 }
 
 // ---------- Fin de partie ----------
@@ -502,7 +650,10 @@ function starTargets() {
 function endGame(win) {
   state.mode = 'over';
   state.held = false;
+  if (state.tuto) endTuto();
+  if (state.maki) state.maki.charging = false;
   document.getElementById('hudbtn').style.display = 'none';
+  if (win) confetti();
   const title = document.getElementById('resTitle'), stars = document.getElementById('resStars'), text = document.getElementById('resText');
   const bNext = document.getElementById('bNext');
   if (state.endless) {
@@ -522,7 +673,7 @@ function endGame(win) {
     save.levels[key] = { stars: Math.max(old, n) };
     save.unlocked = Math.max(save.unlocked, Math.min(LEVELS.length, key + 2));
     writeSave();
-    title.textContent = 'Bravo, niveau réussi !';
+    title.textContent = n === 3 ? 'Parfait, 3 étoiles !' : 'Bravo, niveau réussi !';
     stars.innerHTML = [0, 1, 2].map(i => `<span class="${i < n ? '' : 'off'}">★</span>`).join('');
     text.innerHTML = `${state.level.name} — Fruits : <b>${state.fruitsGot} / ${state.fruitsTotal}</b><br>Objectifs ⭐ : ${tg.join(' / ')}`;
     bNext.style.display = key < LEVELS.length - 1 ? '' : 'none';
@@ -531,7 +682,9 @@ function endGame(win) {
   } else {
     title.textContent = 'Oh non, le maki est tombé !';
     stars.innerHTML = '';
-    text.innerHTML = `${state.level.name} — ${Math.floor(state.dist)} m sur ${state.level.dist} m. Réessaie !`;
+    const pct = Math.floor(state.dist / state.level.dist * 100);
+    const encour = pct >= 75 ? 'Tu y étais presque !' : pct >= 40 ? 'Beau parcours, tu progresses !' : 'Astuce : regarde l\'arc en pointillés avant de relâcher.';
+    text.innerHTML = `${state.level.name} — ${Math.floor(state.dist)} m sur ${state.level.dist} m.<br>${encour}`;
     bNext.style.display = 'none';
     state.result = { win: false };
     SFX.lose();
@@ -568,6 +721,20 @@ function drawBackground() {
     sg.addColorStop(0, T.sun); sg.addColorStop(0.35, T.sun + 'aa'); sg.addColorStop(1, T.sun + '00');
     ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(780, sy, 130, 0, 7); ctx.fill();
     ctx.fillStyle = T.sun; ctx.beginPath(); ctx.arc(780, sy, 40, 0, 7); ctx.fill();
+    // Rayons de soleil qui tournent lentement
+    ctx.save(); ctx.translate(780, sy); ctx.rotate(state.t * 0.05);
+    ctx.fillStyle = 'rgba(255,255,230,.10)';
+    for (let i = 0; i < 10; i++) { ctx.rotate(Math.PI / 5); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-30, 420); ctx.lineTo(30, 420); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+  }
+  // Oiseaux au loin (simples « v »)
+  if (state.level && state.level.theme !== 'storm') {
+    ctx.strokeStyle = 'rgba(40,50,60,.45)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      const bx = ((i * 380 + state.t * (22 + i * 6) - cam * 0.05) % 1200 + 1200) % 1200 - 120, by = 70 + i * 34 + Math.sin(state.t + i) * 8;
+      const fl = Math.sin(state.t * 8 + i * 2) * 4;
+      ctx.beginPath(); ctx.moveTo(bx - 8, by - fl); ctx.lineTo(bx, by); ctx.lineTo(bx + 8, by - fl); ctx.stroke();
+    }
   }
   // Nuages
   for (let i = 0; i < 6; i++) {
@@ -577,7 +744,12 @@ function drawBackground() {
     ctx.beginPath(); ctx.arc(x, y, 26, 0, 7); ctx.arc(x + 30, y - 12, 32, 0, 7); ctx.arc(x + 64, y, 24, 0, 7); ctx.ellipse(x + 32, y + 8, 56, 16, 0, 0, 7); ctx.fill();
   }
   // Collines lointaines
+  drawHills(0.05, shade(T.far, 0.3), 300, 150, 7.7); // montagnes très lointaines (parallaxe en plus)
   drawHills(0.1, T.far, 330, 170, 1.3);
+  // Brume légère au pied des collines (profondeur)
+  const mist = ctx.createLinearGradient(0, 250, 0, 360);
+  mist.addColorStop(0, 'rgba(255,255,255,0)'); mist.addColorStop(1, 'rgba(255,255,255,.22)');
+  ctx.fillStyle = mist; ctx.fillRect(0, 250, W, 110);
   // Lagon
   if (T.lagoon) {
     const lg = ctx.createLinearGradient(0, 330, 0, 420);
@@ -777,6 +949,35 @@ function drawWire(w) {
 function drawMaki() {
   const m = state.maki;
   const x = m.x - state.cam, y = m.y;
+  // Ombre douce sur la plateforme en dessous (aide à juger la hauteur)
+  for (const p of state.platforms) {
+    if (p.x > m.x) break;
+    if (m.x < p.x + p.w && p.y >= m.y - 2) {
+      const h = Math.min(1, (p.y - m.y) / 250);
+      ctx.fillStyle = `rgba(0,0,0,${0.28 * (1 - h)})`;
+      ctx.beginPath(); ctx.ellipse(x, p.y + 2, 20 * (1 - h * 0.5), 5, 0, 0, 7); ctx.fill();
+      break;
+    }
+  }
+  // Aperçu de la trajectoire pendant la charge : on voit où le maki va retomber
+  if (m.charging && state.mode === 'play') {
+    const pr = predictJump();
+    if (pr) {
+      const col = pr.ok ? '120,230,120' : '255,110,90';
+      for (let i = 0; i < pr.pts.length; i += 2) {
+        const a = 0.25 + 0.6 * (i / pr.pts.length);
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.beginPath(); ctx.arc(pr.pts[i] - state.cam, pr.pts[i + 1], 3.2, 0, 7); ctx.fill();
+        ctx.strokeStyle = `rgba(${col},${a})`; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      const lx = pr.x - state.cam, ly = pr.y;
+      ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = 3;
+      const pulse = 1 + Math.sin(state.t * 10) * 0.12;
+      ctx.beginPath(); ctx.ellipse(lx, ly, 18 * pulse, 6 * pulse, 0, 0, 7); ctx.stroke();
+      if (pr.ok) { ctx.beginPath(); ctx.moveTo(lx - 7, ly - 14); ctx.lineTo(lx - 2, ly - 9); ctx.lineTo(lx + 8, ly - 20); ctx.stroke(); }
+      else { ctx.beginPath(); ctx.moveTo(lx - 6, ly - 20); ctx.lineTo(lx + 6, ly - 8); ctx.moveTo(lx + 6, ly - 20); ctx.lineTo(lx - 6, ly - 8); ctx.stroke(); }
+    }
+  }
   if (m.inv > 0 && Math.floor(m.inv * 12) % 2 === 0) return; // clignote quand blessé
   // Squash & stretch : écrasé à l'atterrissage, étiré en saut
   let sq = m.squash;
@@ -843,20 +1044,32 @@ function drawMaki() {
 
 function drawParts() {
   for (const p of state.parts) {
-    const x = p.x - (p.kind === 'leaf' || p.kind === 'puff' || p.kind === 'spark' ? state.cam : 0), a = p.life / p.max;
-    ctx.globalAlpha = Math.max(0, a);
-    if (p.kind === 'leaf') { ctx.save(); ctx.translate(x, p.y); ctx.rotate(p.rot); ctx.fillStyle = '#4caf50'; ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size / 2, 0, 0, 7); ctx.fill(); ctx.restore(); }
+    const x = p.x - state.cam, a = p.life / p.max; // toutes les particules sont en coordonnées du monde
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.kind === 'confetti' ? a * 2 : a));
+    if (p.kind === 'confetti') { ctx.save(); ctx.translate(x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.col; ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2); ctx.restore(); }
+    else if (p.kind === 'leaf') { ctx.save(); ctx.translate(x, p.y); ctx.rotate(p.rot); ctx.fillStyle = '#4caf50'; ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size / 2, 0, 0, 7); ctx.fill(); ctx.restore(); }
     else if (p.kind === 'spark') { ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(x, p.y, p.size, 0, 7); ctx.fill(); }
     else { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, p.y, p.size * (2 - a), 0, 7); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
+  // Petits textes (« +1 », encouragements)
+  ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+  for (const p of state.popups) {
+    const a = p.life / p.max, pop = Math.min(1, (1 - a) * 8);
+    ctx.globalAlpha = Math.min(1, a * 2);
+    ctx.font = `700 ${Math.round((p.big ? 30 : 20) * (0.6 + 0.4 * pop))}px Fredoka`;
+    ctx.strokeStyle = 'rgba(40,25,10,.7)'; ctx.lineWidth = 5;
+    ctx.strokeText(p.txt, p.x - state.cam, p.y); ctx.fillStyle = p.col; ctx.fillText(p.txt, p.x - state.cam, p.y);
+  }
+  ctx.globalAlpha = 1; ctx.textAlign = 'left';
 }
 
 // ----- Interface (HUD) -----
 function drawHUD() {
   const L = state.level;
   ctx.font = '600 22px Fredoka'; ctx.textBaseline = 'middle';
-  // coeurs
+  // coeurs (sur un petit panneau)
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; roundRect(10, 10, 30 * L.hearts + 8, 36, 12); ctx.fill();
   for (let i = 0; i < L.hearts; i++) {
     ctx.fillStyle = i < state.hearts ? '#ff5a6e' : 'rgba(0,0,0,.25)';
     const hx = 26 + i * 30, hy = 28;
@@ -891,11 +1104,37 @@ function drawHUD() {
     ctx.textAlign = 'center'; ctx.font = '600 22px Fredoka'; ctx.fillStyle = '#fff';
     ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 5;
     const coarse = matchMedia('(pointer: coarse)').matches;
-    const msg = coarse ? 'Garde le doigt appuyé pour sauter plus loin, touche encore en l\'air !' : 'Maintiens Espace pour sauter plus loin, appuie encore en l\'air !';
+    const msg = coarse ? 'Garde le doigt appuyé : l\'arc montre où tu vas tomber !' : 'Maintiens Espace : l\'arc montre où tu vas tomber !';
     ctx.strokeText(msg, W / 2, 150); ctx.fillText(msg, W / 2, 150);
     ctx.globalAlpha = 1; ctx.textAlign = 'left';
   }
+  if (state.tuto) drawTuto();
   ctx.textBaseline = 'alphabetic';
+}
+
+// ----- Bulle du tutoriel -----
+function drawTuto() {
+  const tu = state.tuto, coarse = matchMedia('(pointer: coarse)').matches;
+  const txt = [
+    coarse ? 'Pose le doigt sur l\'écran et GARDE-LE appuyé…' : 'Maintiens la touche ESPACE appuyée…',
+    'Regarde les pointillés : relâche quand le rond est VERT (sur un arbre) !',
+    coarse ? 'En l\'air, touche encore une fois : double saut !' : 'En l\'air, appuie encore une fois : double saut !',
+    'Bravo ! Garde appuyé en l\'air pour planer. Ramasse les fruits !'
+  ][tu.step];
+  const bw = 640, bx = (W - bw) / 2, by = 112;
+  ctx.globalAlpha = Math.min(1, tu.t * 4);
+  ctx.fillStyle = 'rgba(255,250,235,.95)'; roundRect(bx, by, bw, 60, 18); ctx.fill();
+  ctx.strokeStyle = '#ffb84d'; ctx.lineWidth = 4; ctx.stroke();
+  ctx.fillStyle = '#4a2a08'; ctx.font = '600 21px Fredoka'; ctx.textAlign = 'center';
+  ctx.fillText(txt, W / 2, by + 31);
+  ctx.font = '500 13px Fredoka'; ctx.fillStyle = '#a8641c';
+  ctx.fillText(`Tutoriel ${tu.step + 1} / 4`, W / 2, by + 74);
+  // Main / doigt qui « appuie » au-dessus du maki pendant l'étape 1
+  if (tu.step === 0) {
+    const m = state.maki, hx = m.x - state.cam + 40, hy = m.y - 110 + Math.abs(Math.sin(state.t * 4)) * 14;
+    ctx.font = '40px Fredoka'; ctx.fillText('👇', hx, hy);
+  }
+  ctx.globalAlpha = 1; ctx.textAlign = 'left';
 }
 function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 
@@ -935,7 +1174,24 @@ function render() {
   }
   if (state.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${state.flash * 2})`; ctx.fillRect(0, 0, W, H); }
   ctx.restore();
+  drawVignette();
   if (state.mode === 'play' || state.mode === 'pause') drawHUD();
+  if (state.fade > 0) { ctx.fillStyle = `rgba(8,20,14,${state.fade})`; ctx.fillRect(0, 0, W, H); }
+}
+
+// Assombrissement doux des bords (lumière plus « cinéma ») + bord rouge quand on est touché
+let vignetteGrad = null;
+function drawVignette() {
+  if (!vignetteGrad) {
+    vignetteGrad = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, W * 0.65);
+    vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)'); vignetteGrad.addColorStop(1, 'rgba(0,0,0,.28)');
+  }
+  ctx.fillStyle = vignetteGrad; ctx.fillRect(0, 0, W, H);
+  if (state.hurtFx > 0) {
+    const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.6);
+    g.addColorStop(0, 'rgba(255,40,40,0)'); g.addColorStop(1, `rgba(255,40,40,${state.hurtFx})`);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
 }
 
 // ---------- Boucle principale ----------
@@ -945,6 +1201,7 @@ function loop(now) {
   if (state.mode === 'menu') state.t += Math.min(dt, 0.1);
   tick(dt);
   render();
+  musicTick();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
@@ -957,7 +1214,8 @@ function hideAll() { document.querySelectorAll('.ov').forEach(o => o.classList.r
 function show(id) { hideAll(); $(id).classList.add('show'); }
 
 function goMenu() {
-  state.mode = 'menu'; state.platforms = []; state.maki = null; state.level = null;
+  state.mode = 'menu'; state.platforms = []; state.parts = []; state.popups = []; state.fade = 0;
+  if (state.tuto) { state.tuto = null; $('bSkip').style.display = 'none'; } state.maki = null; state.level = null;
   state.fruits = []; state.nests = []; state.dogs = []; state.wires = []; state.rain = [];
   $('hudbtn').style.display = 'none';
   $('bestMenu').textContent = '🏆 Record du mode infini : ' + (save.best || 0);
@@ -971,13 +1229,13 @@ function showLevels() {
     const st = (save.levels[i] && save.levels[i].stars) || 0;
     b.className = 'lvl' + (locked ? ' lock' : '');
     b.innerHTML = `<span class="n">${locked ? '🔒' : i + 1}</span>${L.name}<br><span class="st">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</span>`;
-    if (!locked) b.onclick = () => startLevel(i);
+    if (!locked) b.onclick = () => { SFX.land(); startLevel(i, true); };
     grid.appendChild(b);
   });
   const inf = document.createElement('button');
   inf.className = 'lvl inf';
   inf.innerHTML = `♾️ Mode infini — record : ${save.best || 0}`;
-  inf.onclick = () => startLevel('infini');
+  inf.onclick = () => startLevel('infini', true);
   grid.appendChild(inf);
   show('levels');
 }
@@ -989,7 +1247,7 @@ function toggleMute() {
   save.muted = !save.muted; writeSave();
   $('bMute').textContent = save.muted ? '🔇' : '🔊';
 }
-function restart() { startLevel(state.endless ? 'infini' : state.levelIndex); }
+function restart() { startLevel(state.endless ? 'infini' : state.levelIndex, true); }
 
 $('bPlay').onclick = showLevels;
 $('bRules').onclick = () => show('rules');
@@ -1000,7 +1258,8 @@ $('bRestart').onclick = restart;
 $('bQuit').onclick = goMenu;
 $('bAgain').onclick = restart;
 $('bMenu2').onclick = showLevels;
-$('bNext').onclick = () => startLevel(Math.min(LEVELS.length - 1, state.levelIndex + 1));
+$('bNext').onclick = () => startLevel(Math.min(LEVELS.length - 1, state.levelIndex + 1), true);
+$('bSkip').onclick = () => { endTuto(); state.hint = 4; };
 $('bPause').onclick = togglePause;
 $('bMute').onclick = toggleMute;
 // Les boutons ne doivent pas faire sauter le maki

@@ -27,12 +27,36 @@
   .rules{text-align:left;max-width:760px}
   .rules p{font-size:17px}
   #hint{position:absolute;right:10px;top:8px;color:#fff;font-size:14px;opacity:.75;pointer-events:none}
+  /* Transitions douces entre les écrans */
+  .ov{background:radial-gradient(ellipse at center,rgba(60,20,50,.62),rgba(20,8,22,.86))}
+  .ov.on{animation:ovIn .3s ease-out}
+  @keyframes ovIn{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
+  .ov h2{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
+  @keyframes pop{from{transform:scale(.5);opacity:0}to{transform:none;opacity:1}}
+  .key{font-size:14px;font-weight:400;opacity:.75;display:block}
+  /* Gros boutons tactiles (seulement sur écran tactile) */
+  .tap{position:absolute;bottom:14px;width:300px;height:140px;border-radius:32px;display:none;align-items:center;justify-content:center;
+       font-size:30px;font-weight:700;color:#fff;background:rgba(255,209,102,.28);border:4px solid rgba(255,230,160,.8);
+       text-shadow:0 2px 4px rgba(0,0,0,.6);touch-action:none}
+  .tap.press{background:rgba(255,209,102,.6);transform:scale(.96)}
+  body.coarse .tap.on{display:flex}
+  #tapL{left:20px} #tapR{right:20px}
+  #tapL.solo{left:330px}
+  #btnPause{position:absolute;left:50%;top:84px;transform:translateX(-50%);font-size:16px;padding:5px 16px;display:none;box-shadow:0 3px 0 #c2410c}
+  #btnPause.on{display:block}
+  #btnSkip{position:absolute;right:16px;bottom:16px;display:none;font-size:18px}
+  #btnSkip.on{display:block}
+  body.coarse #hint{display:none}
 </style>
 </head>
 <body>
 <div id="stage">
   <canvas id="cv"></canvas>
   <div id="hint">Échap/P : pause · M : son</div>
+  <div class="tap" id="tapL">TIRE !</div>
+  <div class="tap" id="tapR">J2 : TIRE !</div>
+  <button class="sec" id="btnPause" onclick="pause()">❚❚ Pause</button>
+  <button class="sec" id="btnSkip" onclick="finishTuto()">Passer le tutoriel ▶</button>
 
   <!-- Menu principal -->
   <div class="ov on" id="ovMenu">
@@ -78,7 +102,7 @@
   <div class="ov" id="ovRound">
     <h2 id="roundTitle">Manche gagnée !</h2>
     <p id="roundInfo"></p>
-    <button onclick="nextRound()">Manche suivante</button>
+    <button onclick="nextRound()">Manche suivante ▶<span class="key">Espace / Entrée</span></button>
   </div>
 
   <!-- Fin de match -->
@@ -87,7 +111,7 @@
     <div id="matchStars" style="font-size:52px;color:#ffd166;letter-spacing:8px;margin:4px 0"></div>
     <p id="matchInfo"></p>
     <div>
-      <button id="btnNext" onclick="startLevel(state.level+1)">Niveau suivant</button>
+      <button id="btnNext" onclick="startLevel(state.level+1)">Niveau suivant ▶</button>
       <button class="sec" onclick="restartMatch()">Rejouer</button>
       <button class="sec" onclick="goMenu()">Menu</button>
     </div>
@@ -123,7 +147,7 @@ resize();
 // ---------- Niveaux (adversaires de plus en plus forts) ----------
 // bpm = vitesse du rythme ; acc = précision de l'ordi ; force = puissance ; events = fréquence des événements
 const LEVELS = [
-  { name: 'Les Copains',      bpm: 80,  acc: 0.35, force: 0.70, color: '#60a5fa' },
+  { name: 'Les Copains',      bpm: 80,  acc: 0.30, force: 0.62, color: '#60a5fa' },
   { name: 'Les Pêcheurs',     bpm: 88,  acc: 0.50, force: 0.80, color: '#34d399' },
   { name: 'Les Cousins',      bpm: 96,  acc: 0.60, force: 0.88, color: '#a78bfa' },
   { name: 'Le Quartier d\'en face', bpm: 104, acc: 0.70, force: 0.95, color: '#f472b6' },
@@ -188,6 +212,50 @@ const SFX = {
   win:     () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.25, 'triangle', 0.18), i * 130)),
   lose:    () => [392, 330, 262, 196].forEach((f, i) => setTimeout(() => tone(f, 0.3, 'sine', 0.18), i * 160))
 };
+// ---------- Percussions synthétisées (rythme musical calé sur le tempo) ----------
+let NBUF = null;
+function noiseBuf(a) {
+  if (!NBUF) {
+    NBUF = a.createBuffer(1, Math.floor(a.sampleRate * 0.4), a.sampleRate);
+    const d = NBUF.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  return NBUF;
+}
+// kind : 'kick' (grosse caisse), 'clap', 'hat' (charleston), 'tom'
+function drum(kind, vol) {
+  if (save.muted) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime;
+  vol = vol || 1;
+  if (kind === 'kick' || kind === 'tom') {
+    const o = a.createOscillator(), g = a.createGain();
+    const f0 = kind === 'kick' ? 150 : 210, f1 = kind === 'kick' ? 45 : 120;
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + 0.16);
+    g.gain.setValueAtTime(0.38 * vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + 0.26);
+  } else {
+    const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    src.buffer = noiseBuf(a);
+    f.type = kind === 'hat' ? 'highpass' : 'bandpass';
+    f.frequency.value = kind === 'hat' ? 7000 : 1400; f.Q.value = kind === 'hat' ? 0.5 : 0.9;
+    const dur = kind === 'hat' ? 0.05 : 0.16;
+    g.gain.setValueAtTime((kind === 'hat' ? 0.07 : 0.22) * vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(a.destination); src.start(t); src.stop(t + dur + 0.02);
+  }
+}
+// Joue le rythme pour un demi-temps h (h pair = sur le temps, où il faut taper)
+const BASS = [98, 98, 131, 110];   // petite ligne de basse (une note par mesure)
+function playPattern(h) {
+  const step = h % 8;                       // 8 demi-temps = 1 mesure de 4 temps
+  const ens = state.event && state.event.type === 'ensemble';
+  if (step === 0 || step === 4) { drum('kick'); tone(BASS[Math.floor(h / 8) % 4] * (step === 4 ? 1.5 : 1), 0.22, 'triangle', 0.09); }
+  if (step === 2 || step === 6) { drum('clap'); drum('kick', 0.45); }
+  if (step === 5) drum('kick', 0.6);
+  if (step === 7) drum('tom', 0.8);
+  if (h % 2 === 1 || ens) drum('hat', h % 2 ? 1 : 0.6);
+}
+
 function toggleMute() {
   save.muted = !save.muted; writeSave();
   document.getElementById('btnMute').textContent = 'Son : ' + (save.muted ? 'non' : 'oui');
@@ -231,12 +299,46 @@ let state = {
   particles: [],
   popups: [],
   shake: 0,
-  crowdHype: 0
+  crowdHype: 0,
+  lastHalf: -1,        // dernier demi-temps joué par la batterie
+  ropeWob: 0, ropeWobV: 0,   // vibration de la corde (petit ressort)
+  flash: 0,            // flash lumineux (victoire de manche, combo)
+  tuto: null           // tutoriel en cours : { step, hits, t } ou null
 };
+let ovTimer = null;    // délai d'affichage des écrans de fin (annulé si on relance)
+
+// ---------- Tutoriel (une seule fois, mémorisé à part pour ne pas toucher à mgourou-v1) ----------
+const TUTO_KEY = 'mgourou-tuto-v1';
+function tutoDone() { try { return localStorage.getItem(TUTO_KEY) === '1'; } catch (e) { return true; } }
+function finishTuto() {
+  if (!state.tuto) return;
+  try { localStorage.setItem(TUTO_KEY, '1'); } catch (e) {}
+  state.tuto = null;
+  document.getElementById('btnSkip').classList.remove('on');
+  startRound();   // la vraie manche commence (nouveau compte à rebours)
+  state.popups.push({ x: CX, y: 170, text: 'À toi de jouer !', color: '#ffd166', t: 1.6, big: true });
+}
 
 // ---------- Overlays DOM ----------
 const OVS = ['ovMenu', 'ovLevels', 'ovRules', 'ovPause', 'ovRound', 'ovMatch'];
-function showOv(id) { OVS.forEach(o => document.getElementById(o).classList.toggle('on', o === id)); }
+function showOv(id) {
+  OVS.forEach(o => document.getElementById(o).classList.toggle('on', o === id));
+  // Évite qu'un bouton resté « focus » soit déclenché par Espace pendant la partie
+  if (!id && document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  updateControls();
+}
+// Affiche les boutons tactiles / pause seulement pendant la partie
+function updateControls() {
+  const playing = state.screen === 'play';
+  const tl = document.getElementById('tapL'), tr = document.getElementById('tapR');
+  tl.classList.toggle('on', playing);
+  tl.classList.toggle('solo', state.mode !== 'duo');
+  tl.textContent = state.mode === 'duo' ? 'J1 : TIRE !' : 'TIRE !';
+  tr.classList.toggle('on', playing && state.mode === 'duo');
+  document.getElementById('btnPause').classList.toggle('on', playing);
+  document.getElementById('btnSkip').classList.toggle('on', playing && !!state.tuto);
+}
+if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) document.body.classList.add('coarse');
 
 function showLevels() {
   const box = document.getElementById('levels');
@@ -265,10 +367,13 @@ function startLevel(i) {
   state.bpm = LEVELS[i].bpm;
   state.teams = [makeTeam(-1, '#f59e0b', false), makeTeam(1, LEVELS[i].color, true)];
   state.roundsL = state.roundsR = 0; state.round = 1;
+  // Premier lancement : petit tutoriel interactif avant la vraie manche
+  state.tuto = tutoDone() ? null : { step: 0, hits: 0, t: 0 };
   startRound();
 }
 function startDuo() {
   audio();
+  state.tuto = null;
   state.mode = 'duo';
   state.bpm = 92;
   state.teams = [makeTeam(-1, '#f59e0b', false), makeTeam(1, '#60a5fa', false)];
@@ -276,18 +381,28 @@ function startDuo() {
   startRound();
 }
 function startRound() {
-  state.rope = 0; state.ropeV = 0; state.time = 0; state.beat = 0; state.lastTick = -1;
-  state.countdown = 3; state.event = null; state.nextEvent = 7 + Math.random() * 4;
-  state.teams.forEach(t => { t.stamina = 1; t.lastBeatHit = -1; t.feedback = null; t.combo = 0; t.holding = false; });
+  clearTimeout(ovTimer); ovTimer = null;
+  state.rope = 0; state.ropeV = 0; state.time = 0; state.beat = 0; state.lastTick = -1; state.lastHalf = -1;
+  state.ropeWob = 0; state.ropeWobV = 0; state.flash = 0; state.shake = 0;
+  // Niveau 1 : le premier événement arrive un peu plus tard
+  state.countdown = 3; state.event = null; state.nextEvent = (state.mode === 'ai' && state.level === 0 ? 10 : 7) + Math.random() * 4;
+  state.teams.forEach(t => { t.stamina = 1; t.lastBeatHit = -1; t.feedback = null; t.combo = 0; t.holding = false; t.pullAnim = 0; t.hitFx = 0; });
+  for (const k in activePointers) delete activePointers[k];
   state.particles = []; state.popups = [];
   state.screen = 'play';
   showOv(null);
 }
 function restartMatch() { state.mode === 'duo' ? startDuo() : startLevel(state.level); }
-function nextRound() { state.round++; startRound(); }
+function nextRound() { if (state.screen !== 'round') return; state.round++; startRound(); }
 function resume() { if (state.screen === 'pause') { state.screen = 'play'; showOv(null); } }
-function pause() { if (state.screen === 'play') { state.screen = 'pause'; showOv('ovPause'); } }
-function goMenu() { state.screen = 'menu'; showOv('ovMenu'); }
+function pause() {
+  if (state.screen === 'play') {
+    state.screen = 'pause';
+    state.teams.forEach(t => t.holding = false);
+    showOv('ovPause');
+  }
+}
+function goMenu() { clearTimeout(ovTimer); ovTimer = null; state.tuto = null; state.screen = 'menu'; state.particles = []; state.popups = []; showOv('ovMenu'); }
 
 // ---------- Appui d'un joueur ----------
 // idx = 0 (gauche) ou 1 (droite)
@@ -325,19 +440,20 @@ function press(idx) {
 // Évalue un appui selon l'écart au rythme
 function judge(t, diff) {
   const tired = 0.45 + 0.55 * t.stamina;    // une équipe fatiguée tire moins
+  if (!t.isAI && state.tuto && diff < 0.14) state.tuto.hits++;
   if (diff < 0.07) {
     t.combo++; t.perfects++;
     pull(t, 34 * tired * (1 + Math.min(t.combo, 8) * 0.04));
     t.stamina = Math.min(1, t.stamina + 0.02);
     setFeedback(t, 'Parfait !', '#fde047');
     spawnDust(t, 8); state.shake = Math.max(state.shake, 4);
-    if (!t.isAI) SFX.perfect();
+    if (!t.isAI) { SFX.perfect(); t.hitFx = 1; t.hitCol = '#fde047'; comboCheer(t); }
   } else if (diff < 0.14) {
-    t.combo = 0;
+    // « Bien » ne casse plus le combo (plus encourageant), mais ne l'augmente pas
     pull(t, 20 * tired);
     setFeedback(t, 'Bien', '#86efac');
     spawnDust(t, 4);
-    if (!t.isAI) SFX.good();
+    if (!t.isAI) { SFX.good(); t.hitFx = 1; t.hitCol = '#86efac'; }
   } else {
     t.combo = 0;
     pull(t, 4 * tired);
@@ -347,9 +463,21 @@ function judge(t, diff) {
   }
 }
 
+// Encouragements quand le combo de « Parfait » grandit
+const CHEERS = ['Super !', 'En rythme !', 'Génial !', 'Incroyable !', 'Imbattable !'];
+function comboCheer(t) {
+  if (t.combo < 4 || t.combo % 4 !== 0) return;
+  const word = CHEERS[Math.min(CHEERS.length - 1, t.combo / 4 - 1)];
+  state.popups.push({ x: CX + t.side * 250, y: 205, text: word + ' x' + t.combo, color: '#fb923c', t: 1.2, big: true });
+  state.flash = Math.max(state.flash, 0.35);
+  tone(1320, 0.18, 'triangle', 0.1); setTimeout(() => tone(1760, 0.2, 'triangle', 0.08), 90);
+  for (let i = 0; i < 18; i++) state.particles.push({ x: CX + t.side * 250, y: 200, vx: (Math.random() - 0.5) * 300, vy: -100 - Math.random() * 200, t: 1, r: 3, col: ['#fde047', '#fb923c', '#fff'][i % 3] });
+}
+
 // Ajoute une impulsion à la corde dans la direction de l'équipe
 function pull(t, amount) {
   state.ropeV += t.side * amount;
+  state.ropeWobV += amount * 3 * (Math.random() < 0.5 ? -1 : 1);   // la corde vibre à chaque coup
   t.pullAnim = 1;
 }
 function setFeedback(t, text, color) {
@@ -402,13 +530,25 @@ function tick(dt) {
   state.time += dt;
   state.beat += dt * state.bpm / 60;
 
-  // Tic du métronome à chaque battement
+  // Batterie : un motif rythmé joué à chaque demi-temps (remplace le simple tic)
+  const h = Math.floor(state.beat * 2);
+  if (h !== state.lastHalf) { state.lastHalf = h; playPattern(h); }
+
+  // À chaque battement
   const b = Math.floor(state.beat);
   if (b !== state.lastTick) {
     state.lastTick = b;
-    SFX.tick(b % 4 === 0);
-    // L'ordinateur tire sur le temps (pas pendant « Tous ensemble »)
-    state.teams.forEach(t => { if (t.isAI && !(state.event && state.event.type === 'ensemble')) aiBeat(t); });
+    // L'ordinateur tire sur le temps (pas pendant « Tous ensemble », ni pendant le tutoriel)
+    if (!state.tuto) state.teams.forEach(t => { if (t.isAI && !(state.event && state.event.type === 'ensemble')) aiBeat(t); });
+  }
+
+  // Tutoriel : étape 0 = réussir 4 appuis en rythme, étape 1 = explications, puis vraie manche
+  if (state.tuto) {
+    const tu = state.tuto;
+    tu.t += dt;
+    if (tu.step === 0 && tu.hits >= 4) { tu.step = 1; tu.t = 0; SFX.win(); }
+    else if (tu.step === 1 && tu.t > 5) { finishTuto(); return; }
+    state.rope = Math.max(-MARK * 0.6, Math.min(MARK * 0.6, state.rope));
   }
 
   // Ordinateur pendant « Tous ensemble ! » : il tape vite lui aussi
@@ -431,7 +571,7 @@ function tick(dt) {
       if (me.holding) { me.pullAnim = 1; if (Math.random() < dt * 8) spawnDust(me, 1); }
     }
     if (e.t >= e.dur) { state.event = null; state.nextEvent = state.time + 9 + Math.random() * 6; }
-  } else if (state.time >= state.nextEvent) {
+  } else if (state.time >= state.nextEvent && !state.tuto) {
     startEvent();
   }
 
@@ -439,6 +579,7 @@ function tick(dt) {
   state.teams.forEach(t => {
     t.stamina = Math.min(1, t.stamina + 0.06 * dt);
     t.pullAnim = Math.max(0, t.pullAnim - dt * 3);
+    t.hitFx = Math.max(0, (t.hitFx || 0) - dt * 3);
     if (t.feedback) { t.feedback.t -= dt; if (t.feedback.t <= 0) t.feedback = null; }
   });
 
@@ -446,14 +587,22 @@ function tick(dt) {
   state.ropeV *= Math.pow(0.04, dt);
   state.rope += state.ropeV * dt;
   state.crowdHype = Math.min(1, Math.abs(state.rope) / MARK);
+  // Vibration de la corde : ressort amorti (plus raide quand la corde est tendue)
+  const k = 260 + Math.min(1, Math.abs(state.ropeV) / 120) * 400;
+  state.ropeWobV += (-k * state.ropeWob - 7 * state.ropeWobV) * dt;
+  state.ropeWob += state.ropeWobV * dt;
+  state.ropeWob = Math.max(-14, Math.min(14, state.ropeWob));
 
-  // Victoire de manche ?
+  // Victoire de manche ? (impossible pendant le tutoriel)
+  if (state.tuto) return;
   if (state.rope <= -MARK) endRound(0);
   else if (state.rope >= MARK) endRound(1);
 }
 
 function updateFx(dt) {
-  state.particles.forEach(p => { p.t -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 400 * dt; });
+  if (state.screen === 'pause') return;   // tout est figé pendant la pause
+  state.flash = Math.max(0, state.flash - dt * 1.5);
+  state.particles.forEach(p => { p.t -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.g !== undefined ? p.g : 400) * dt; if (p.spin !== undefined) p.spin += dt * 8; });
   state.particles = state.particles.filter(p => p.t > 0);
   state.popups.forEach(p => { p.t -= dt; p.y -= 30 * dt; });
   state.popups = state.popups.filter(p => p.t > 0);
@@ -475,6 +624,9 @@ function endRound(winner) {
   const isAI = state.mode === 'ai';
   const youWin = winner === 0;
   for (let i = 0; i < 30; i++) state.particles.push({ x: CX + state.rope, y: 250, vx: (Math.random() - 0.5) * 400, vy: -200 - Math.random() * 200, t: 1.2, r: 3, col: ['#fde047', '#f472b6', '#60a5fa', '#34d399'][i % 4] });
+  state.flash = 0.6; state.shake = 8;
+  state.teams.forEach(t => t.holding = false);
+  state.screen = 'round'; updateControls();
 
   if (state.roundsL >= 2 || state.roundsR >= 2) { endMatch(); return; }
   state.screen = 'round';
@@ -484,11 +636,20 @@ function endRound(winner) {
   (isAI ? (youWin ? SFX.win : SFX.lose) : SFX.win)();
   document.getElementById('roundTitle').textContent = title;
   document.getElementById('roundInfo').textContent = 'Score : ' + state.roundsL + ' – ' + state.roundsR + ' (premier à 2 manches)';
-  setTimeout(() => showOv('ovRound'), 600);
+  clearTimeout(ovTimer);
+  ovTimer = setTimeout(() => { if (state.screen === 'round') showOv('ovRound'); }, 600);
+}
+
+// Pluie de confettis pour fêter une victoire
+function confetti(n) {
+  const cols = ['#fde047', '#f472b6', '#60a5fa', '#34d399', '#fb923c', '#fff'];
+  for (let i = 0; i < n; i++) state.particles.push({ x: Math.random() * W, y: -10 - Math.random() * 200, vx: (Math.random() - 0.5) * 80, vy: 40 + Math.random() * 80, g: 30, t: 3 + Math.random() * 2, r: 4, col: cols[i % cols.length], spin: Math.random() * 6, conf: true });
 }
 
 function endMatch() {
   state.screen = 'match';
+  updateControls();
+  if (state.mode === 'duo' || state.roundsL > state.roundsR) confetti(140);
   const youWin = state.roundsL > state.roundsR;
   const btnNext = document.getElementById('btnNext');
   let stars = 0;
@@ -514,7 +675,8 @@ function endMatch() {
     document.getElementById('matchInfo').textContent = 'Score : ' + state.roundsL + ' – ' + state.roundsR;
     btnNext.style.display = 'none';
   }
-  setTimeout(() => showOv('ovMatch'), 700);
+  clearTimeout(ovTimer);
+  ovTimer = setTimeout(() => { if (state.screen === 'match') showOv('ovMatch'); }, 700);
 }
 
 // ---------- Entrées clavier ----------
@@ -522,7 +684,17 @@ window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (k === 'escape' || k === 'p') { state.screen === 'play' ? pause() : resume(); return; }
   if (k === 'm') { toggleMute(); return; }
-  if (e.repeat) return;
+  if (e.repeat) { if (k === ' ') e.preventDefault(); return; }
+  // Fin de manche / de match : Espace ou Entrée pour continuer (une fois l'écran affiché)
+  if (k === ' ' || k === 'enter') {
+    if (state.screen === 'round' && document.getElementById('ovRound').classList.contains('on')) { e.preventDefault(); nextRound(); return; }
+    if (state.screen === 'match' && document.getElementById('ovMatch').classList.contains('on')) {
+      e.preventDefault();
+      if (document.getElementById('btnNext').style.display !== 'none') startLevel(state.level + 1); else restartMatch();
+      return;
+    }
+    if (k === 'enter' && state.screen === 'play' && state.tuto) { finishTuto(); return; }
+  }
   if (k === 'a' || (k === ' ' && state.mode === 'ai')) { state.teams[0].holding = true; press(0); e.preventDefault(); }
   if (k === 'l' && state.mode === 'duo') { state.teams[1].holding = true; press(1); }
   if (k === ' ') e.preventDefault();
@@ -553,6 +725,23 @@ function releasePointer(e) {
 }
 cv.addEventListener('pointerup', releasePointer);
 cv.addEventListener('pointercancel', releasePointer);
+// Gros boutons tactiles : même logique que l'écran (appui = tirer, maintien = résister)
+[['tapL', 0], ['tapR', 1]].forEach(([id, idx]) => {
+  const el = document.getElementById(id);
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (el.setPointerCapture) try { el.setPointerCapture(e.pointerId); } catch (er) {}
+    el.classList.add('press');
+    activePointers[e.pointerId] = idx;
+    state.teams[idx].holding = true;
+    press(idx);
+  });
+  ['pointerup', 'pointercancel'].forEach(ev => el.addEventListener(ev, e => { el.classList.remove('press'); releasePointer(e); }));
+});
+// Pas de menu contextuel ni de zoom (appui long, double-tape, pincement sur iOS)
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 
 // =====================================================
@@ -623,20 +812,41 @@ function palm(x, y, h, lean) {
 
 // Foule en silhouettes qui saute selon l'ambiance
 function crowd() {
-  const hype = state.screen === 'play' ? 0.3 + state.crowdHype * 0.7 : 0.25;
-  for (let i = 0; i < 34; i++) {
-    const x = 20 + i * 28 + (i % 3) * 5;
-    if (x > 380 && x < 580) continue; // laisse voir le soleil au centre
-    const jump = Math.max(0, Math.sin(animT * (5 + (i % 4)) + i * 1.7)) * 10 * hype;
-    const y = 352 - jump + (i % 2) * 6;
-    ctx.fillStyle = i % 2 ? '#3a1d3f' : '#2c1530';
-    ctx.beginPath(); ctx.arc(x, y - 30, 7, 0, 7); ctx.fill();
-    ctx.fillRect(x - 7, y - 23, 14, 24);
-    // bras levés
-    ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 4;
-    const arm = Math.sin(animT * 6 + i) * 6 * hype;
-    ctx.beginPath(); ctx.moveTo(x - 6, y - 20); ctx.lineTo(x - 12, y - 36 - arm); ctx.moveTo(x + 6, y - 20); ctx.lineTo(x + 12, y - 36 + arm); ctx.stroke();
+  const playing = state.screen === 'play' && state.countdown <= 0;
+  const hype = state.screen === 'play' ? 0.35 + state.crowdHype * 0.65 : (state.screen === 'round' || state.screen === 'match') ? 1 : 0.25;
+  // Pendant la partie, la foule saute et tape des mains SUR LE TEMPS (aide à sentir le rythme)
+  const frac = playing ? state.beat - Math.floor(state.beat) : (animT * 1.5) % 1;
+  const beatPulse = Math.pow(1 - frac, 3);
+  const shirts = ['#7c2d5a', '#4c3a7a', '#7a3b2a', '#2f5a5a', '#6b3a6b', '#5a2a3a'];
+  for (let row = 1; row >= 0; row--) {
+    for (let i = 0; i < 34; i++) {
+      const x = 20 + i * 28 + (i % 3) * 5 + row * 14;
+      if (x > 380 && x < 580) continue; // laisse voir le soleil au centre
+      const own = Math.max(0, Math.sin(animT * (5 + (i % 4)) + i * 1.7));   // chacun son petit rythme
+      const jump = (playing ? beatPulse * 0.7 + own * 0.3 : own) * 10 * hype;
+      const y = 352 - jump + (i % 2) * 6 - row * 10;
+      ctx.globalAlpha = row ? 0.75 : 1;
+      // corps (tee-shirt coloré mais assombri par le contre-jour)
+      ctx.fillStyle = row ? '#2a1330' : shirts[(i * 7) % shirts.length];
+      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x - 7, y - 23, 14, 24, 5) : ctx.rect(x - 7, y - 23, 14, 24); ctx.fill();
+      ctx.fillStyle = '#2c1530';
+      ctx.beginPath(); ctx.arc(x, y - 30, 7, 0, 7); ctx.fill();
+      // bras : levés en rythme, mains qui se rejoignent sur le temps
+      ctx.strokeStyle = '#2c1530'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      const up = 30 + 8 * hype;
+      const spread = playing ? 4 + (1 - beatPulse) * 8 : 10 + Math.sin(animT * 6 + i) * 4;
+      ctx.beginPath(); ctx.moveTo(x - 6, y - 20); ctx.lineTo(x - spread, y - up); ctx.moveTo(x + 6, y - 20); ctx.lineTo(x + spread, y - up); ctx.stroke();
+      // petit drapeau agité par certains supporters
+      if (row === 0 && i % 7 === 3) {
+        ctx.strokeStyle = '#3b2a12'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x + spread, y - up); ctx.lineTo(x + spread + 4, y - up - 22); ctx.stroke();
+        ctx.fillStyle = i < 17 ? state.teams[0].color : state.teams[1].color;
+        const wv = Math.sin(animT * 9 + i) * 3;
+        ctx.beginPath(); ctx.moveTo(x + spread + 4, y - up - 22); ctx.lineTo(x + spread + 20, y - up - 18 + wv); ctx.lineTo(x + spread + 4, y - up - 12); ctx.fill();
+      }
+    }
   }
+  ctx.globalAlpha = 1;
   // Fanions
   ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(0, 300); ctx.quadraticCurveTo(200, 330, 400, 300); ctx.moveTo(560, 300); ctx.quadraticCurveTo(760, 330, 960, 300); ctx.stroke();
@@ -712,16 +922,38 @@ function rhythmBar(t, x, y, w, label) {
   } else {
     // zone cible au centre, battements qui arrivent de la droite vers la cible
     const tx = x + 40;
-    ctx.fillStyle = 'rgba(253,224,71,.35)'; ctx.fillRect(tx - 14, y + 2, 28, 26);
-    ctx.fillStyle = '#fde047'; ctx.fillRect(tx - 2, y, 4, 30);
     const px = (w - 50) / 3; // pixels par battement
     const frac = state.beat - Math.floor(state.beat);
+    // Fenêtres de jugement à la bonne taille : « Bien » (vert) puis « Parfait » (doré)
+    const pxPerSec = px * state.bpm / 60;
+    ctx.fillStyle = 'rgba(134,239,172,.28)'; ctx.fillRect(tx - 0.14 * pxPerSec, y + 2, 0.28 * pxPerSec, 26);
+    ctx.fillStyle = 'rgba(253,224,71,.55)'; ctx.fillRect(tx - 0.07 * pxPerSec, y + 2, 0.14 * pxPerSec, 26);
+    // Cible : un anneau qui « bat » sur chaque temps
+    const pulse = state.countdown > 0 ? 0 : Math.pow(1 - frac, 4);
+    ctx.strokeStyle = '#fde047'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(tx, y + 15, 14 + pulse * 5, 0, 7); ctx.stroke();
+    ctx.fillStyle = '#fde047'; ctx.fillRect(tx - 1.5, y - 4, 3, 38);
+    // Anneau de réussite qui s'agrandit après un bon appui
+    if (t.hitFx > 0) {
+      ctx.globalAlpha = t.hitFx; ctx.strokeStyle = t.hitCol || '#fde047'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(tx, y + 15, 14 + (1 - t.hitFx) * 26, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    // Les boules (une par temps) glissent vers la cible ; elles grossissent en approchant
     for (let i = 0; i < 4; i++) {
       const bx = tx + (i + 1 - frac) * px - px;
       if (bx < x + 4 || bx > x + w - 6) continue;
-      const near = Math.abs(bx - tx) < 12;
+      const d = Math.abs(bx - tx);
+      const near = d < 0.07 * pxPerSec;
+      const r = 8 + Math.max(0, 1 - d / px) * 4;
       ctx.fillStyle = near ? '#fff' : '#fb923c';
-      ctx.beginPath(); ctx.arc(bx, y + 15, near ? 11 : 9, 0, 7); ctx.fill();
+      ctx.shadowColor = near ? '#fde047' : 'transparent'; ctx.shadowBlur = near ? 14 : 0;
+      ctx.beginPath(); ctx.arc(bx, y + 15, r, 0, 7); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    // Indication « TAPE ! » au moment exact
+    if (pulse > 0.5 && !t.isAI) {
+      ctx.globalAlpha = (pulse - 0.5) * 2; ctx.fillStyle = '#fff'; ctx.font = '700 13px Fredoka'; ctx.textAlign = 'center';
+      ctx.fillText('TAPE !', tx, y + 46); ctx.globalAlpha = 1;
     }
   }
   // feedback
@@ -743,6 +975,25 @@ function render() {
   ctx.save();
   if (state.shake > 0) ctx.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
   ctx.drawImage(bg, 0, 0, W, H);
+
+  // Rayons de soleil qui tournent très lentement (lumière chaude)
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.translate(480, 262);
+  for (let i = 0; i < 12; i++) {
+    const a = Math.PI + (i + 0.5) * Math.PI / 12 + Math.sin(animT * 0.2) * 0.05;
+    ctx.fillStyle = 'rgba(255,200,120,' + (0.035 + 0.025 * Math.sin(animT * 0.8 + i * 1.3)) + ')';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 560, a - 0.06, a + 0.06); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  // Reflets scintillants sur l'eau
+  for (let i = 0; i < 14; i++) {
+    const sx = 480 + Math.sin(i * 12.9) * 260, sy = 272 + (i % 7) * 9;
+    const a = Math.max(0, Math.sin(animT * 3 + i * 2.1));
+    ctx.fillStyle = 'rgba(255,240,200,' + (a * 0.8) + ')';
+    ctx.fillRect(sx - 3 * a, sy, 6 * a, 1.5);
+  }
 
   // vaguelettes sur le lagon
   ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2;
@@ -780,15 +1031,28 @@ function render() {
   const lH = hands[0][2], rH = hands[1][2];      // mains les plus proches du centre (i=0 est dessiné en dernier)
   const farL = { hx: CX + off - 150 - 2 * 62 - 50, hy: GROUND - 40 }, farR = { hx: CX + off + 150 + 2 * 62 + 50, hy: GROUND - 40 };
   const sag = 16 - tension * 12 + Math.sin(animT * 3) * 1.5;
-  ctx.strokeStyle = '#8b6b3e'; ctx.lineWidth = 6; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(farL.hx, farL.hy);
-  ctx.quadraticCurveTo(CX + off, GROUND - 46 + sag, farR.hx, farR.hy); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,230,180,.5)'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
-  ctx.beginPath(); ctx.moveTo(farL.hx, farL.hy - 1);
-  ctx.quadraticCurveTo(CX + off, GROUND - 47 + sag, farR.hx, farR.hy - 1); ctx.stroke(); ctx.setLineDash([]);
+  // Point de la corde à la position u (0..1) : courbe + vibration (ressort state.ropeWob)
+  const cxp = CX + off, cyp = GROUND - 46 + sag;
+  function ropePt(u) {
+    const v = 1 - u;
+    const x = v * v * farL.hx + 2 * u * v * cxp + u * u * farR.hx;
+    const y = v * v * farL.hy + 2 * u * v * cyp + u * u * farR.hy;
+    return [x, y + Math.sin(Math.PI * u) * state.ropeWob + Math.sin(2 * Math.PI * u) * state.ropeWob * 0.3];
+  }
+  function ropePath(dy) {
+    ctx.beginPath();
+    for (let k = 0; k <= 24; k++) { const [x, y] = ropePt(k / 24); k ? ctx.lineTo(x, y + dy) : ctx.moveTo(x, y + dy); }
+  }
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(60,30,10,.25)'; ctx.lineWidth = 6; ropePath(6); ctx.stroke();   // ombre
+  ctx.strokeStyle = '#8b6b3e'; ctx.lineWidth = 7; ropePath(0); ctx.stroke();
+  // Torsades de la corde qui défilent quand elle bouge
+  ctx.strokeStyle = 'rgba(255,230,180,.55)'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.lineDashOffset = -off;
+  ropePath(-1); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
 
   // Drapeau au milieu de la corde
-  const fx = CX + off, fy = GROUND - 46 + sag * 0.5;
+  const mid = ropePt(0.5);
+  const fx = mid[0], fy = mid[1];
   ctx.strokeStyle = '#3b2a12'; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy + 30); ctx.stroke();
   ctx.fillStyle = '#ef4444';
@@ -798,10 +1062,18 @@ function render() {
   state.particles.forEach(p => {
     ctx.globalAlpha = Math.min(1, p.t * 2);
     ctx.fillStyle = p.col || '#e8c07d';
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+    if (p.conf) {
+      // confetti : petit rectangle qui tourne
+      ctx.save(); ctx.translate(p.x + Math.sin(p.spin) * 6, p.y); ctx.rotate(p.spin);
+      ctx.fillRect(-4, -2.5 * Math.abs(Math.cos(p.spin)) - 0.5, 8, 5 * Math.abs(Math.cos(p.spin)) + 1); ctx.restore();
+    } else { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); }
   });
   ctx.globalAlpha = 1;
   ctx.restore();
+
+  // Vignette (bords assombris) + flash lumineux
+  ctx.drawImage(vignette, 0, 0, W, H);
+  if (state.flash > 0) { ctx.fillStyle = 'rgba(255,235,180,' + state.flash * 0.35 + ')'; ctx.fillRect(0, 0, W, H); }
 
   // ----- Interface -----
   if (state.screen === 'play' || state.screen === 'pause' || state.screen === 'round' || state.screen === 'match') {
@@ -825,7 +1097,8 @@ function render() {
     // Zones tactiles (indication discrète)
     if (state.screen === 'play') {
       ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = '600 15px Fredoka';
-      if (duo) { ctx.textAlign = 'left'; ctx.fillText('◀ tape ici (J1)', 16, 528); ctx.textAlign = 'right'; ctx.fillText('tape ici (J2) ▶', 944, 528); }
+      if (document.body.classList.contains('coarse')) { /* gros boutons visibles : pas besoin de texte */ }
+      else if (duo) { ctx.textAlign = 'left'; ctx.fillText('◀ tape ici (J1)', 16, 528); ctx.textAlign = 'right'; ctx.fillText('tape ici (J2) ▶', 944, 528); }
       else { ctx.textAlign = 'center'; ctx.fillText('Tape en rythme (Espace, A ou écran)', CX, 528); }
     }
     // Compte à rebours
@@ -843,10 +1116,47 @@ function render() {
     ctx.globalAlpha = Math.min(1, p.t * 2);
     ctx.font = `700 ${p.big ? 38 : 28}px Fredoka`; ctx.textAlign = 'center';
     ctx.strokeStyle = 'rgba(40,10,30,.8)'; ctx.lineWidth = 6;
-    ctx.strokeText(p.text, p.x, p.y); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y);
+    // petit effet « pop » à l'apparition
+    const sc = 1 + Math.max(0, p.t - (p.big ? 1.4 : 0.6)) * 2;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.scale(sc, sc);
+    ctx.strokeText(p.text, 0, 0); ctx.fillStyle = p.color; ctx.fillText(p.text, 0, 0);
+    ctx.restore();
   });
   ctx.globalAlpha = 1;
+
+  // Tutoriel : panneau d'explication + flèche vers la cible
+  if (state.tuto && state.screen === 'play') drawTuto();
 }
+
+function drawTuto() {
+  const tu = state.tuto;
+  const lines = tu.step === 0
+    ? ['Tutoriel : appuie (Espace, A ou bouton TIRE)', 'quand une boule orange touche la cible dorée.', 'Réussis 4 appuis en rythme : ' + Math.min(tu.hits, 4) + ' / 4']
+    : ['Bravo ! Taper n’importe comment fatigue ton équipe.', '« Tous ensemble ! » : tape le plus vite possible.', '« Ils poussent ! » : MAINTIENS ta touche appuyée.'];
+  ctx.save();
+  ctx.fillStyle = 'rgba(30,12,30,.85)'; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 3;
+  roundRect(250, 150, 460, 108, 18); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = '600 18px Fredoka';
+  lines.forEach((l, i) => { ctx.fillStyle = i === 2 && tu.step === 0 ? '#ffd166' : '#fff'; ctx.fillText(l, CX, 180 + i * 28); });
+  if (tu.step === 0 && state.countdown <= 0) {
+    // flèche animée qui pointe vers la cible du rythme
+    const bob = Math.sin(animT * 8) * 5;
+    ctx.fillStyle = '#ffd166'; ctx.beginPath();
+    ctx.moveTo(70, 112 + bob); ctx.lineTo(84, 132 + bob); ctx.lineTo(56, 132 + bob); ctx.fill();
+    ctx.fillRect(66, 132 + bob, 8, 18);
+  }
+  ctx.restore();
+}
+
+// Vignette précalculée (assombrit doucement les bords de l'écran)
+const vignette = document.createElement('canvas');
+vignette.width = W; vignette.height = H;
+(function () {
+  const g = vignette.getContext('2d');
+  const gr = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.62);
+  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(20,5,25,.45)');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+})();
 
 // ---------- Boucle principale à pas fixe (60 Hz) ----------
 const STEP = 1 / 60;

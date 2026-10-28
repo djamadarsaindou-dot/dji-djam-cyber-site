@@ -12,7 +12,11 @@
   #stage { position: absolute; left: 0; top: 0; width: 960px; height: 540px; transform-origin: 0 0; overflow: hidden; border-radius: 6px; }
   #cv { position: absolute; left: 0; top: 0; width: 960px; height: 540px; }
   .overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: rgba(4, 40, 60, 0.72); backdrop-filter: blur(3px); text-align: center; padding: 20px; }
-  .overlay.show { display: flex; }
+  .overlay.show { display: flex; animation: ovIn .3s ease-out; }
+  @keyframes ovIn { from { opacity: 0; } to { opacity: 1; } }
+  .overlay.show .panel { animation: panIn .4s cubic-bezier(.3,1.5,.5,1); }
+  @keyframes panIn { from { transform: scale(.85) translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .key { font-size: 13px; font-weight: 400; opacity: .7; }
   .panel { background: linear-gradient(160deg, #0d6f86, #0a4e66); border: 3px solid #7fe7e0; border-radius: 22px; padding: 22px 30px; box-shadow: 0 12px 40px rgba(0,0,0,.4); max-width: 760px; }
   h1 { font-size: 54px; font-weight: 700; color: #ffe27a; text-shadow: 0 4px 0 #c0702a, 0 8px 18px rgba(0,0,0,.4); letter-spacing: 1px; }
   h2 { font-size: 32px; color: #ffe27a; margin-bottom: 10px; }
@@ -35,8 +39,11 @@
   table { margin: 10px auto; border-collapse: collapse; font-size: 20px; }
   td { padding: 5px 14px; }
   tr.me { background: rgba(255,226,122,.25); }
-  .touch { position: absolute; bottom: 14px; width: 170px; height: 110px; border-radius: 24px; background: rgba(255,255,255,.18); border: 3px solid rgba(255,255,255,.5); display: none; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; text-align: center; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.5); }
+  .touch { position: absolute; bottom: 14px; width: 230px; height: 150px; font-size: 24px !important; border-radius: 24px; background: rgba(255,255,255,.18); border: 3px solid rgba(255,255,255,.5); display: none; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; text-align: center; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.5); }
   .touch.on { display: flex; }
+  .touch.press { transform: scale(.95); }
+  #btnSkip { position: absolute; right: 14px; top: 222px; display: none; font-size: 16px; padding: 6px 14px; }
+  #btnSkip.on { display: block; }
   .touch.press { background: rgba(255,226,122,.45); }
   #tl { left: 14px; } #tr { right: 14px; }
   #btnPause { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: none; font-size: 16px; padding: 4px 14px; }
@@ -51,6 +58,7 @@
   <div class="touch" id="tl">◀<br>PAGAIE<br>GAUCHE</div>
   <div class="touch" id="tr">▶<br>PAGAIE<br>DROITE</div>
   <button id="btnPause" class="sec">❚❚ Pause</button>
+  <button id="btnSkip" class="sec">Passer le tutoriel ▶</button>
 
   <div id="countdown">3</div>
 
@@ -98,6 +106,7 @@
       <p id="resMsg"></p>
       <table id="resTable"></table>
       <button id="btnNext">Course suivante ▶</button>
+      <p class="key">Entrée : continuer · Échap : menu</p>
       <button class="sec" id="btnAgain">Rejouer</button>
       <button class="sec" id="btnMenu">Menu</button>
     </div>
@@ -214,9 +223,38 @@ function tone(freq, dur, type, vol, slide) {
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
+// ---------- Musique douce (arpèges pentatoniques, programmés à l'avance sur l'horloge audio) ----------
+let musicGain = null, musicNext = 0, musicStep = 0;
+const MUSIC_BPM = 96;
+const MEL = [0, 2, 4, 7, 9, 7, 4, 2];           // degrés d'une gamme pentatonique (demi-tons)
+const CHORDS = [0, -3, 5, 7];                   // basse : une note par mesure
+function musicTick() {
+  if (!AC || AC.state !== 'running') return;
+  if (!musicGain) { musicGain = AC.createGain(); musicGain.gain.value = 0.11; musicGain.connect(master); }
+  const playing = state.screen === 'game' && !state.paused;
+  musicGain.gain.setTargetAtTime(playing ? 0.11 : 0.0, AC.currentTime, 0.3);
+  if (!playing) { musicNext = 0; return; }
+  const stepDur = 60 / MUSIC_BPM / 2;             // croches
+  if (musicNext < AC.currentTime) musicNext = AC.currentTime + 0.05;
+  while (musicNext < AC.currentTime + 0.2) {
+    const bar = Math.floor(musicStep / 8) % 4, k = musicStep % 8;
+    const root = 261.63 * Math.pow(2, CHORDS[bar] / 12);
+    if (k === 0 || k === 4) note(root / 2, 0.5, 'triangle', 0.5, musicNext);
+    if (k % 2 === 0 || Math.random() < 0.4) note(root * Math.pow(2, MEL[(k + bar * 2) % 8] / 12), 0.22, 'sine', 0.25, musicNext);
+    musicNext += stepDur; musicStep++;
+  }
+}
+function note(f, dur, type, vol, t) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value = f;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(musicGain); o.start(t); o.stop(t + dur + 0.05);
+}
+
 function sndBump() { tone(140, 0.25, 'sine', 0.4, 50); tone(90, 0.2, 'triangle', 0.2, 40); }
 function sndBeep(hi) { tone(hi ? 880 : 520, hi ? 0.5 : 0.18, 'square', 0.12); }
 function sndGate() { tone(660, 0.12, 'triangle', 0.15); setTimeout(() => tone(990, 0.15, 'triangle', 0.12), 70); }
+function sndStreak() { [784, 988, 1175].forEach((f, i) => setTimeout(() => tone(f, 0.16, 'triangle', 0.12), i * 70)); }
 function sndBoost() { tone(300, 0.5, 'sawtooth', 0.08, 1200); }
 function sndWin() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.35, 'triangle', 0.18), i * 140)); }
 function sndLose() { [440, 392, 330].forEach((f, i) => setTimeout(() => tone(f, 0.35, 'triangle', 0.15), i * 180)); }
@@ -233,11 +271,13 @@ const COURSES = [
   { name: 'Lagon calme', desc: 'Eau plate, idéal pour apprendre', seed: 11, gates: 9, spacing: 520, amp: 160, gateW: 230,
     islets: 4, corals: 5, turtles: 3, boats: 0, currents: 0, waves: 0, rings: 3, ai: [0.62, 0.70, 0.78], passe: false },
   { name: 'Passe entre les îlots', desc: 'Îlots serrés et courants', seed: 27, gates: 11, spacing: 520, amp: 260, gateW: 200,
-    islets: 9, corals: 10, turtles: 4, boats: 1, currents: 3, waves: 0, rings: 3, ai: [0.74, 0.82, 0.88], passe: true },
+    islets: 9, corals: 10, turtles: 4, boats: 1, currents: 3, waves: 0, rings: 3, ai: [0.72, 0.79, 0.85], passe: true },
   { name: 'Mer agitée', desc: 'Houle, courants et bateaux de pêche', seed: 43, gates: 12, spacing: 540, amp: 280, gateW: 190,
-    islets: 7, corals: 12, turtles: 4, boats: 3, currents: 3, waves: 1, rings: 4, ai: [0.86, 0.92, 0.98], passe: false },
-  { name: 'Grande finale', desc: 'Tout le lagon contre toi !', seed: 71, gates: 14, spacing: 540, amp: 320, gateW: 175,
-    islets: 10, corals: 16, turtles: 5, boats: 4, currents: 4, waves: 1.4, rings: 4, ai: [0.95, 1.02, 1.08], passe: true },
+    islets: 7, corals: 12, turtles: 4, boats: 3, currents: 3, waves: 1, rings: 4, ai: [0.80, 0.86, 0.91], passe: false },
+  // Finale rééquilibrée : avant, l'adversaire le plus fort (1.08) allait aussi vite qu'un joueur parfait
+  // et l'« élastique » l'accélérait encore → presque impossible à gagner. Désormais un bon joueur peut gagner.
+  { name: 'Grande finale', desc: 'Tout le lagon contre toi !', seed: 71, gates: 14, spacing: 540, amp: 300, gateW: 190,
+    islets: 10, corals: 13, turtles: 5, boats: 3, currents: 4, waves: 1.1, rings: 5, ai: [0.84, 0.89, 0.94], passe: true },
 ];
 
 // Les 4 pirogues (couleurs peintes)
@@ -267,7 +307,29 @@ let state = {
   finishOrder: [],
   endTimer: 0,
   input: [],             // coups de pagaie en attente ('L' ou 'R')
+  streak: 0,             // coups « bon rythme » d'affilée (encouragements)
+  tuto: null,            // tutoriel en cours : { step, n } ou null
+  confetti: [],          // confettis de célébration (en coordonnées écran)
+  ringFx: [],            // anneaux lumineux au passage des bouées
 };
+let resultsTimer = null;   // délai d'affichage des résultats (annulé si on relance une course)
+
+// ---------- Tutoriel interactif (une fois, mémorisé sous une clé à part) ----------
+const TUTO_KEY = 'pirogues-tuto-v1';
+function tutoDone() { try { return localStorage.getItem(TUTO_KEY) === '1'; } catch (e) { return true; } }
+function endTuto() {
+  if (!state.tuto) return;
+  try { localStorage.setItem(TUTO_KEY, '1'); } catch (e) {}
+  state.tuto = null;
+  $('btnSkip').classList.remove('on');
+  if (state.phase === 'race') showMsg('Bien joué ! À toi la course !', 2);
+}
+// Textes des étapes du tutoriel
+const TUTO_STEPS = [
+  'Alterne ← → (gauche, droite…) pour avancer',
+  'Pour tourner : plusieurs coups du MÊME côté (← ← ← ou → → →)',
+  'Passe entre les deux bouées orange !'
+];
 let selectedCourse = Math.min(save.unlocked, COURSES.length - 1);
 
 // ---------- Construction d'une course ----------
@@ -423,6 +485,7 @@ function makeBoat(i, x, y, skill) {
 function startCourse(i) {
   i = clamp(i | 0, 0, COURSES.length - 1);
   audioInit();
+  clearTimeout(resultsTimer); resultsTimer = null;   // évite que l'ancien écran de résultats réapparaisse
   const c = COURSES[i];
   const world = buildCourse(c);
   Object.assign(state, world);
@@ -438,6 +501,9 @@ function startCourse(i) {
   state.endTimer = 0;
   state.input = [];
   state.msg = { text: '', t: 0 };
+  state.streak = 0; state.confetti = []; state.ringFx = [];
+  state.tuto = (i === 0 && !tutoDone()) ? { step: 0, n: 0 } : null;
+  $('btnSkip').classList.toggle('on', !!state.tuto);
   state.boats = [];
   // Ligne de départ : 4 pirogues côte à côte (le joueur en 2e position)
   const xs = [-45, -135, 45, 135];
@@ -450,6 +516,8 @@ function startCourse(i) {
   if (window.matchMedia('(pointer: coarse)').matches) { $('tl').classList.add('on'); $('tr').classList.add('on'); }
   $('btnPause').classList.add('on');
   if (ambGain) ambGain.gain.value = 0.08 + c.waves * 0.04;
+  $('countdown').textContent = '3';
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 }
 
 // =====================================================================
@@ -479,6 +547,7 @@ function doStroke(b, side) {
   b.lastSide = side; b.lastStroke = now;
   b.stroke = { side, t: 0 };
   b.quality = same ? -1 : q;
+  if (!b.ai) playerStrokeFeedback(same, q);
   // Éclaboussures
   const hx = Math.sin(b.a), hy = -Math.cos(b.a);   // vecteur avant
   const px = Math.cos(b.a), py = Math.sin(b.a);    // vecteur droite
@@ -487,6 +556,22 @@ function doStroke(b, side) {
   for (let k = 0; k < 7; k++) spawnParticle(sx, sy, -hx * 60 + (Math.random() - 0.5) * 70, -hy * 60 + (Math.random() - 0.5) * 70, 0.5, 'splash');
   if (!b.ai) sndSplash(q * sf);
   else if (dist(b.x, b.y, state.player.x, state.player.y) < 300 && Math.random() < 0.3) sndSplash(0.15);
+}
+
+// Encouragements (série de bons coups) et progression du tutoriel
+function playerStrokeFeedback(same, q) {
+  if (!same && q >= 1) {
+    state.streak++;
+    if (state.streak % 10 === 0) {
+      const words = ['Super rythme !', 'Quelle cadence !', 'Tu voles sur l’eau !', 'Champion !'];
+      showMsg(words[Math.min(words.length - 1, state.streak / 10 - 1)] + ' x' + state.streak, 1.4);
+      sndStreak();
+    }
+  } else if (!same && q < 0.5) state.streak = 0;
+  const tu = state.tuto;
+  if (!tu) return;
+  if (tu.step === 0 && !same) { if (++tu.n >= 6) { tu.step = 1; tu.n = 0; sndGate(); } }
+  else if (tu.step === 1 && same) { if (++tu.n >= 3) { tu.step = 2; tu.n = 0; sndGate(); } }
 }
 
 function spawnParticle(x, y, vx, vy, life, kind) {
@@ -521,8 +606,9 @@ function aiThink(b, dt) {
     // Rythme : plus l'IA est forte, plus elle pagaie vite et régulièrement
     // Petit "élastique" : un adversaire très loin devant ralentit un peu, très loin derrière accélère
     const gap = progress(b) - progress(state.player);
-    const rubber = clamp(1 - gap / 6000, 0.85, 1.12);
+    const rubber = clamp(1 - gap / 6000, 0.85, 1.06);
     let interval = 0.36 / (b.skill * rubber) + (Math.random() - 0.5) * 0.08;
+    if (state.tuto) interval *= 1.6;          // pendant le tutoriel, les adversaires sont plus lents
     if (b.stamina < 0.3) interval += 0.15;
     b.aiTimer = interval;
     let side;
@@ -545,6 +631,11 @@ function ranking() { return state.boats.slice().sort((a, b) => progress(b) - pro
 // =====================================================================
 function tick(dt) {
   state.t += dt;
+  // Confettis (en coordonnées écran) : ils tombent même pendant l'écran des résultats
+  if (state.confetti.length && !state.paused) {
+    state.confetti.forEach(c => { c.x += c.vx * dt + Math.sin(state.t * 3 + c.r) * 0.6; c.y += c.vy * dt; c.r += dt * 6; c.life -= dt; });
+    state.confetti = state.confetti.filter(c => c.life > 0 && c.y < H + 20);
+  }
   if (state.screen !== 'game' || state.paused) return;
 
   // Compte à rebours 3-2-1
@@ -586,6 +677,8 @@ function tick(dt) {
     }
   }
   if (state.msg.t > 0) state.msg.t -= dt;
+  state.ringFx.forEach(r => r.t += dt);
+  state.ringFx = state.ringFx.filter(r => r.t < 0.8);
 }
 
 function updateWorld(dt, racing) {
@@ -676,7 +769,11 @@ function updateWorld(dt, racing) {
           b.finished = true; b.finishTime = state.raceTime;
           state.finishOrder.push(b);
           if (!b.ai) {} else if (state.finishOrder.length === 1) showMsg(b.crew.name + ' a fini !', 1.5);
-        } else if (!b.ai) sndGate();
+        } else if (!b.ai) {
+          sndGate();
+          state.ringFx.push({ x: g.x, y: g.y, t: 0 });
+          if (state.tuto && state.tuto.step === 2) endTuto();
+        }
         b.prevS = -1;
       } else b.prevS = s;
     }
@@ -712,6 +809,8 @@ function endRace() {
   if (pos <= 3 && i + 1 < COURSES.length && save.unlocked < i + 1) { save.unlocked = i + 1; unlockedNew = true; }
   writeSave();
   pos <= 3 ? sndWin() : sndLose();
+  if (pos <= 3) launchConfetti(pos === 1 ? 160 : 90);
+  if (state.tuto) endTuto();
 
   const medals = ['🥇', '🥈', '🥉', ''];
   $('resTitle').textContent = pos === 1 ? '🥇 Victoire !' : pos <= 3 ? medals[pos - 1] + ' Sur le podium !' : 'Raté de peu…';
@@ -724,7 +823,13 @@ function endRace() {
     '</td><td>' + (b.finished ? fmtTime(b.finishTime) : '—') + '</td></tr>').join('');
   $('btnNext').disabled = !(i + 1 < COURSES.length && save.unlocked >= i + 1);
   $('btnNext').style.display = i + 1 < COURSES.length ? '' : 'none';
-  setTimeout(() => { $('results').classList.add('show'); hideTouch(); }, 900);
+  hideTouch();
+  clearTimeout(resultsTimer);
+  resultsTimer = setTimeout(() => { if (state.screen === 'game' && state.phase === 'done') $('results').classList.add('show'); }, 900);
+}
+function launchConfetti(n) {
+  const cols = ['#ffe27a', '#ff7a1a', '#7fe7e0', '#ff6b9a', '#6be08a', '#ffffff'];
+  for (let k = 0; k < n; k++) state.confetti.push({ x: Math.random() * W, y: -20 - Math.random() * 300, vx: (Math.random() - 0.5) * 60, vy: 60 + Math.random() * 90, r: Math.random() * 6, life: 5, col: cols[k % cols.length] });
 }
 function fmtTime(s) { const m = Math.floor(s / 60); const r = s - m * 60; return m + ':' + (r < 10 ? '0' : '') + r.toFixed(2); }
 
@@ -790,6 +895,7 @@ function render() {
 
   // Caustiques animées (deux couches qui glissent)
   drawCaustics(ox, oy, t);
+  drawWaterSparkles(ox, oy, t);
 
   ctx.save();
   ctx.translate(ox, oy);
@@ -821,7 +927,24 @@ function render() {
     ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 6 + Math.sin(t * 2 + o.y) * 2, 0, 7); ctx.stroke();
   });
 
-  // Sillages des pirogues
+  // Sillages des pirogues : d'abord une traînée d'écume douce (remplie), puis les lignes du V
+  state.boats.forEach(b => {
+    if (!onScreen(b.x, b.y, 300, ox, oy)) return;
+    for (let i = 2; i < b.trail.length; i += 2) {
+      const p = b.trail[i];
+      if (p.life <= 0) continue;
+      const age = 1 - p.life / 1.2;
+      const al = (p.life / 1.2) * clamp(p.v / 250, 0, 0.5) * 0.5;
+      ctx.fillStyle = 'rgba(255,255,255,' + al + ')';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4 + age * 14, 0, 7); ctx.fill();
+    }
+    // Vague d'étrave (à l'avant de la coque) quand la pirogue va vite
+    if (b.v > 60) {
+      const hx = Math.sin(b.a), hy = -Math.cos(b.a), al = clamp((b.v - 60) / 220, 0, 0.7);
+      ctx.strokeStyle = 'rgba(255,255,255,' + al + ')'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(b.x + hx * 26, b.y + hy * 26, 9, b.a - Math.PI / 2 - 1.1, b.a - Math.PI / 2 + 1.1); ctx.stroke();
+    }
+  });
   state.boats.forEach(b => {
     ctx.lineCap = 'round';
     for (let i = 1; i < b.trail.length; i++) {
@@ -872,6 +995,13 @@ function render() {
     if (last) { ctx.fillStyle = '#fff'; ctx.font = '700 22px Fredoka'; ctx.textAlign = 'center'; ctx.fillText('ARRIVÉE', g.x, g.y - 20); }
   });
 
+  // Anneaux lumineux quand le joueur passe une porte
+  state.ringFx.forEach(r => {
+    const k = r.t / 0.8;
+    ctx.strokeStyle = 'rgba(255,226,122,' + (1 - k) + ')'; ctx.lineWidth = 6 * (1 - k) + 1;
+    ctx.beginPath(); ctx.arc(r.x, r.y, 30 + k * 120, 0, 7); ctx.stroke();
+  });
+
   // Bateaux de pêche
   state.fishers.forEach(o => { if (onScreen(o.x, o.y, 60, ox, oy)) drawFisher(o, t); });
 
@@ -880,6 +1010,8 @@ function render() {
 
   // Îlots (la terre passe au-dessus de l'eau)
   state.islets.forEach(o => { if (onScreen(o.x, o.y, o.r + 40, ox, oy)) drawIslet(o, t); });
+
+  drawSteerHints(t);
 
   // Particules
   state.particles.forEach(p => {
@@ -903,9 +1035,108 @@ function render() {
     }
   }
 
+  ctx.drawImage(vignette, 0, 0, W, H);
   drawHUD(ox, oy);
+  drawTuto();
+  drawConfetti();
   ctx.restore();
 }
+
+// Flèches gauche/droite à côté de la pirogue du joueur : au départ de chaque course, et pendant le tutoriel
+function drawSteerHints(t) {
+  const p = state.player;
+  const early = state.phase === 'countdown' || (state.phase === 'race' && state.raceTime < 5);
+  if (!state.tuto && !early) return;
+  const step = state.tuto ? state.tuto.step : 0;
+  if (step === 2) return;
+  const al = state.tuto ? 1 : (state.phase === 'countdown' ? 1 : clamp((5 - state.raceTime) / 1.5, 0, 1));
+  // Étape « tourner » : on met en avant la flèche du côté où il faut tourner pour viser la bouée
+  let hl = 0;
+  if (step === 1) {
+    const g = state.gates[Math.min(p.gate, state.gates.length - 1)];
+    const d = angleDiff(p.a, Math.atan2(g.x - p.x, -(g.y - p.y)));
+    hl = d < 0 ? -1 : 1;
+  }
+  ctx.save();
+  ctx.translate(p.x, p.y); ctx.rotate(p.a);
+  ctx.globalAlpha = al;
+  const pulse = 1 + Math.sin(t * 6) * 0.08;
+  [-1, 1].forEach(sd => {
+    // étape « avancer » : la flèche allumée est celle du prochain coup à donner (alternance)
+    const lit = step === 0 ? (p.lastSide === null ? true : (p.lastSide === 'L') === (sd === 1)) : sd === hl;
+    ctx.save(); ctx.translate(sd * 62, 0); ctx.scale(pulse, pulse);
+    ctx.fillStyle = lit ? '#ffe27a' : 'rgba(255,255,255,0.45)';
+    ctx.strokeStyle = '#083a4a'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(sd * 18, 0); ctx.lineTo(0, -16); ctx.lineTo(0, -7); ctx.lineTo(-sd * 14, -7); ctx.lineTo(-sd * 14, 7); ctx.lineTo(0, 7); ctx.lineTo(0, 16); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  });
+  ctx.restore();
+  // Légende sous la pirogue (texte droit, lisible)
+  ctx.globalAlpha = al;
+  ctx.font = '700 15px Fredoka'; ctx.textAlign = 'center';
+  const txt = step === 1 ? (hl < 0 ? '← ← ← pour virer à gauche' : '→ → → pour virer à droite') : '← puis → puis ← … pour avancer';
+  ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,40,60,0.8)'; ctx.strokeText(txt, p.x, p.y + 58);
+  ctx.fillStyle = '#fff'; ctx.fillText(txt, p.x, p.y + 58);
+  ctx.globalAlpha = 1;
+}
+
+// Panneau du tutoriel (en coordonnées écran)
+function drawTuto() {
+  if (!state.tuto) return;
+  const tu = state.tuto;
+  panel(W / 2 - 260, 92, 520, 58);
+  ctx.strokeStyle = '#ffe27a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(W / 2 - 260, 92, 520, 58, 14) : ctx.rect(W / 2 - 260, 92, 520, 58); ctx.stroke();
+  ctx.textAlign = 'center'; ctx.fillStyle = '#ffe27a'; ctx.font = '600 14px Fredoka';
+  ctx.fillText('Tutoriel ' + (tu.step + 1) + ' / 3' + (state.phase === 'countdown' ? ' — attends « Partez ! »' : ''), W / 2, 111);
+  ctx.fillStyle = '#fff'; ctx.font = '700 19px Fredoka';
+  const prog = tu.step === 0 ? ' (' + tu.n + '/6)' : tu.step === 1 ? ' (' + tu.n + '/3)' : '';
+  ctx.fillText(TUTO_STEPS[tu.step] + prog, W / 2, 138);
+}
+
+// Confettis de célébration (coordonnées écran)
+function drawConfetti() {
+  state.confetti.forEach(c => {
+    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.r);
+    ctx.globalAlpha = clamp(c.life, 0, 1);
+    ctx.fillStyle = c.col; ctx.fillRect(-4, -2.5 * Math.abs(Math.cos(c.r)) - 0.5, 8, 5 * Math.abs(Math.cos(c.r)) + 1);
+    ctx.restore();
+  });
+  ctx.globalAlpha = 1;
+}
+
+// Petits reflets de soleil et rides à la surface (liés au monde, donc ils défilent avec la caméra)
+function drawWaterSparkles(ox, oy, t) {
+  ctx.save();
+  const cell = 120;
+  const x0 = Math.floor(-ox / cell) - 1, y0 = Math.floor(-oy / cell) - 1;
+  for (let gx = x0; gx < x0 + W / cell + 3; gx++) for (let gy = y0; gy < y0 + H / cell + 3; gy++) {
+    const h = Math.sin(gx * 127.1 + gy * 311.7) * 43758.5453, r = h - Math.floor(h);   // pseudo-hasard fixe par case
+    const sx = gx * cell + r * cell + ox, sy = gy * cell + ((r * 7) % 1) * cell + oy;
+    const a = Math.max(0, Math.sin(t * 2.2 + r * 40));
+    if (a > 0.2) {
+      ctx.fillStyle = 'rgba(255,255,255,' + (a - 0.2) * 0.7 + ')';
+      ctx.beginPath(); ctx.ellipse(sx, sy, 5 * a, 1.4, 0, 0, 7); ctx.fill();
+    }
+    // ride en forme de petite vague
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 2;
+    const wy = sy + 40 + Math.sin(t + r * 10) * 3;
+    ctx.beginPath(); ctx.moveTo(sx - 20, wy); ctx.quadraticCurveTo(sx - 5, wy - 5, sx + 10, wy); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Vignette précalculée : bords légèrement assombris pour donner de la profondeur
+const vignette = document.createElement('canvas');
+vignette.width = W; vignette.height = H;
+(function () {
+  const g = vignette.getContext('2d');
+  const gr = g.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, W * 0.65);
+  gr.addColorStop(0, 'rgba(0,30,50,0)'); gr.addColorStop(1, 'rgba(0,30,50,0.35)');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+})();
 
 function onScreen(x, y, r, ox, oy) { const sx = x + ox, sy = y + oy; return sx > -r - 20 && sx < W + r + 20 && sy > -r - 20 && sy < H + r + 20; }
 
@@ -1041,9 +1272,30 @@ function drawIslet(o, t) {
   const g = ctx.createRadialGradient(-o.r * 0.2, -o.r * 0.2, o.r * 0.1, 0, 0, o.r * 0.9);
   g.addColorStop(0, '#fff6dc'); g.addColorStop(1, '#efd9a6');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, o.r * 0.88, 0, 7); ctx.fill();
-  // Végétation
-  ctx.fillStyle = '#6fbf5a'; ctx.beginPath(); ctx.arc(o.r * 0.05, o.r * 0.05, o.r * 0.45, 0, 7); ctx.fill();
-  ctx.fillStyle = '#4fa548'; ctx.beginPath(); ctx.arc(-o.r * 0.1, -o.r * 0.05, o.r * 0.3, 0, 7); ctx.fill();
+  // Sable mouillé (bord plus foncé) et quelques rochers
+  ctx.strokeStyle = 'rgba(190,150,90,0.45)'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(0, 0, o.r * 0.84, 0, 7); ctx.stroke();
+  for (let k = 0; k < 3; k++) {
+    const a = o.wob * 2 + k * 2.1;
+    ctx.fillStyle = k % 2 ? '#8a8378' : '#a59d90';
+    ctx.beginPath(); ctx.ellipse(Math.cos(a) * o.r * 0.72, Math.sin(a) * o.r * 0.72, 5 + k * 2, 4 + k, a, 0, 7); ctx.fill();
+  }
+  // Végétation : plusieurs buissons superposés, ombre portée et touches de lumière
+  ctx.fillStyle = 'rgba(30,80,40,0.25)'; ctx.beginPath(); ctx.arc(o.r * 0.12, o.r * 0.14, o.r * 0.5, 0, 7); ctx.fill();
+  ctx.fillStyle = '#5fae4c'; ctx.beginPath(); ctx.arc(o.r * 0.05, o.r * 0.05, o.r * 0.47, 0, 7); ctx.fill();
+  for (let k = 0; k < 7; k++) {
+    const a = k * 0.9 + o.wob, d = o.r * (0.22 + (k % 3) * 0.1), rr = o.r * (0.14 + (k % 2) * 0.06);
+    ctx.fillStyle = k % 3 === 0 ? '#3f9640' : k % 3 === 1 ? '#6cc257' : '#4fa548';
+    ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, rr, 0, 7); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(200,255,170,0.35)';
+  ctx.beginPath(); ctx.arc(-o.r * 0.15, -o.r * 0.18, o.r * 0.16, 0, 7); ctx.fill();
+  // petites fleurs
+  for (let k = 0; k < 4; k++) {
+    const a = o.wob * 3 + k * 1.6, d = o.r * 0.32;
+    ctx.fillStyle = k % 2 ? '#ff9ad2' : '#ffe27a';
+    ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, 2.2, 0, 7); ctx.fill();
+  }
   // Palmiers (vus de dessus : étoile de palmes)
   o.palms.forEach(p => {
     const x = Math.cos(p.a) * p.d, y = Math.sin(p.a) * p.d;
@@ -1176,6 +1428,7 @@ function loop(now) {
   acc += Math.min(0.25, (now - last) / 1000);
   last = now;
   while (acc >= STEP) { tick(STEP); acc -= STEP; }
+  musicTick();
   render();
   requestAnimationFrame(loop);
 }
@@ -1193,6 +1446,14 @@ window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (e.key === 'ArrowLeft' || k === 'q' || k === 'a') { paddle('L'); e.preventDefault(); }
   else if (e.key === 'ArrowRight' || k === 'd') { paddle('R'); e.preventDefault(); }
+  else if ((e.key === 'Enter' || e.key === 'Escape') && $('results').classList.contains('show')) {
+    // Écran des résultats : Entrée = course suivante (ou rejouer), Échap = menu
+    e.preventDefault();
+    if (e.key === 'Escape') showMenu();
+    else if ($('btnNext').style.display !== 'none' && !$('btnNext').disabled) $('btnNext').onclick();
+    else startCourse(state.courseIndex);
+  }
+  else if (e.key === 'Enter' && state.tuto && state.screen === 'game') endTuto();
   else if (e.key === 'Escape' || k === 'p') togglePause();
   else if (k === 'm') { audioInit(); setMuted(!save.muted); }
   else if ((e.key === 'Enter' || e.key === ' ') && state.screen === 'menu' && $('menu').classList.contains('show')) { startCourse(selectedCourse); e.preventDefault(); }
@@ -1201,6 +1462,7 @@ window.addEventListener('keydown', e => {
 [['tl', 'L'], ['tr', 'R']].forEach(([id, side]) => {
   const el = $(id);
   el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('press'); paddle(side); });
+  el.addEventListener('touchstart', e => e.preventDefault(), { passive: false });   // pas de zoom/défilement
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => el.addEventListener(ev, () => el.classList.remove('press')));
 });
 
@@ -1209,7 +1471,7 @@ function togglePause() {
   state.paused = !state.paused;
   $('pause').classList.toggle('show', state.paused);
 }
-function hideTouch() { ['tl', 'tr', 'btnPause'].forEach(id => $(id).classList.remove('on')); }
+function hideTouch() { ['tl', 'tr', 'btnPause', 'btnSkip'].forEach(id => $(id).classList.remove('on')); }
 function hideAll() { ['menu', 'rules', 'pause', 'results'].forEach(id => $(id).classList.remove('show')); $('countdown').classList.remove('show'); }
 function showMenu() {
   hideAll(); hideTouch();
@@ -1239,6 +1501,11 @@ $('btnRules').onclick = () => { $('menu').classList.remove('show'); $('rules').c
 $('btnRulesBack').onclick = () => { $('rules').classList.remove('show'); $('menu').classList.add('show'); };
 $('btnMute').onclick = () => { audioInit(); setMuted(!save.muted); };
 $('btnPause').onclick = togglePause;
+$('btnSkip').onclick = endTuto;
+// Pas de menu contextuel ni de zoom (appui long, double-tape, pincement iOS) : utile dans une iframe
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
 $('btnResume').onclick = togglePause;
 $('btnRestart').onclick = () => startCourse(state.courseIndex);
 $('btnQuit').onclick = showMenu;

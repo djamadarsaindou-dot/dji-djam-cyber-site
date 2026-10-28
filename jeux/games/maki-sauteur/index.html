@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Le maki sauteur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0d2b1e; font-family: 'Fredoka', sans-serif; color: #fff; touch-action: none; user-select: none; -webkit-user-select: none; }
+  /* La scène fait toujours 960x540 et est mise à l'échelle */
+  #stage { position: absolute; left: 50%; top: 50%; width: 960px; height: 540px; transform-origin: center center; overflow: hidden; border-radius: 6px; }
+  #c { position: absolute; left: 0; top: 0; width: 960px; height: 540px; display: block; }
+  .ov { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(10, 30, 20, .62); backdrop-filter: blur(3px); text-align: center; padding: 24px; }
+  .ov.show { display: flex; }
+  h1 { font-size: 64px; font-weight: 700; color: #ffd166; text-shadow: 0 5px 0 #7a4a1a, 0 10px 24px rgba(0,0,0,.4); line-height: 1; }
+  h2 { font-size: 40px; font-weight: 700; color: #ffd166; text-shadow: 0 4px 0 #7a4a1a; }
+  p { font-size: 19px; max-width: 640px; line-height: 1.4; }
+  .tip { font-size: 16px; color: #c8f7c5; background: rgba(0,0,0,.25); padding: 6px 14px; border-radius: 12px; }
+  .btn { font-family: inherit; font-size: 22px; font-weight: 600; color: #3b2208; background: linear-gradient(#ffe08a, #ffb84d); border: none; border-radius: 16px; padding: 10px 26px; box-shadow: 0 5px 0 #a8641c; cursor: pointer; min-width: 220px; }
+  .btn:hover { filter: brightness(1.07); }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #a8641c; }
+  .btn.sec { background: linear-gradient(#d9f5e4, #9fdcb8); box-shadow: 0 5px 0 #3f8a5e; color: #123d27; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  #grid { display: grid; grid-template-columns: repeat(3, 200px); gap: 12px; }
+  .lvl { font-family: inherit; background: linear-gradient(#fff3d1, #ffd98a); color: #4a2a08; border: none; border-radius: 16px; padding: 12px 8px; cursor: pointer; box-shadow: 0 4px 0 #a8641c; font-size: 18px; font-weight: 600; }
+  .lvl .n { font-size: 30px; font-weight: 700; display: block; }
+  .lvl .st { font-size: 20px; letter-spacing: 2px; color: #e08a00; }
+  .lvl.lock { background: #6b7d72; color: #c9d3cc; box-shadow: 0 4px 0 #3c4a42; cursor: not-allowed; }
+  .lvl.inf { grid-column: 1 / -1; background: linear-gradient(#c9f2ff, #7fd0f0); box-shadow: 0 4px 0 #2b7fa0; color: #0c3446; }
+  #hudbtn { position: absolute; right: 12px; top: 10px; display: none; gap: 8px; }
+  #hudbtn button { font-family: inherit; width: 44px; height: 44px; border-radius: 12px; border: none; background: rgba(0,0,0,.35); color: #fff; font-size: 20px; cursor: pointer; }
+  .touch-only { display: none; }
+  @media (pointer: coarse) { .touch-only { display: block; } .key-only { display: none; } }
+  .bigstars { font-size: 56px; letter-spacing: 8px; color: #ffd166; text-shadow: 0 3px 0 #7a4a1a; }
+  .bigstars .off { color: rgba(255,255,255,.25); text-shadow: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c"></canvas>
+
+  <div id="hudbtn"><button id="bPause" title="Pause (Échap)">⏸</button><button id="bMute" title="Son (M)">🔊</button></div>
+
+  <!-- Menu principal -->
+  <div class="ov show" id="menu">
+    <h1>Le maki sauteur</h1>
+    <p>Le maki est l'un des animaux emblématiques de Mayotte. Aide-le à bondir d'arbre en arbre !</p>
+    <div class="row"><button class="btn" id="bPlay">Jouer</button><button class="btn sec" id="bRules">Règles</button></div>
+    <div class="tip">🌿 Dans la vraie vie, on ne nourrit pas les makis.</div>
+    <div class="tip" id="bestMenu"></div>
+  </div>
+
+  <!-- Choix des niveaux -->
+  <div class="ov" id="levels">
+    <h2>Niveaux</h2>
+    <div id="grid"></div>
+    <button class="btn sec" id="bBack1">Retour</button>
+  </div>
+
+  <!-- Règles -->
+  <div class="ov" id="rules">
+    <h2>Règles</h2>
+    <p class="key-only">Maintiens <b>Espace</b> (ou clic) puis relâche : plus tu appuies longtemps, plus le saut est grand.<br>En l'air, appuie encore pour un <b>double saut</b> avec la queue, et garde appuyé pour <b>planer</b>.</p>
+    <p class="touch-only">Touche l'écran et relâche : plus tu restes appuyé, plus le saut est grand.<br>En l'air, touche encore pour un <b>double saut</b>, garde le doigt pour <b>planer</b>.</p>
+    <p>Ramasse les mangues, bananes, papayes et fruits à pain. Évite les nids de guêpes, les chiens en bas et les fils électriques. Ne tombe pas !</p>
+    <p>Atteins la distance du niveau. Les ⭐ dépendent des fruits ramassés.</p>
+    <p class="key-only" style="font-size:16px">Échap / P : pause — M : couper le son</p>
+    <div class="tip">🌿 Dans la vraie vie, on ne nourrit pas les makis.</div>
+    <button class="btn sec" id="bBack2">Retour</button>
+  </div>
+
+  <!-- Pause -->
+  <div class="ov" id="pause">
+    <h2>Pause</h2>
+    <div class="row"><button class="btn" id="bResume">Reprendre</button><button class="btn sec" id="bRestart">Recommencer</button><button class="btn sec" id="bQuit">Menu</button></div>
+  </div>
+
+  <!-- Fin de partie -->
+  <div class="ov" id="result">
+    <h2 id="resTitle"></h2>
+    <div class="bigstars" id="resStars"></div>
+    <p id="resText"></p>
+    <div class="row"><button class="btn" id="bNext">Suivant</button><button class="btn sec" id="bAgain">Rejouer</button><button class="btn sec" id="bMenu2">Niveaux</button></div>
+    <div class="tip">🌿 Dans la vraie vie, on ne nourrit pas les makis.</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   LE MAKI SAUTEUR — jeu de plateforme / course
+   Tout est dans ce fichier. Commentaires en français.
+   ============================================================ */
+
+// ---------- Constantes de base ----------
+const W = 960, H = 540;          // taille virtuelle de l'écran
+const STEP = 1 / 60;             // pas de temps fixe (60 images/s)
+const GROUND = 500;              // hauteur du sol (le maki ne doit pas y tomber)
+const MAKI_X = 240;              // position du maki à l'écran
+
+// ---------- Les niveaux ----------
+// dist = distance à parcourir (mètres), speed = vitesse (pixels/s)
+// gap = écart entre les arbres, types = sortes de plateformes
+// nest / dog / wire = probabilité des dangers
+const LEVELS = [
+  { name: 'La forêt', theme: 'foret', dist: 320, speed: 235, hearts: 5, gap: [50, 120], types: ['mango', 'mango', 'baobab', 'ylang'], nest: 0.06, dog: 0, wire: 0 },
+  { name: 'Le village', theme: 'village', dist: 420, speed: 255, hearts: 4, gap: [60, 150], types: ['roof', 'roof', 'mango', 'palm'], nest: 0.1, dog: 0.35, wire: 0.12 },
+  { name: 'La plage', theme: 'plage', dist: 480, speed: 270, hearts: 4, gap: [70, 165], types: ['palm', 'palm', 'palm', 'baobab'], nest: 0.12, dog: 0.3, wire: 0 },
+  { name: 'Les ylang-ylang', theme: 'ylang', dist: 540, speed: 285, hearts: 4, gap: [70, 170], types: ['ylang', 'ylang', 'mango', 'roof'], nest: 0.16, dog: 0.35, wire: 0.15 },
+  { name: 'Coucher de soleil', theme: 'sunset', dist: 600, speed: 300, hearts: 3, gap: [80, 180], types: ['palm', 'roof', 'mango', 'baobab'], nest: 0.18, dog: 0.4, wire: 0.25 },
+  { name: 'La tempête', theme: 'storm', dist: 660, speed: 310, hearts: 3, gap: [80, 185], types: ['mango', 'baobab', 'roof', 'palm', 'ylang'], nest: 0.2, dog: 0.45, wire: 0.25 }
+];
+// Mode infini : réglages qui durcissent avec la distance
+const ENDLESS = { name: 'Mode infini', theme: 'foret', dist: Infinity, speed: 250, hearts: 3, gap: [60, 150], types: ['mango', 'baobab', 'palm', 'roof', 'ylang'], nest: 0.12, dog: 0.3, wire: 0.15 };
+
+// Couleurs des décors
+const THEMES = {
+  foret:   { sky: ['#7fd3f0', '#d8f4e8'], sun: '#fff6c2', far: '#6aa58a', near: '#3f8a4e', lagoon: false, ground: '#3d7a35', light: 1 },
+  village: { sky: ['#8ad7f5', '#e6f6ee'], sun: '#fff6c2', far: '#79b096', near: '#4c9655', lagoon: true, ground: '#7c6a4f', light: 1 },
+  plage:   { sky: ['#5fc8f2', '#e2f8f5'], sun: '#fffbe0', far: '#7ab89b', near: '#5aa565', lagoon: true, ground: '#e8d39a', light: 1 },
+  ylang:   { sky: ['#9bdcf2', '#f4f6d6'], sun: '#fff3b0', far: '#6fa786', near: '#4b8f4c', lagoon: false, ground: '#4c823a', light: 1 },
+  sunset:  { sky: ['#ff8a5c', '#ffd27a'], sun: '#ffefa8', far: '#8a5a6e', near: '#5a4a5a', lagoon: true, ground: '#5a4a3e', light: 0.8 },
+  storm:   { sky: ['#4a5868', '#8b98a2'], sun: null, far: '#4c6458', near: '#36503e', lagoon: true, ground: '#3a5233', light: 0.7 }
+};
+
+// ---------- Sauvegarde (localStorage) ----------
+let save = { unlocked: 1, levels: {}, best: 0, muted: false };
+function loadSave() {
+  try { const s = JSON.parse(localStorage.getItem('maki-v1')); if (s) save = Object.assign(save, s); } catch (e) {}
+  if (!save.levels) save.levels = {};
+}
+function writeSave() { try { localStorage.setItem('maki-v1', JSON.stringify(save)); } catch (e) {} }
+loadSave();
+
+// ---------- Hasard reproductible ----------
+function makeRng(seed) {
+  return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+const rand = (a, b) => a + Math.random() * (b - a);
+
+// ---------- Sons (WebAudio) ----------
+let actx = null;
+function beep(freq, dur, type, vol, slide) {
+  if (save.muted) return;
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    g.gain.setValueAtTime(vol || 0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur);
+  } catch (e) {}
+}
+const SFX = {
+  jump: () => beep(380, 0.18, 'triangle', 0.15, 760),
+  double: () => beep(600, 0.16, 'square', 0.08, 1100),
+  fruit: () => { beep(880, 0.08, 'sine', 0.15); setTimeout(() => beep(1320, 0.1, 'sine', 0.12), 60); },
+  land: () => beep(160, 0.07, 'triangle', 0.1),
+  hurt: () => beep(300, 0.35, 'sawtooth', 0.12, 90),
+  zap: () => beep(1200, 0.25, 'square', 0.08, 200),
+  win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.2, 'triangle', 0.14), i * 120)),
+  lose: () => [392, 330, 262].forEach((f, i) => setTimeout(() => beep(f, 0.25, 'triangle', 0.13), i * 160)),
+  bark: () => beep(220, 0.12, 'sawtooth', 0.07, 140)
+};
+
+// ---------- Écran et mise à l'échelle ----------
+const stage = document.getElementById('stage');
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let S = 1, DPR = 1;
+function resize() {
+  S = Math.min(innerWidth / W, innerHeight / H);
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  stage.style.transform = `translate(-50%, -50%) scale(${S})`;
+  cv.width = Math.round(W * S * DPR);
+  cv.height = Math.round(H * S * DPR);
+  ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+}
+addEventListener('resize', resize); resize();
+
+// ---------- État du jeu ----------
+const state = {
+  mode: 'menu',      // 'menu' | 'play' | 'pause' | 'over'
+  level: null, levelIndex: 0, endless: false,
+  t: 0, cam: 0, shake: 0, flash: 0,
+  maki: null, held: false,
+  platforms: [], fruits: [], nests: [], dogs: [], wires: [], parts: [], rain: [],
+  hearts: 3, fruitsGot: 0, fruitsTotal: 0, dist: 0, goalX: 0, genX: 0, startX: 0,
+  rng: Math.random, lastY: 380, hint: 0, result: null
+};
+
+function newMaki() {
+  return { x: 120, y: 380, vy: 0, ground: true, coy: 0, charging: false, charge: 0, jumps: 0, squash: 0, inv: 0, blink: 0, tailT: 0, gliding: false };
+}
+
+// ---------- Fabrication du parcours ----------
+function platformSize(type, r) {
+  // largeur et hauteur possibles selon le type de plateforme
+  switch (type) {
+    case 'mango': return { w: 120 + r() * 90, y: [300, 410] };
+    case 'baobab': return { w: 150 + r() * 80, y: [290, 380] };
+    case 'palm': return { w: 80 + r() * 30, y: [270, 380] };
+    case 'ylang': return { w: 110 + r() * 70, y: [380, 430] };
+    case 'roof': return { w: 140 + r() * 80, y: [330, 420] };
+  }
+}
+
+function addPlatform(x, type, y, w) {
+  const p = { x, y, w, type, seed: Math.floor(state.rng() * 1000), hue: state.rng() };
+  state.platforms.push(p);
+  return p;
+}
+
+function addFruit(x, y) {
+  const kinds = ['mangue', 'banane', 'papaye', 'pain'];
+  state.fruits.push({ x, y, kind: kinds[Math.floor(state.rng() * 4)], got: false, ph: state.rng() * 6 });
+  state.fruitsTotal++;
+}
+
+// Ajoute la plateforme suivante (et ses fruits / dangers)
+function genNext() {
+  const L = state.level, r = state.rng;
+  const prev = state.platforms[state.platforms.length - 1];
+  let hard = 1;
+  if (state.endless) hard = Math.min(1.5, 1 + (prev.x / 40) / 2000); // plus dur avec la distance
+  const gap = (L.gap[0] + r() * (L.gap[1] - L.gap[0])) * hard;
+  const type = L.types[Math.floor(r() * L.types.length)];
+  const sz = platformSize(type, r);
+  let y = prev.y + (r() * 160 - 90);
+  y = Math.max(sz.y[0], Math.min(sz.y[1], y));
+  if (prev.y - y > 150) y = prev.y - 150; // jamais trop haut à atteindre
+  const x = prev.x + prev.w + gap;
+  const p = addPlatform(x, type, y, sz.w);
+
+  // Fruits en arc au-dessus du vide
+  if (r() < 0.75) {
+    const n = 3;
+    for (let i = 0; i < n; i++) {
+      const t = (i + 1) / (n + 1);
+      const fx = prev.x + prev.w + gap * t;
+      const fy = Math.min(prev.y, y) - 60 - Math.sin(t * Math.PI) * (50 + r() * 50);
+      addFruit(fx, fy);
+    }
+  }
+  // Fruits posés sur la plateforme
+  if (r() < 0.6) addFruit(x + p.w * 0.5, y - 40);
+
+  // Dangers (jamais sur la toute première partie du niveau)
+  if (x > 900) {
+    if (r() < L.nest * hard && p.w >= 120) {
+      state.nests.push({ x: x + p.w * (0.45 + r() * 0.2), y: y - 18, r: 17 });
+    }
+    if (r() < L.dog && gap > 90) {
+      state.dogs.push({ x: prev.x + prev.w + gap / 2, home: prev.x + prev.w + gap / 2, y: GROUND, vy: 0, dir: 1, t: r() * 5, barkT: 0 });
+    }
+    if (r() < L.wire && gap > 100) {
+      state.wires.push({ x1: prev.x + prev.w - 6, y1: prev.y - 150, x2: x + 6, y2: y - 150, sag: 26 });
+    }
+  }
+  state.genX = x + p.w;
+}
+
+// ---------- Démarrer un niveau ----------
+function startLevel(i) {
+  hideAll();
+  const endless = (i === 'infini' || i < 0);
+  state.endless = endless;
+  state.levelIndex = endless ? -1 : i;
+  state.level = endless ? ENDLESS : LEVELS[i];
+  state.rng = endless ? makeRng(Date.now() & 0xffff) : makeRng(1234 + i * 777);
+  state.platforms = []; state.fruits = []; state.nests = []; state.dogs = []; state.wires = []; state.parts = [];
+  state.fruitsGot = 0; state.fruitsTotal = 0; state.t = 0; state.shake = 0; state.flash = 0;
+  state.genX = 0; // remise à zéro, sinon le niveau suivant serait vide
+  state.hearts = state.level.hearts; state.held = false; state.hint = 4; state.result = null;
+  state.maki = newMaki();
+  // Première plateforme : longue et sûre
+  addPlatform(-200, 'mango', 380, 520);
+  state.startX = state.maki.x;
+  state.goalX = state.startX + state.level.dist * 40;
+  if (!endless) {
+    // On fabrique tout le niveau d'avance (pour connaître le total de fruits)
+    while (state.genX < state.goalX) genNext();
+    const last = state.platforms[state.platforms.length - 1];
+    addPlatform(last.x + last.w + 80, 'baobab', 360, 900); // plateforme d'arrivée
+  } else {
+    while (state.genX < state.maki.x + W + 600) genNext();
+  }
+  state.cam = state.maki.x - MAKI_X;
+  state.mode = 'play';
+  document.getElementById('hudbtn').style.display = 'flex';
+  makeRain();
+}
+
+// ---------- Les commandes ----------
+function press() {
+  if (state.mode !== 'play') return;
+  if (state.held) return;
+  state.held = true;
+  const m = state.maki;
+  if (m.ground || m.coy > 0) { m.charging = true; m.charge = 0; }
+  else if (m.jumps < 2) doubleJump();
+}
+function release() {
+  if (!state.held) return;
+  state.held = false;
+  const m = state.maki;
+  if (m && m.charging && state.mode === 'play') doJump(m.charge);
+}
+function doJump(c) {
+  const m = state.maki;
+  m.vy = -(560 + 420 * c);
+  m.jumps = 1; m.charging = false; m.charge = 0; m.ground = false; m.coy = 0; m.squash = -0.35;
+  SFX.jump();
+  leaves(m.x, m.y, 5);
+}
+function doubleJump() {
+  const m = state.maki;
+  m.vy = -640; m.jumps = 2; m.squash = -0.3; m.tailT = 0.4;
+  SFX.double();
+  for (let i = 0; i < 8; i++) state.parts.push({ x: m.x - 20, y: m.y - 10, vx: rand(-120, -20), vy: rand(-60, 80), life: 0.5, max: 0.5, kind: 'puff', size: rand(4, 8) });
+}
+// jump() : pour les tests — saut moyen au sol, double saut en l'air
+function jump() {
+  if (state.mode !== 'play') return;
+  const m = state.maki;
+  if (m.ground || m.coy > 0) doJump(0.5); else if (m.jumps < 2) doubleJump();
+}
+
+addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'KeyZ') { e.preventDefault(); if (!e.repeat) press(); }
+  else if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
+  else if (e.code === 'KeyM') toggleMute();
+  else if (e.code === 'Enter' && state.mode === 'menu') showLevels();
+});
+addEventListener('keyup', e => { if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'KeyZ') release(); });
+cv.addEventListener('pointerdown', e => { e.preventDefault(); press(); });
+addEventListener('pointerup', release);
+addEventListener('pointercancel', release);
+addEventListener('blur', () => { release(); if (state.mode === 'play') togglePause(); });
+
+// ---------- Particules ----------
+function leaves(x, y, n) {
+  for (let i = 0; i < n; i++) state.parts.push({ x: x + rand(-20, 20), y: y - rand(0, 10), vx: rand(-120, 60), vy: rand(-220, -60), life: 1.2, max: 1.2, kind: 'leaf', size: rand(4, 7), rot: rand(0, 6), vr: rand(-6, 6) });
+}
+function sparkles(x, y, col) {
+  for (let i = 0; i < 10; i++) { const a = Math.random() * 6.28, s = rand(60, 200); state.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5, max: 0.5, kind: 'spark', size: rand(2, 4), col }); }
+}
+function makeRain() {
+  state.rain = [];
+  if (state.level.theme !== 'storm') return;
+  for (let i = 0; i < 140; i++) state.rain.push({ x: Math.random() * W, y: Math.random() * H, s: rand(600, 900) });
+}
+
+// ---------- Blessures et chutes ----------
+function hurt(kind) {
+  const m = state.maki;
+  if (m.inv > 0) return;
+  state.hearts--;
+  m.inv = 1.6; m.vy = -380; m.jumps = 1; m.charging = false;
+  state.shake = 0.35;
+  if (kind === 'zap') { SFX.zap(); state.flash = 0.25; } else SFX.hurt();
+  sparkles(m.x, m.y - 18, '#ff6b6b');
+  if (state.hearts <= 0) endGame(false);
+}
+function fallRespawn() {
+  state.hearts--;
+  SFX.hurt(); state.shake = 0.3;
+  if (state.hearts <= 0) { endGame(false); return; }
+  const m = state.maki;
+  // On replace le maki sur la prochaine plateforme visible
+  let best = null;
+  for (const p of state.platforms) if (p.x + p.w > m.x + 20) { best = p; break; }
+  if (!best) best = state.platforms[state.platforms.length - 1];
+  m.x = Math.max(m.x, best.x + 10); if (m.x > best.x + best.w - 30) m.x = best.x + 10;
+  m.y = best.y - 120; m.vy = 0; m.jumps = 1; m.inv = 2; m.charging = false;
+}
+
+// ---------- Mise à jour (une étape de 1/60 s) ----------
+function update(dt) {
+  state.t += dt;
+  // Particules (même hors jeu pour que ce soit joli)
+  for (const p of state.parts) {
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.kind === 'leaf') { p.vy += 300 * dt; p.vx *= 0.98; p.rot += p.vr * dt; }
+    else if (p.kind === 'spark') { p.vx *= 0.92; p.vy *= 0.92; }
+    else { p.vx *= 0.95; p.vy *= 0.95; }
+  }
+  state.parts = state.parts.filter(p => p.life > 0);
+  for (const d of state.rain) { d.y += d.s * dt; d.x -= d.s * 0.25 * dt; if (d.y > H) { d.y = -10; d.x = Math.random() * W + 100; } }
+  if (state.mode !== 'play') return;
+
+  const L = state.level, m = state.maki;
+  let speed = L.speed;
+  if (state.endless) speed = Math.min(380, L.speed + state.dist * 0.06);
+  if (state.hint > 0) state.hint -= dt;
+  state.shake = Math.max(0, state.shake - dt);
+  state.flash = Math.max(0, state.flash - dt);
+  if (L.theme === 'storm' && Math.random() < 0.002) { state.flash = 0.18; beep(60, 0.6, 'sawtooth', 0.06, 30); }
+
+  // Avancer
+  m.x += speed * dt;
+  m.inv = Math.max(0, m.inv - dt);
+  m.tailT = Math.max(0, m.tailT - dt);
+  m.squash *= 0.85;
+  m.blink -= dt; if (m.blink < -3 - Math.random() * 2) m.blink = 0.12;
+
+  // Charger le saut
+  if (m.charging) {
+    m.charge = Math.min(1, m.charge + dt * 1.7);
+    if (!m.ground && m.coy <= 0) doJump(m.charge); // il quitte le bord : saut auto
+  }
+
+  // Gravité / planer
+  m.gliding = state.held && !m.ground && !m.charging && m.jumps >= 1 && m.vy > 0;
+  let g = 2200;
+  if (m.gliding) { g = 700; }
+  m.vy += g * dt;
+  if (m.gliding) m.vy = Math.min(m.vy, L.theme === 'storm' ? 170 : 120);
+  const prevY = m.y;
+  m.y += m.vy * dt;
+
+  // Atterrissage sur les plateformes (uniquement par le dessus)
+  const wasGround = m.ground;
+  m.ground = false;
+  for (const p of state.platforms) {
+    if (p.x > m.x + 40) break;
+    if (m.x + 12 > p.x && m.x - 12 < p.x + p.w && m.vy >= 0 && prevY <= p.y + 4 && m.y >= p.y) {
+      m.y = p.y; m.vy = 0; m.ground = true; m.jumps = 0;
+      if (!wasGround) { m.squash = 0.35; SFX.land(); leaves(m.x, m.y, p.type === 'roof' ? 0 : 4); }
+      break;
+    }
+  }
+  if (m.ground) m.coy = 0.1; else m.coy -= dt;
+
+  const cx = m.x, cy = m.y - 20; // centre du corps
+
+  // Fruits
+  for (const f of state.fruits) {
+    if (f.got || Math.abs(f.x - cx) > 40) continue;
+    if (Math.hypot(f.x - cx, f.y - cy) < 32) {
+      f.got = true; state.fruitsGot++; SFX.fruit();
+      sparkles(f.x, f.y, '#ffe680');
+    }
+  }
+  // Nids de guêpes
+  for (const n of state.nests) if (Math.abs(n.x - cx) < 50 && Math.hypot(n.x - cx, n.y - cy) < n.r + 14) hurt('nest');
+  // Chiens
+  for (const d of state.dogs) {
+    d.t += dt;
+    d.x = d.home + Math.sin(d.t * 1.5) * 25;
+    d.dir = Math.cos(d.t * 1.5) > 0 ? 1 : -1;
+    if (d.y >= GROUND && Math.abs(d.x - m.x) < 110 && m.y > 330 && d.barkT <= 0) { d.vy = -520; d.barkT = 1.5; SFX.bark(); }
+    d.barkT -= dt;
+    d.vy += 1600 * dt; d.y += d.vy * dt;
+    if (d.y > GROUND) { d.y = GROUND; d.vy = 0; }
+    if (Math.abs(d.x - cx) < 34 && Math.abs(d.y - 22 - cy) < 30) hurt('dog');
+  }
+  // Fils électriques
+  for (const w of state.wires) {
+    if (cx < w.x1 || cx > w.x2) continue;
+    const t = (cx - w.x1) / (w.x2 - w.x1);
+    const wy = w.y1 + (w.y2 - w.y1) * t + Math.sin(t * Math.PI) * w.sag;
+    if (Math.abs(cy - wy) < 16) hurt('zap');
+  }
+  if (state.mode !== 'play') return;
+
+  // Chute
+  if (m.y > GROUND + 30) { fallRespawn(); if (state.mode !== 'play') return; }
+
+  // Distance et caméra
+  state.dist = Math.max(0, (m.x - state.startX) / 40);
+  state.cam = m.x - MAKI_X;
+
+  // Mode infini : continuer à fabriquer le parcours et nettoyer derrière
+  if (state.endless) {
+    while (state.genX < state.cam + W + 600) genNext();
+    const left = state.cam - 400;
+    state.platforms = state.platforms.filter(p => p.x + p.w > left);
+    state.fruits = state.fruits.filter(f => f.x > left);
+    state.nests = state.nests.filter(n => n.x > left);
+    state.dogs = state.dogs.filter(d => d.x > left);
+    state.wires = state.wires.filter(w => w.x2 > left);
+  } else if (m.x >= state.goalX) {
+    endGame(true);
+  }
+}
+
+// tick(dt) : avance la simulation de dt secondes (par petits pas de 1/60)
+let acc = 0;
+function tick(dt) {
+  acc += Math.min(dt, 0.25);
+  while (acc >= STEP) { update(STEP); acc -= STEP; }
+}
+
+// ---------- Fin de partie ----------
+function starTargets() {
+  const t = state.fruitsTotal;
+  return [Math.ceil(t * 0.3), Math.ceil(t * 0.6), Math.ceil(t * 0.85)];
+}
+function endGame(win) {
+  state.mode = 'over';
+  state.held = false;
+  document.getElementById('hudbtn').style.display = 'none';
+  const title = document.getElementById('resTitle'), stars = document.getElementById('resStars'), text = document.getElementById('resText');
+  const bNext = document.getElementById('bNext');
+  if (state.endless) {
+    const score = Math.floor(state.dist) + state.fruitsGot * 10;
+    const record = score > (save.best || 0);
+    if (record) { save.best = score; writeSave(); }
+    title.textContent = record ? 'Nouveau record !' : 'Fin de la course';
+    stars.innerHTML = '';
+    text.innerHTML = `Distance : <b>${Math.floor(state.dist)} m</b> — Fruits : <b>${state.fruitsGot}</b><br>Score : <b>${score}</b> — Meilleur : <b>${save.best}</b>`;
+    bNext.style.display = 'none';
+    SFX.lose();
+  } else if (win) {
+    const tg = starTargets();
+    const n = tg.filter(v => state.fruitsGot >= v).length;
+    const key = state.levelIndex;
+    const old = (save.levels[key] && save.levels[key].stars) || 0;
+    save.levels[key] = { stars: Math.max(old, n) };
+    save.unlocked = Math.max(save.unlocked, Math.min(LEVELS.length, key + 2));
+    writeSave();
+    title.textContent = 'Bravo, niveau réussi !';
+    stars.innerHTML = [0, 1, 2].map(i => `<span class="${i < n ? '' : 'off'}">★</span>`).join('');
+    text.innerHTML = `${state.level.name} — Fruits : <b>${state.fruitsGot} / ${state.fruitsTotal}</b><br>Objectifs ⭐ : ${tg.join(' / ')}`;
+    bNext.style.display = key < LEVELS.length - 1 ? '' : 'none';
+    state.result = { win: true, stars: n };
+    SFX.win();
+  } else {
+    title.textContent = 'Oh non, le maki est tombé !';
+    stars.innerHTML = '';
+    text.innerHTML = `${state.level.name} — ${Math.floor(state.dist)} m sur ${state.level.dist} m. Réessaie !`;
+    bNext.style.display = 'none';
+    state.result = { win: false };
+    SFX.lose();
+  }
+  document.getElementById('result').classList.add('show');
+}
+
+// ============================================================
+//                         DESSIN
+// ============================================================
+function hillY(x, base, amp, seed) {
+  // Collines volcaniques : pics arrondis + petites bosses
+  return base - amp * (Math.pow(Math.abs(Math.sin(x * 0.0023 + seed)), 0.8) * 0.75 + 0.25 * (0.5 + 0.5 * Math.sin(x * 0.009 + seed * 3)));
+}
+function drawHills(par, color, base, amp, seed) {
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(0, H);
+  const off = state.cam * par;
+  for (let sx = 0; sx <= W + 12; sx += 12) ctx.lineTo(sx, hillY(sx + off, base, amp, seed));
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+}
+
+function drawBackground() {
+  const T = THEMES[state.level ? state.level.theme : 'foret'];
+  const cam = state.cam;
+  // Ciel
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, T.sky[0]); g.addColorStop(1, T.sky[1]);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Soleil
+  if (T.sun) {
+    const sy = state.level && state.level.theme === 'sunset' ? 250 : 90;
+    const sg = ctx.createRadialGradient(780, sy, 10, 780, sy, 130);
+    sg.addColorStop(0, T.sun); sg.addColorStop(0.35, T.sun + 'aa'); sg.addColorStop(1, T.sun + '00');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(780, sy, 130, 0, 7); ctx.fill();
+    ctx.fillStyle = T.sun; ctx.beginPath(); ctx.arc(780, sy, 40, 0, 7); ctx.fill();
+  }
+  // Nuages
+  for (let i = 0; i < 6; i++) {
+    const x = ((i * 230 - cam * 0.08 - state.t * 8) % 1300 + 1300) % 1300 - 160;
+    const y = 50 + (i * 53) % 110;
+    ctx.fillStyle = state.level && state.level.theme === 'storm' ? 'rgba(70,80,92,.85)' : 'rgba(255,255,255,.85)';
+    ctx.beginPath(); ctx.arc(x, y, 26, 0, 7); ctx.arc(x + 30, y - 12, 32, 0, 7); ctx.arc(x + 64, y, 24, 0, 7); ctx.ellipse(x + 32, y + 8, 56, 16, 0, 0, 7); ctx.fill();
+  }
+  // Collines lointaines
+  drawHills(0.1, T.far, 330, 170, 1.3);
+  // Lagon
+  if (T.lagoon) {
+    const lg = ctx.createLinearGradient(0, 330, 0, 420);
+    const sunset = state.level.theme === 'sunset', storm = state.level.theme === 'storm';
+    lg.addColorStop(0, sunset ? '#e9a07a' : storm ? '#4e6a70' : '#5fd0d8');
+    lg.addColorStop(1, sunset ? '#8a5a7a' : storm ? '#2f4a52' : '#1fa3b5');
+    ctx.fillStyle = lg; ctx.fillRect(0, 335, W, 120);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 14; i++) {
+      const x = ((i * 97 - cam * 0.2 + Math.sin(state.t + i) * 10) % W + W) % W;
+      const y = 345 + (i * 31) % 70;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 18 + (i % 3) * 8, y); ctx.stroke();
+    }
+    // Petit îlot
+    const ix = ((600 - cam * 0.15) % 1400 + 1400) % 1400 - 200;
+    ctx.fillStyle = T.far; ctx.beginPath(); ctx.ellipse(ix, 340, 90, 22, 0, Math.PI, 0); ctx.fill();
+  }
+  // Collines proches
+  drawHills(0.25, T.near, T.lagoon ? 470 : 420, T.lagoon ? 80 : 150, 4.1);
+  // Silhouettes d'arbres de fond
+  ctx.fillStyle = shade(T.near, -0.18);
+  const off = cam * 0.45;
+  for (let i = -1; i < 14; i++) {
+    const base = Math.floor(off / 90) + i;
+    const x = base * 90 - off;
+    const h = 60 + ((base * 37) % 50 + 50) % 50;
+    ctx.fillRect(x + 40, 480 - h + 20, 8, h);
+    ctx.beginPath(); ctx.arc(x + 44, 480 - h, 28 + (Math.abs(base) % 3) * 6, 0, 7); ctx.arc(x + 24, 490 - h, 20, 0, 7); ctx.arc(x + 64, 492 - h, 22, 0, 7); ctx.fill();
+  }
+  ctx.fillRect(0, 480, W, 60);
+}
+
+// Assombrir / éclaircir une couleur hexadécimale
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  const f = v => Math.max(0, Math.min(255, Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k)));
+  return `rgb(${f(r)},${f(g)},${f(b)})`;
+}
+
+function drawGround() {
+  const T = THEMES[state.level.theme];
+  ctx.fillStyle = T.ground; ctx.fillRect(0, GROUND, W, H - GROUND);
+  ctx.fillStyle = shade(T.ground, 0.15);
+  for (let i = 0; i < 40; i++) {
+    const x = ((i * 47 - state.cam) % W + W) % W;
+    ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.lineTo(x + 4, GROUND - 8); ctx.lineTo(x + 8, GROUND); ctx.fill();
+  }
+}
+
+// ----- Plateformes -----
+function drawPlatform(p) {
+  const x = p.x - state.cam;
+  if (x > W + 50 || x + p.w < -80) return;
+  const cx = x + p.w / 2, y = p.y;
+  ctx.save();
+  if (p.type === 'mango') {
+    ctx.fillStyle = '#6b4626'; ctx.fillRect(cx - 12, y + 20, 24, GROUND - y);
+    ctx.strokeStyle = '#6b4626'; ctx.lineWidth = 9; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx, y + 70); ctx.lineTo(cx - p.w * 0.25, y + 25); ctx.moveTo(cx, y + 60); ctx.lineTo(cx + p.w * 0.28, y + 22); ctx.stroke();
+    const n = Math.max(3, Math.round(p.w / 40));
+    ctx.fillStyle = '#1f6b34';
+    for (let i = 0; i < n; i++) { const px = x + 14 + (p.w - 28) * i / (n - 1); ctx.beginPath(); ctx.arc(px, y + 24, 30, 0, 7); ctx.fill(); }
+    ctx.fillStyle = '#2e8a43';
+    for (let i = 0; i < n; i++) { const px = x + 14 + (p.w - 28) * i / (n - 1); ctx.beginPath(); ctx.arc(px, y + 16, 22, 0, 7); ctx.fill(); }
+    ctx.fillStyle = '#4fb05c';
+    for (let i = 0; i < n; i++) { const px = x + 10 + (p.w - 28) * i / (n - 1); ctx.beginPath(); ctx.arc(px, y + 8, 9, 0, 7); ctx.fill(); }
+  } else if (p.type === 'baobab') {
+    ctx.fillStyle = '#9a8070';
+    ctx.beginPath(); ctx.moveTo(cx - 40, GROUND); ctx.quadraticCurveTo(cx - 30, y + 60, cx - 18, y + 14); ctx.lineTo(cx + 18, y + 14); ctx.quadraticCurveTo(cx + 30, y + 60, cx + 40, GROUND); ctx.fill();
+    ctx.strokeStyle = '#86695a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 10, y + 40); ctx.lineTo(cx - 14, GROUND); ctx.moveTo(cx + 8, y + 50); ctx.lineTo(cx + 12, GROUND); ctx.stroke();
+    ctx.strokeStyle = '#8a7060'; ctx.lineWidth = 10; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x + 8, y + 4); ctx.lineTo(x + p.w - 8, y + 4); ctx.stroke();
+    ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(cx, y + 16); ctx.lineTo(x + 20, y + 4); ctx.moveTo(cx, y + 16); ctx.lineTo(x + p.w - 20, y + 4); ctx.stroke();
+    ctx.fillStyle = '#5c9a48';
+    for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(x + 15 + (p.w - 30) * i / 4, y - 4, 16, 8, 0, 0, 7); ctx.fill(); }
+  } else if (p.type === 'palm') {
+    ctx.strokeStyle = '#a07a4a'; ctx.lineWidth = 13; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx + 30, GROUND); ctx.quadraticCurveTo(cx + 26, y + 100, cx, y + 10); ctx.stroke();
+    ctx.strokeStyle = '#7d5c34'; ctx.lineWidth = 2;
+    for (let k = 1; k < 10; k++) { const t = k / 10; const px = (1 - t) * (1 - t) * (cx + 30) + 2 * (1 - t) * t * (cx + 26) + t * t * cx; const py = (1 - t) * (1 - t) * GROUND + 2 * (1 - t) * t * (y + 100) + t * t * (y + 10); ctx.beginPath(); ctx.moveTo(px - 6, py); ctx.lineTo(px + 6, py); ctx.stroke(); }
+    ctx.fillStyle = '#6b4a20'; ctx.beginPath(); ctx.arc(cx - 6, y + 12, 7, 0, 7); ctx.arc(cx + 7, y + 13, 7, 0, 7); ctx.fill();
+    const sway = Math.sin(state.t * 2 + p.seed) * 0.05;
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI + i * Math.PI / 6 + sway;
+      ctx.strokeStyle = i % 2 ? '#2f8f3c' : '#3ea84a'; ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(cx, y + 2); ctx.quadraticCurveTo(cx + Math.cos(a) * p.w * 0.4, y - 10 + Math.sin(a) * 20, cx + Math.cos(a) * p.w * 0.6, y + 22 + Math.abs(Math.sin(a)) * -10); ctx.stroke();
+    }
+  } else if (p.type === 'ylang') {
+    ctx.fillStyle = '#5b4028'; ctx.fillRect(cx - 7, y + 20, 14, GROUND - y);
+    ctx.fillStyle = '#3c7d3a';
+    ctx.beginPath(); ctx.ellipse(cx, y + 26, p.w / 2, 30, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#56a04a';
+    ctx.beginPath(); ctx.ellipse(cx, y + 14, p.w / 2 - 8, 16, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ffe66b';
+    for (let i = 0; i < 7; i++) {
+      const fx = x + 14 + ((p.seed * (i + 3) * 13) % Math.max(1, p.w - 28)), fy = y + 10 + (i * 7) % 26;
+      ctx.save(); ctx.translate(fx, fy);
+      for (let k = 0; k < 5; k++) { ctx.rotate(1.256); ctx.beginPath(); ctx.ellipse(0, 4, 1.8, 5, 0, 0, 7); ctx.fill(); }
+      ctx.restore();
+    }
+  } else if (p.type === 'roof') {
+    const walls = ['#f4d9a6', '#cfe8d8', '#f2b8a0', '#d9d2f0', '#fff0c8'];
+    ctx.fillStyle = walls[p.seed % walls.length]; ctx.fillRect(x + 8, y + 14, p.w - 16, GROUND - y - 14);
+    ctx.fillStyle = '#6a4b2d'; ctx.fillRect(cx - 14, GROUND - 52, 28, 52);
+    ctx.fillStyle = '#5aa8c8'; ctx.fillRect(x + 22, y + 40, 26, 22); ctx.fillRect(x + p.w - 48, y + 40, 26, 22);
+    // Toit en tôle ondulée
+    ctx.fillStyle = '#a9b3b8'; ctx.beginPath(); ctx.moveTo(x - 4, y + 18); ctx.lineTo(x + 4, y); ctx.lineTo(x + p.w - 4, y); ctx.lineTo(x + p.w + 4, y + 18); ctx.fill();
+    ctx.strokeStyle = '#7f8a90'; ctx.lineWidth = 2;
+    for (let k = x + 8; k < x + p.w - 4; k += 8) { ctx.beginPath(); ctx.moveTo(k, y + 1); ctx.lineTo(k - 2, y + 17); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(160,80,30,.45)'; ctx.fillRect(x + p.w * 0.6, y + 2, 20, 12);
+  }
+  ctx.restore();
+}
+
+// ----- Fruits -----
+function drawFruit(f) {
+  if (f.got) return;
+  const x = f.x - state.cam, y = f.y + Math.sin(state.t * 3 + f.ph) * 4;
+  if (x < -30 || x > W + 30) return;
+  ctx.save(); ctx.translate(x, y);
+  // halo
+  ctx.fillStyle = 'rgba(255,240,150,.25)'; ctx.beginPath(); ctx.arc(0, 0, 18, 0, 7); ctx.fill();
+  if (f.kind === 'mangue') {
+    ctx.rotate(-0.4); ctx.fillStyle = '#ff9a2e'; ctx.beginPath(); ctx.ellipse(0, 0, 10, 13, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e8462e'; ctx.beginPath(); ctx.ellipse(-3, -4, 6, 7, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#3a9a3e'; ctx.beginPath(); ctx.ellipse(5, -13, 6, 3, -0.5, 0, 7); ctx.fill();
+  } else if (f.kind === 'banane') {
+    ctx.strokeStyle = '#f7d038'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, -6, 13, 0.4, 2.7); ctx.stroke();
+    ctx.strokeStyle = '#6b4a20'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(-14, -3); ctx.stroke();
+  } else if (f.kind === 'papaye') {
+    ctx.fillStyle = '#f2a63a'; ctx.beginPath(); ctx.ellipse(0, 0, 9, 14, 0.2, 0, 7); ctx.fill();
+    ctx.fillStyle = '#9cc94a'; ctx.beginPath(); ctx.ellipse(-2, -8, 5, 6, 0.2, 0, 7); ctx.fill();
+  } else {
+    ctx.fillStyle = '#8cc34a'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#5f9a2c'; ctx.lineWidth = 1;
+    for (let i = -8; i <= 8; i += 5) { ctx.beginPath(); ctx.moveTo(i, -10); ctx.lineTo(i, 10); ctx.moveTo(-10, i); ctx.lineTo(10, i); ctx.stroke(); }
+    ctx.fillStyle = '#5a3a1a'; ctx.fillRect(-1, -15, 2, 5);
+  }
+  // reflet
+  ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.arc(-4, -5, 3, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+// ----- Dangers -----
+function drawNest(n) {
+  const x = n.x - state.cam, y = n.y;
+  if (x < -40 || x > W + 40) return;
+  ctx.fillStyle = '#c9b48a'; ctx.beginPath(); ctx.ellipse(x, y, n.r, n.r + 3, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#9a865e'; ctx.lineWidth = 2;
+  for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.ellipse(x, y + i * 6, n.r - Math.abs(i) * 3, 2, 0, 0, 7); ctx.stroke(); }
+  ctx.fillStyle = '#4a3a2a'; ctx.beginPath(); ctx.arc(x, y + 8, 4, 0, 7); ctx.fill();
+  for (let i = 0; i < 4; i++) {
+    const a = state.t * 5 + i * 1.6, wx = x + Math.cos(a) * 26, wy = y - 6 + Math.sin(a * 1.3) * 16;
+    ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.ellipse(wx, wy, 4, 3, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#222'; ctx.fillRect(wx - 1, wy - 3, 2, 6);
+    ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.ellipse(wx, wy - 4, 3, 2, 0, 0, 7); ctx.fill();
+  }
+}
+function drawDog(d) {
+  const x = d.x - state.cam, y = d.y;
+  if (x < -60 || x > W + 60) return;
+  ctx.save(); ctx.translate(x, y); ctx.scale(d.dir, 1);
+  ctx.fillStyle = '#c99a5a';
+  ctx.beginPath(); ctx.ellipse(0, -20, 22, 11, 0, 0, 7); ctx.fill();
+  ctx.fillRect(-16, -14, 5, 14); ctx.fillRect(10, -14, 5, 14);
+  ctx.beginPath(); ctx.arc(22, -30, 11, 0, 7); ctx.fill();
+  ctx.fillStyle = '#8a6030'; ctx.beginPath(); ctx.ellipse(18, -40, 4, 8, -0.4, 0, 7); ctx.fill();
+  ctx.fillStyle = '#c99a5a'; ctx.beginPath(); ctx.ellipse(31, -27, 7, 5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(36, -28, 2.5, 0, 7); ctx.arc(24, -33, 2, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#c99a5a'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-20, -24); ctx.lineTo(-30, -34 + Math.sin(state.t * 12) * 4); ctx.stroke();
+  if (d.barkT > 1) { ctx.scale(d.dir, 1); ctx.fillStyle = '#fff'; ctx.font = '600 16px Fredoka'; ctx.fillText('Ouaf !', -20 * d.dir, -50); }
+  ctx.restore();
+}
+function drawWire(w) {
+  const x1 = w.x1 - state.cam, x2 = w.x2 - state.cam;
+  if (x2 < -20 || x1 > W + 20) return;
+  // poteaux
+  ctx.fillStyle = '#5c4a3a';
+  ctx.fillRect(x1 - 4, w.y1 - 12, 8, 30); ctx.fillRect(x2 - 4, w.y2 - 12, 8, 30);
+  ctx.strokeStyle = '#222'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x1, w.y1);
+  for (let t = 0.05; t <= 1.001; t += 0.05) ctx.lineTo(x1 + (x2 - x1) * t, w.y1 + (w.y2 - w.y1) * t + Math.sin(t * Math.PI) * w.sag);
+  ctx.stroke();
+  // étincelle
+  const t = (state.t * 0.6) % 1;
+  const sx = x1 + (x2 - x1) * t, sy = w.y1 + (w.y2 - w.y1) * t + Math.sin(t * Math.PI) * w.sag;
+  ctx.fillStyle = '#fff36b'; ctx.beginPath(); ctx.arc(sx, sy, 3 + Math.random() * 2, 0, 7); ctx.fill();
+  ctx.fillStyle = '#ffd400'; ctx.font = '600 14px Fredoka'; ctx.fillText('⚡', x1 - 6, w.y1 - 16);
+}
+
+// ----- Le maki -----
+function drawMaki() {
+  const m = state.maki;
+  const x = m.x - state.cam, y = m.y;
+  if (m.inv > 0 && Math.floor(m.inv * 12) % 2 === 0) return; // clignote quand blessé
+  // Squash & stretch : écrasé à l'atterrissage, étiré en saut
+  let sq = m.squash;
+  if (!m.ground) sq += Math.max(-0.2, Math.min(0.15, m.vy / 3000));
+  if (m.charging) sq += m.charge * 0.25;
+  const sx = 1 + sq, sy = 1 - sq;
+  ctx.save(); ctx.translate(x, y); ctx.scale(sx, sy);
+  // ombre de vol : rien. Queue longue et touffue
+  const tailUp = m.gliding ? -1 : m.tailT > 0 ? -0.6 : 0;
+  const wag = Math.sin(state.t * 6) * 6;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#5e3d22'; ctx.lineWidth = 15;
+  ctx.beginPath(); ctx.moveTo(-14, -16);
+  ctx.bezierCurveTo(-40, -10 + tailUp * 10, -58, -40 + tailUp * 30 + wag, -48, -60 + tailUp * 20 + wag);
+  ctx.stroke();
+  ctx.strokeStyle = '#7a5232'; ctx.lineWidth = 10;
+  ctx.beginPath(); ctx.moveTo(-14, -16);
+  ctx.bezierCurveTo(-40, -10 + tailUp * 10, -58, -40 + tailUp * 30 + wag, -48, -60 + tailUp * 20 + wag);
+  ctx.stroke();
+  ctx.fillStyle = '#3a2414'; ctx.beginPath(); ctx.arc(-48, -60 + tailUp * 20 + wag, 8, 0, 7); ctx.fill();
+  // Pattes
+  ctx.strokeStyle = '#5e3d22'; ctx.lineWidth = 6;
+  const run = m.ground ? Math.sin(state.t * 18) * 5 : 4;
+  ctx.beginPath(); ctx.moveTo(-6, -8); ctx.lineTo(-10 - run, 0); ctx.moveTo(8, -8); ctx.lineTo(12 + run, 0); ctx.stroke();
+  // Corps
+  ctx.fillStyle = '#7a5232'; ctx.beginPath(); ctx.ellipse(0, -20, 18, 15, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#b08458'; ctx.beginPath(); ctx.ellipse(5, -16, 10, 9, 0, 0, 7); ctx.fill();
+  // Bras
+  ctx.strokeStyle = '#5e3d22'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(10, -24); ctx.lineTo(20, m.ground ? -14 : -34); ctx.stroke();
+  // Tête
+  ctx.translate(16, -40);
+  ctx.fillStyle = '#7a5232'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, 7); ctx.fill();
+  // oreilles
+  ctx.beginPath(); ctx.arc(-11, -12, 5, 0, 7); ctx.arc(6, -15, 5, 0, 7); ctx.fill();
+  // joues / barbe claire
+  ctx.fillStyle = '#e8d6b8';
+  ctx.beginPath(); ctx.ellipse(-8, 6, 9, 9, 0.3, 0, 7); ctx.ellipse(10, 8, 9, 8, -0.3, 0, 7); ctx.fill();
+  // masque sombre
+  ctx.fillStyle = '#2b1d14'; ctx.beginPath(); ctx.ellipse(4, 1, 11, 10, 0, 0, 7); ctx.fill();
+  // museau
+  ctx.beginPath(); ctx.ellipse(14, 4, 7, 5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(19, 3, 2.2, 0, 7); ctx.fill();
+  // grands yeux ronds
+  const blink = m.blink > 0;
+  for (const ex of [-1, 8]) {
+    if (blink) { ctx.strokeStyle = '#f2a33a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ex - 5, -3); ctx.lineTo(ex + 5, -3); ctx.stroke(); continue; }
+    ctx.fillStyle = '#f2a33a'; ctx.beginPath(); ctx.arc(ex, -3, 6, 0, 7); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(ex + 1.5, -3, 3.4, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex + 2.8, -5, 1.6, 0, 7); ctx.fill();
+  }
+  // bouche contente quand il ramasse ou en l'air
+  if (!m.ground) { ctx.fillStyle = '#8a2a2a'; ctx.beginPath(); ctx.arc(12, 9, 3, 0, Math.PI); ctx.fill(); }
+  ctx.restore();
+
+  // Jauge de saut
+  if (m.charging) {
+    ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(x, y - 30, 40, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+    ctx.strokeStyle = m.charge > 0.85 ? '#ff6b3d' : '#ffd166';
+    ctx.beginPath(); ctx.arc(x, y - 30, 40, Math.PI * 1.15, Math.PI * (1.15 + 0.7 * m.charge)); ctx.stroke();
+  }
+}
+
+function drawParts() {
+  for (const p of state.parts) {
+    const x = p.x - (p.kind === 'leaf' || p.kind === 'puff' || p.kind === 'spark' ? state.cam : 0), a = p.life / p.max;
+    ctx.globalAlpha = Math.max(0, a);
+    if (p.kind === 'leaf') { ctx.save(); ctx.translate(x, p.y); ctx.rotate(p.rot); ctx.fillStyle = '#4caf50'; ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size / 2, 0, 0, 7); ctx.fill(); ctx.restore(); }
+    else if (p.kind === 'spark') { ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(x, p.y, p.size, 0, 7); ctx.fill(); }
+    else { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, p.y, p.size * (2 - a), 0, 7); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ----- Interface (HUD) -----
+function drawHUD() {
+  const L = state.level;
+  ctx.font = '600 22px Fredoka'; ctx.textBaseline = 'middle';
+  // coeurs
+  for (let i = 0; i < L.hearts; i++) {
+    ctx.fillStyle = i < state.hearts ? '#ff5a6e' : 'rgba(0,0,0,.25)';
+    const hx = 26 + i * 30, hy = 28;
+    ctx.beginPath(); ctx.moveTo(hx, hy + 9); ctx.bezierCurveTo(hx - 14, hy - 2, hx - 6, hy - 12, hx, hy - 4); ctx.bezierCurveTo(hx + 6, hy - 12, hx + 14, hy - 2, hx, hy + 9); ctx.fill();
+  }
+  // fruits
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; roundRect(14, 48, 150, 34, 12); ctx.fill();
+  ctx.fillStyle = '#ff9a2e'; ctx.beginPath(); ctx.ellipse(34, 65, 8, 10, -0.4, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(state.endless ? `${state.fruitsGot}` : `${state.fruitsGot} / ${state.fruitsTotal}`, 50, 66);
+  if (state.endless) {
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.floor(state.dist)} m   ·   Score ${Math.floor(state.dist) + state.fruitsGot * 10}   ·   Record ${save.best || 0}`, W / 2, 28);
+    ctx.textAlign = 'left';
+  } else {
+    // barre de progression
+    const bx = 300, bw = 360, k = Math.min(1, state.dist / L.dist);
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; roundRect(bx, 18, bw, 18, 9); ctx.fill();
+    ctx.fillStyle = '#ffd166'; roundRect(bx, 18, Math.max(18, bw * k), 18, 9); ctx.fill();
+    ctx.fillStyle = '#7a5232'; ctx.beginPath(); ctx.arc(bx + bw * k, 27, 11, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2b1d14'; ctx.beginPath(); ctx.arc(bx + bw * k + 3, 28, 6, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = '600 16px Fredoka';
+    ctx.fillText(`${L.name} — ${Math.floor(state.dist)} / ${L.dist} m`, W / 2, 52);
+    // étoiles objectifs
+    const tg = starTargets();
+    ctx.font = '600 18px Fredoka';
+    ctx.textAlign = 'left';
+    tg.forEach((v, i) => { ctx.fillStyle = state.fruitsGot >= v ? '#ffd166' : 'rgba(255,255,255,.5)'; ctx.fillText('★ ' + v, 22 + i * 50, 100); });
+  }
+  if (state.hint > 0) {
+    ctx.globalAlpha = Math.min(1, state.hint);
+    ctx.textAlign = 'center'; ctx.font = '600 22px Fredoka'; ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 5;
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    const msg = coarse ? 'Garde le doigt appuyé pour sauter plus loin, touche encore en l\'air !' : 'Maintiens Espace pour sauter plus loin, appuie encore en l\'air !';
+    ctx.strokeText(msg, W / 2, 150); ctx.fillText(msg, W / 2, 150);
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  }
+  ctx.textBaseline = 'alphabetic';
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+function drawFinish() {
+  if (state.endless) return;
+  const x = state.goalX - state.cam;
+  if (x < -40 || x > W + 40) return;
+  ctx.fillStyle = '#6b4626'; ctx.fillRect(x - 3, 230, 6, 140);
+  ctx.fillStyle = '#ff5a6e'; ctx.beginPath(); ctx.moveTo(x + 3, 232); ctx.lineTo(x + 50, 248); ctx.lineTo(x + 3, 264); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = '600 14px Fredoka'; ctx.fillText('Arrivée', x - 22, 222);
+}
+
+// render() : dessine toute l'image
+function render() {
+  ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+  if (!state.level) { state.level = LEVELS[0]; state.cam = state.t * 40; }
+  ctx.save();
+  if (state.shake > 0) ctx.translate(rand(-6, 6) * state.shake * 3, rand(-6, 6) * state.shake * 3);
+  drawBackground();
+  drawGround();
+  if (state.mode === 'menu' && state.platforms.length === 0) { ctx.restore(); return; }
+  for (const d of state.dogs) drawDog(d);
+  for (const p of state.platforms) drawPlatform(p);
+  drawFinish();
+  for (const w of state.wires) drawWire(w);
+  for (const n of state.nests) drawNest(n);
+  for (const f of state.fruits) drawFruit(f);
+  if (state.maki) drawMaki();
+  drawParts();
+  // Teinte d'ambiance
+  const th = state.level.theme;
+  if (th === 'sunset') { ctx.fillStyle = 'rgba(255,120,60,.12)'; ctx.fillRect(0, 0, W, H); }
+  if (th === 'storm') {
+    ctx.fillStyle = 'rgba(20,30,50,.25)'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(200,220,255,.5)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); for (const d of state.rain) { ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - 5, d.y + 16); } ctx.stroke();
+  }
+  if (state.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${state.flash * 2})`; ctx.fillRect(0, 0, W, H); }
+  ctx.restore();
+  if (state.mode === 'play' || state.mode === 'pause') drawHUD();
+}
+
+// ---------- Boucle principale ----------
+let lastT = performance.now();
+function loop(now) {
+  const dt = (now - lastT) / 1000; lastT = now;
+  if (state.mode === 'menu') state.t += Math.min(dt, 0.1);
+  tick(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ============================================================
+//                    MENUS (éléments HTML)
+// ============================================================
+const $ = id => document.getElementById(id);
+function hideAll() { document.querySelectorAll('.ov').forEach(o => o.classList.remove('show')); }
+function show(id) { hideAll(); $(id).classList.add('show'); }
+
+function goMenu() {
+  state.mode = 'menu'; state.platforms = []; state.maki = null; state.level = null;
+  state.fruits = []; state.nests = []; state.dogs = []; state.wires = []; state.rain = [];
+  $('hudbtn').style.display = 'none';
+  $('bestMenu').textContent = '🏆 Record du mode infini : ' + (save.best || 0);
+  show('menu');
+}
+function showLevels() {
+  const grid = $('grid'); grid.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement('button');
+    const locked = i >= save.unlocked;
+    const st = (save.levels[i] && save.levels[i].stars) || 0;
+    b.className = 'lvl' + (locked ? ' lock' : '');
+    b.innerHTML = `<span class="n">${locked ? '🔒' : i + 1}</span>${L.name}<br><span class="st">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</span>`;
+    if (!locked) b.onclick = () => startLevel(i);
+    grid.appendChild(b);
+  });
+  const inf = document.createElement('button');
+  inf.className = 'lvl inf';
+  inf.innerHTML = `♾️ Mode infini — record : ${save.best || 0}`;
+  inf.onclick = () => startLevel('infini');
+  grid.appendChild(inf);
+  show('levels');
+}
+function togglePause() {
+  if (state.mode === 'play') { state.mode = 'pause'; state.held = false; show('pause'); }
+  else if (state.mode === 'pause') { hideAll(); state.mode = 'play'; lastT = performance.now(); }
+}
+function toggleMute() {
+  save.muted = !save.muted; writeSave();
+  $('bMute').textContent = save.muted ? '🔇' : '🔊';
+}
+function restart() { startLevel(state.endless ? 'infini' : state.levelIndex); }
+
+$('bPlay').onclick = showLevels;
+$('bRules').onclick = () => show('rules');
+$('bBack1').onclick = goMenu;
+$('bBack2').onclick = goMenu;
+$('bResume').onclick = togglePause;
+$('bRestart').onclick = restart;
+$('bQuit').onclick = goMenu;
+$('bAgain').onclick = restart;
+$('bMenu2').onclick = showLevels;
+$('bNext').onclick = () => startLevel(Math.min(LEVELS.length - 1, state.levelIndex + 1));
+$('bPause').onclick = togglePause;
+$('bMute').onclick = toggleMute;
+// Les boutons ne doivent pas faire sauter le maki
+document.querySelectorAll('button').forEach(b => b.addEventListener('pointerdown', e => e.stopPropagation()));
+$('bMute').textContent = save.muted ? '🔇' : '🔊';
+goMenu();
+</script>
+</body>
+</html>

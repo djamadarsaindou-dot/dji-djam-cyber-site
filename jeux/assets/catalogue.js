@@ -10,6 +10,126 @@
 
 window.ARCADE_GAMES = [
   {
+    slug: "maki-sauteur",
+    title: "Le maki sauteur",
+    emoji: "🐒",
+    tagline: "Bondis d'arbre en arbre !",
+    description:
+      "Le maki est l'un des animaux emblématiques de Mayotte. Aide-le à bondir de manguier en baobab et sur les toits du village, ramasse les fruits et évite les guêpes, les chiens et les fils électriques. 6 niveaux + mode infini.",
+    path: "games/maki-sauteur/index.html",
+    cover: "images/maki-sauteur.png",
+    orientation: "paysage",
+    accent: "#c58a4a",
+    tags: ["Mayotte", "Nature", "Plateforme"],
+    difficulty: 3,
+    duration: "1 à 2 min par niveau",
+    content: "6 niveaux",
+    touch: true,
+    added: "2026-10-28",
+    controls: [
+      ["Espace (maintenir)", "sauter plus ou moins loin"],
+      ["Espace en l'air", "double saut avec la queue"],
+      ["Clic / toucher", "sauter"],
+      ["Échap", "pause"],
+    ],
+    progress() {
+      const s = readJSON("maki-v1");
+      if (!s || !s.levels) return null;
+      const stars = Object.values(s.levels).reduce((n, l) => n + (l.stars || 0), 0);
+      return { value: stars, max: 18, label: `${stars} / 18 étoiles` };
+    },
+  },
+  {
+    slug: "bebes-tortues",
+    title: "Les bébés tortues",
+    emoji: "🐢",
+    tagline: "Guide-les jusqu'à la mer.",
+    description:
+      "À Mayotte, les tortues marines viennent pondre sur les plages. La nuit, aide les bébés tortues à rejoindre la mer : chasse les crabes et les oiseaux, éteins les lumières qui les égarent, dégage le bois flotté.",
+    path: "games/bebes-tortues/index.html",
+    cover: "images/bebes-tortues.png",
+    orientation: "paysage",
+    accent: "#7fe0a0",
+    tags: ["Mayotte", "Nature", "Réflexes"],
+    difficulty: 3,
+    duration: "30 s à 1 min par niveau",
+    content: "6 niveaux",
+    touch: true,
+    added: "2026-10-28",
+    controls: [
+      ["Clic / toucher", "chasser un prédateur, éteindre une lampe"],
+      ["Maintenir", "lampe pour guider les tortues perdues"],
+      ["Échap", "pause"],
+      ["M", "couper le son"],
+    ],
+    progress() {
+      const s = readJSON("tortues-mer-v1");
+      if (!s || !s.levels) return null;
+      const stars = Object.values(s.levels).reduce((n, l) => n + (l.stars || 0), 0);
+      return { value: stars, max: 18, label: `${stars} / 18 étoiles` };
+    },
+  },
+  {
+    slug: "djarifa",
+    title: "Djarifa",
+    emoji: "🎣",
+    tagline: "La pêche au tissu, au bord de la mangrove.",
+    description:
+      "Inspiré de la djarifa, pêche traditionnelle pratiquée par les femmes à Mayotte, au bord de la mangrove, avec un tissu à mailles fines. Baisse le tissu devant les bancs de poissons, évite crabes et oursins, et ramasse les déchets avant que la marée monte.",
+    path: "games/djarifa/index.html",
+    cover: "images/djarifa.png",
+    orientation: "paysage",
+    accent: "#4fd1c5",
+    tags: ["Mayotte", "Tradition", "Adresse"],
+    difficulty: 2,
+    duration: "1 min par niveau",
+    content: "6 niveaux",
+    touch: true,
+    added: "2026-10-28",
+    controls: [
+      ["Souris / ↑↓←→", "déplacer le tissu"],
+      ["Maintenir clic / Espace", "baisser le tissu"],
+      ["Relâcher", "remonter et pêcher"],
+      ["Échap", "pause"],
+    ],
+    progress() {
+      const s = readJSON("djarifa-v1");
+      if (!s || !s.levels) return null;
+      const stars = Object.values(s.levels).reduce((n, l) => n + (l.stars || 0), 0);
+      return { value: stars, max: 18, label: `${stars} / 18 étoiles` };
+    },
+  },
+  {
+    slug: "ylang-ylang",
+    title: "La récolte d'ylang-ylang",
+    emoji: "🌼",
+    tagline: "Cueille au bon moment, sur l'île aux parfums.",
+    description:
+      "Mayotte est surnommée l'île aux parfums. Cueille les fleurs d'ylang-ylang quand elles deviennent jaune d'or, enchaîne les combos, évite les abeilles, puis porte ton panier jusqu'à l'alambic sans le renverser.",
+    path: "games/ylang-ylang/index.html",
+    cover: "images/ylang-ylang.png",
+    orientation: "paysage",
+    accent: "#f2d14b",
+    tags: ["Mayotte", "Nature", "Adresse"],
+    difficulty: 2,
+    duration: "1 min par niveau",
+    content: "6 niveaux",
+    touch: true,
+    added: "2026-10-28",
+    controls: [
+      ["Clic / toucher", "cueillir une fleur"],
+      ["Souris", "déplacer le panier"],
+      ["← →", "garder le panier droit"],
+      ["Échap", "pause"],
+    ],
+    progress() {
+      const s = readJSON("ylang-v1");
+      if (!s || !s.levels) return null;
+      const stars = Object.values(s.levels).reduce((n, l) => n + (l.stars || 0), 0);
+      return { value: stars, max: 18, label: `${stars} / 18 étoiles` };
+    },
+  },
+  {
     slug: "course-de-pirogues",
     title: "Course de pirogues",
     emoji: "🛶",

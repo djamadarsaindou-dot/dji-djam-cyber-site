@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>La récolte d'ylang-ylang</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;background:#1d2b22;overflow:hidden;font-family:'Fredoka',sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+  #stage{position:absolute;left:0;top:0;width:960px;height:540px;transform-origin:0 0}
+  canvas{position:absolute;left:0;top:0;width:960px;height:540px;display:block}
+  .ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,35,25,.55);backdrop-filter:blur(3px)}
+  .ov.on{display:flex}
+  .card{background:#fff8e6;border-radius:22px;padding:24px 32px;max-width:640px;text-align:center;color:#4a3a1a;box-shadow:0 10px 40px rgba(0,0,0,.35);border:4px solid #e9c046}
+  h1{margin:0 0 6px;font-size:40px;color:#b8860b}
+  h2{margin:0 0 10px;font-size:30px;color:#b8860b}
+  p{margin:8px 0;font-size:17px;line-height:1.4}
+  button{font-family:inherit;font-size:19px;font-weight:600;border:0;border-radius:14px;padding:10px 22px;margin:6px;cursor:pointer;background:#f2c230;color:#4a3000;box-shadow:0 4px 0 #b88a10}
+  button:active{transform:translateY(2px);box-shadow:0 2px 0 #b88a10}
+  button.sec{background:#cfe3c4;color:#2f4a25;box-shadow:0 4px 0 #8aa87c}
+  button:disabled{background:#ccc;color:#888;box-shadow:0 4px 0 #999;cursor:default}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+  .grid button{margin:0;font-size:16px;padding:10px 6px}
+  .stars{color:#e0a800;font-size:18px;display:block}
+  ul{text-align:left;font-size:16px;margin:6px 0;padding-left:22px}
+  li{margin:4px 0}
+  .big{font-size:22px;font-weight:600}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv"></canvas>
+
+  <!-- Menu principal -->
+  <div class="ov on" id="ovMenu"><div class="card">
+    <h1>La récolte d'ylang-ylang</h1>
+    <p>Mayotte est surnommée l'île aux parfums. On y cultive l'ylang-ylang, dont on cueille les fleurs quand elles deviennent jaunes. Voici notre version.</p>
+    <button id="bPlay">Jouer</button><button class="sec" id="bLevels">Niveaux</button><button class="sec" id="bRules">Règles</button>
+    <p id="menuBest" style="font-size:15px"></p>
+  </div></div>
+
+  <!-- Choix des niveaux -->
+  <div class="ov" id="ovLevels"><div class="card">
+    <h2>Niveaux</h2>
+    <div class="grid" id="lvGrid"></div>
+    <button id="bInf">Mode infini</button><button class="sec" data-back>Retour</button>
+  </div></div>
+
+  <!-- Règles -->
+  <div class="ov" id="ovRules"><div class="card">
+    <h2>Règles</h2>
+    <p>Mayotte est surnommée l'île aux parfums. On y cultive l'ylang-ylang, dont on cueille les fleurs quand elles deviennent jaunes. Voici notre version.</p>
+    <ul>
+      <li>Clique (ou touche) les fleurs pour les cueillir. Elles passent du <b>vert</b> au <b>jaune clair</b>, puis au <b>jaune doré</b> (parfait !), puis au <b>brun</b> (perdu).</li>
+      <li>Les cueillettes dorées à la suite forment un <b>combo</b>.</li>
+      <li>Les fleurs qui tombent : attrape-les avec le <b>panier</b> (il suit la souris / ton doigt).</li>
+      <li>Ne clique pas sur les <b>abeilles</b> : piqûre = du temps perdu.</li>
+      <li>Atteins l'objectif en kg avant la fin de la journée, puis porte le panier à l'alambic sans renverser (garde-le droit avec la souris ou ← →).</li>
+      <li>Échap / P : pause — M : son.</li>
+    </ul>
+    <button class="sec" data-back>Retour</button>
+  </div></div>
+
+  <!-- Pause -->
+  <div class="ov" id="ovPause"><div class="card">
+    <h2>Pause</h2>
+    <button id="bResume">Reprendre</button><button class="sec" id="bRestart">Recommencer</button><button class="sec" id="bQuit">Menu</button>
+  </div></div>
+
+  <!-- Fin de niveau -->
+  <div class="ov" id="ovEnd"><div class="card">
+    <h2 id="endTitle"></h2>
+    <div id="endText"></div>
+    <div id="endBtns"></div>
+  </div></div>
+</div>
+
+<script>
+// =============================================================
+//  La récolte d'ylang-ylang — jeu en un seul fichier
+// =============================================================
+
+const W = 960, H = 540;          // taille virtuelle du jeu
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const stage = document.getElementById('stage');
+let S = 1, DPR = 1;              // échelle écran et densité de pixels
+
+// ---------- Mise à l'échelle de la scène ----------
+function resize() {
+  S = Math.min(innerWidth / W, innerHeight / H);
+  DPR = window.devicePixelRatio || 1;
+  stage.style.transform = 'scale(' + S + ')';
+  stage.style.left = ((innerWidth - W * S) / 2) + 'px';
+  stage.style.top = ((innerHeight - H * S) / 2) + 'px';
+  cv.width = Math.round(W * S * DPR);
+  cv.height = Math.round(H * S * DPR);
+  ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+}
+addEventListener('resize', resize);
+resize();
+
+// ---------- Petits outils ----------
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+function mixColor(c1, c2, t) { // mélange deux couleurs [r,g,b]
+  return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
+}
+const rgb = c => 'rgb(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ')';
+
+// ---------- Les niveaux ----------
+// trees : nombre d'arbres, time : durée de la journée (s), target : kg à atteindre
+// ripen : vitesse de maturation, spawn : fleurs par seconde, wind/rain/bees : difficultés
+const LEVELS = [
+  { name: 'Matin calme',      trees: 1, time: 60, target: 1.5, ripen: 0.10, spawn: 1.1, wind: 0,    rain: false, bees: 0, stars: [150, 260, 380] },
+  { name: "Plus d'arbres",    trees: 2, time: 60, target: 2.5, ripen: 0.12, spawn: 1.8, wind: 0,    rain: false, bees: 1, stars: [250, 420, 600] },
+  { name: 'Le vent',          trees: 2, time: 65, target: 2.8, ripen: 0.12, spawn: 1.9, wind: 0.35, rain: false, bees: 1, stars: [280, 470, 660] },
+  { name: 'La pluie',         trees: 2, time: 65, target: 3.0, ripen: 0.15, spawn: 2.0, wind: 0.2,  rain: true,  bees: 1, stars: [300, 500, 700] },
+  { name: 'Les abeilles',     trees: 2, time: 70, target: 3.2, ripen: 0.14, spawn: 2.1, wind: 0.1,  rain: false, bees: 4, stars: [320, 540, 760] },
+  { name: 'La grande récolte',trees: 3, time: 80, target: 4.5, ripen: 0.16, spawn: 2.8, wind: 0.3,  rain: false, bees: 3, stars: [450, 750, 1050] },
+];
+const INFINITE = { name: 'Mode infini', trees: 3, time: 45, target: 0, ripen: 0.13, spawn: 2.0, wind: 0.15, rain: false, bees: 2, stars: [0, 0, 0] };
+
+// ---------- Sauvegarde ----------
+let save = { unlocked: 1, levels: {}, best: 0, muted: false };
+try { const s = JSON.parse(localStorage.getItem('ylang-v1')); if (s) save = Object.assign(save, s); } catch (e) {}
+function writeSave() { try { localStorage.setItem('ylang-v1', JSON.stringify(save)); } catch (e) {} }
+
+// ---------- Sons (WebAudio) ----------
+let AC = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(freq, dur, type, vol, slide) {
+  if (save.muted) return;
+  const a = audio(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, a.currentTime);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, a.currentTime + dur);
+  g.gain.setValueAtTime(vol || 0.15, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(); o.stop(a.currentTime + dur);
+}
+const SFX = {
+  pick:    () => tone(520, 0.12, 'triangle', 0.15, 700),
+  perfect: () => { tone(880, 0.25, 'sine', 0.13); setTimeout(() => tone(1320, 0.3, 'sine', 0.1), 70); },
+  combo:   n => tone(600 + n * 80, 0.2, 'square', 0.06, 900 + n * 80),
+  bad:     () => tone(220, 0.2, 'sawtooth', 0.08, 140),
+  buzz:    () => tone(180, 0.4, 'sawtooth', 0.1, 120),
+  catch:   () => tone(400, 0.1, 'triangle', 0.12, 600),
+  win:     () => [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.3, 'triangle', 0.12), i * 120)),
+  lose:    () => [400, 330, 260].forEach((f, i) => setTimeout(() => tone(f, 0.3, 'triangle', 0.1), i * 150)),
+};
+
+// ---------- État du jeu ----------
+let state = { screen: 'menu', paused: false };
+
+// Construit un arbre d'ylang-ylang : tronc bas et branches tordues qui retombent
+function makeTree(x, scale) {
+  const tree = { x: x, scale: scale, branches: [] };
+  const baseY = 470;
+  const trunkTop = baseY - 120 * scale;
+  tree.trunkTop = trunkTop;
+  const n = 5;
+  for (let i = 0; i < n; i++) {
+    const dir = i % 2 === 0 ? -1 : 1;
+    const sy = trunkTop + rand(-10, 30) * scale;
+    const len = rand(120, 170) * scale;
+    // Branche : courbe qui monte puis retombe (forme typique taillée basse)
+    const p0 = { x: x + rand(-8, 8), y: sy };
+    const p1 = { x: x + dir * len * 0.5, y: sy - rand(60, 100) * scale };
+    const p2 = { x: x + dir * len, y: sy + rand(10, 50) * scale };
+    tree.branches.push({ p0, p1, p2 });
+  }
+  return tree;
+}
+function bezier(b, t) {
+  const u = 1 - t;
+  return { x: u * u * b.p0.x + 2 * u * t * b.p1.x + t * t * b.p2.x,
+           y: u * u * b.p0.y + 2 * u * t * b.p1.y + t * t * b.p2.y };
+}
+
+// Démarre un niveau (i = 0..5, ou -1 pour le mode infini)
+function startLevel(i) {
+  audio();
+  hideAll();
+  const L = i < 0 ? INFINITE : LEVELS[i];
+  const trees = [];
+  const xs = L.trees === 1 ? [480] : L.trees === 2 ? [300, 660] : [200, 480, 760];
+  xs.forEach(x => trees.push(makeTree(x, L.trees === 1 ? 1.25 : L.trees === 2 ? 1.05 : 0.9)));
+  state = {
+    screen: 'play', paused: false, levelIndex: i, L: L,
+    time: L.time, kg: 0, score: 0, combo: 0, bestCombo: 0, perfects: 0,
+    trees: trees, flowers: [], bees: [], falling: [], particles: [], texts: [], drops: [],
+    spawnT: 0.3, basketX: 480, pointer: { x: 480, y: 300 }, stingT: 0, windT: 0, t: 0,
+    nextId: 1, bonus: null,
+  };
+  for (let k = 0; k < 4; k++) spawnFlower(true);
+  for (let k = 0; k < L.bees; k++) spawnBee();
+}
+
+// Fait éclore une fleur sur une branche au hasard
+function spawnFlower(initial) {
+  const tr = state.trees[(Math.random() * state.trees.length) | 0];
+  const b = tr.branches[(Math.random() * tr.branches.length) | 0];
+  const p = bezier(b, rand(0.3, 1));
+  // évite deux fleurs collées
+  for (const f of state.flowers) if (Math.hypot(f.x - p.x, f.y - p.y) < 26) return;
+  state.flowers.push({ id: state.nextId++, x: p.x, y: p.y + 10, ripe: initial ? rand(0.1, 0.5) : 0, grow: 0,
+    speed: state.L.ripen * rand(0.8, 1.2), rot: rand(-0.4, 0.4), sway: rand(0, 6.28) });
+}
+function spawnBee() {
+  state.bees.push({ x: rand(100, 860), y: rand(120, 380), vx: rand(-60, 60), vy: rand(-30, 30), t: rand(0, 10) });
+}
+
+// Stade de maturité : 0 vert, 1 jaune clair, 2 doré (parfait), 3 brun
+function stage_(r) { return r < 0.45 ? 0 : r < 0.68 ? 1 : r < 0.88 ? 2 : 3; }
+function flowerColor(r) {
+  const G = [120, 170, 70], LY = [225, 230, 120], GO = [245, 195, 30], BR = [130, 85, 40];
+  if (r < 0.45) return mixColor(G, LY, r / 0.45 * 0.4);
+  if (r < 0.68) return mixColor(G, LY, 0.4 + (r - 0.45) / 0.23 * 0.6);
+  if (r < 0.88) return mixColor(LY, GO, Math.min(1, (r - 0.68) / 0.08));
+  return mixColor(GO, BR, Math.min(1, (r - 0.88) / 0.08));
+}
+
+// Donne les points et le poids d'une fleur selon son stade
+function harvest(f, x, y, caught) {
+  const st = stage_(f.ripe);
+  if (st === 0) { // trop verte : rien gagné, combo cassé
+    state.combo = 0; SFX.bad();
+    addText(x, y, 'Trop verte !', '#7fbf5a'); return false;
+  }
+  if (st === 3) { state.combo = 0; SFX.bad(); addText(x, y, 'Fanée…', '#8a5a2a'); return false; }
+  if (st === 2) {
+    state.combo++; state.perfects++;
+    state.bestCombo = Math.max(state.bestCombo, state.combo);
+    const pts = 20 * Math.min(5, 1 + Math.floor(state.combo / 3));
+    state.score += pts; state.kg += 0.1;
+    SFX.perfect(); if (state.combo >= 3 && state.combo % 3 === 0) SFX.combo(state.combo / 3);
+    addText(x, y, 'Parfait ! +' + pts + (state.combo > 1 ? '  x' + state.combo : ''), '#ffd23a');
+    burst(x, y, '#ffe27a', 14);
+    if (state.levelIndex < 0) state.time += 0.6; // mode infini : bonus de temps
+  } else {
+    state.combo = 0; state.score += 8; state.kg += 0.06;
+    SFX.pick(); addText(x, y, '+8', '#f4f0a0'); burst(x, y, '#f4f0a0', 6);
+  }
+  if (caught) SFX.catch();
+  return true;
+}
+
+// Cueille une fleur (objet ou id) — fonction pratique pour les tests
+function pickFlower(f) {
+  if (typeof f === 'number') f = state.flowers.find(o => o.id === f);
+  if (!f || state.screen !== 'play') return false;
+  const ok = harvest(f, f.x, f.y, false);
+  state.flowers.splice(state.flowers.indexOf(f), 1);
+  return ok;
+}
+
+// Clic / toucher dans le monde du jeu
+function clickAt(x, y) {
+  if (state.screen !== 'play' || state.paused) return;
+  // les abeilles d'abord : piqûre !
+  for (const b of state.bees) {
+    if (Math.hypot(b.x - x, b.y - y) < 22) {
+      state.time = Math.max(0, state.time - 5); state.combo = 0; state.stingT = 0.6;
+      SFX.buzz(); addText(x, y, 'Aïe ! −5 s', '#ff6a4a'); return;
+    }
+  }
+  let best = null, bd = 30;
+  for (const f of state.flowers) {
+    const d = Math.hypot(f.x - x, f.y + 6 - y);
+    if (d < bd) { bd = d; best = f; }
+  }
+  if (best) pickFlower(best);
+}
+
+function addText(x, y, s, c) { state.texts.push({ x, y, s, c, t: 1.2 }); }
+function burst(x, y, c, n) {
+  for (let i = 0; i < n; i++) state.particles.push({ x, y, vx: rand(-90, 90), vy: rand(-130, 20), t: rand(0.5, 1), c });
+}
+
+// ---------- Mise à jour (60 fois par seconde) ----------
+function tick(dt) {
+  state.t = (state.t || 0) + dt;
+  if (state.screen === 'play' && !state.paused) updatePlay(dt);
+  else if (state.screen === 'bonus' && !state.paused) updateBonus(dt);
+}
+
+function updatePlay(dt) {
+  const L = state.L;
+  state.time -= dt;
+  if (state.stingT > 0) state.stingT -= dt;
+  // mode infini : ça accélère petit à petit
+  const diff = state.levelIndex < 0 ? 1 + state.t / 90 : 1;
+
+  // nouvelles fleurs
+  state.spawnT -= dt;
+  if (state.spawnT <= 0 && state.flowers.length < 16 + state.trees.length * 4) {
+    spawnFlower(false); state.spawnT = 1 / (L.spawn * diff) * rand(0.6, 1.4);
+  }
+  // le vent souffle par rafales
+  state.windT += dt;
+  const gust = L.wind * Math.max(0, Math.sin(state.windT * 0.7)) ;
+  // maturation des fleurs
+  for (let i = state.flowers.length - 1; i >= 0; i--) {
+    const f = state.flowers[i];
+    f.grow = Math.min(1, f.grow + dt * 2);
+    f.ripe += f.speed * dt * diff * (L.rain ? 1.15 : 1);
+    f.sway += dt * (1.5 + gust * 6);
+    // fleurs mûres qui tombent avec le vent ou la pluie
+    const fallChance = (gust * 0.25 + (L.rain ? 0.05 : 0)) * dt;
+    if (f.ripe > 0.5 && Math.random() < fallChance) {
+      state.falling.push({ x: f.x, y: f.y, vx: gust * 80 * (Math.random() < .5 ? -1 : 1), vy: 0, ripe: f.ripe, rot: 0 });
+      state.flowers.splice(i, 1); continue;
+    }
+    if (f.ripe > 1.05) { // fanée, elle tombe au sol
+      for (let k = 0; k < 4; k++) state.particles.push({ x: f.x, y: f.y, vx: rand(-20, 20), vy: rand(0, 40), t: 1.2, c: '#8a5a2a' });
+      state.flowers.splice(i, 1);
+    }
+  }
+  // fleurs qui tombent : le panier les attrape
+  state.basketX = lerp(state.basketX, clamp(state.pointer.x, 60, 900), Math.min(1, dt * 12));
+  for (let i = state.falling.length - 1; i >= 0; i--) {
+    const f = state.falling[i];
+    f.vy += 260 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.rot += dt * 3;
+    f.ripe += 0.02 * dt;
+    if (f.y > 475 && f.y < 505 && Math.abs(f.x - state.basketX) < 52) {
+      harvest(f, f.x, f.y - 20, true); state.falling.splice(i, 1);
+    } else if (f.y > 540) state.falling.splice(i, 1);
+  }
+  // abeilles
+  for (const b of state.bees) {
+    b.t += dt;
+    b.vx += rand(-120, 120) * dt; b.vy += rand(-120, 120) * dt;
+    b.vx = clamp(b.vx, -90, 90); b.vy = clamp(b.vy, -60, 60);
+    // elles aiment tourner autour des fleurs
+    const f = state.flowers[(b.t * 0.3 | 0) % Math.max(1, state.flowers.length)];
+    if (f) { b.vx += (f.x - b.x) * dt * 0.6; b.vy += (f.y - b.y) * dt * 0.6; }
+    b.x = clamp(b.x + b.vx * dt, 40, 920); b.y = clamp(b.y + b.vy * dt, 90, 430);
+  }
+  if (state.levelIndex < 0 && state.bees.length < 2 + Math.floor(state.t / 30)) spawnBee();
+  // pluie
+  if (L.rain) for (let k = 0; k < 3; k++) state.drops.push({ x: rand(0, 1000), y: -10, v: rand(500, 700) });
+  for (let i = state.drops.length - 1; i >= 0; i--) { const d = state.drops[i]; d.y += d.v * dt; d.x -= 80 * dt; if (d.y > 540) state.drops.splice(i, 1); }
+  updateFx(dt);
+  if (state.time <= 0) { state.time = 0; endDay(); }
+}
+
+function updateFx(dt) {
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const p = state.particles[i]; p.t -= dt; p.vy += 200 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.t <= 0) state.particles.splice(i, 1);
+  }
+  for (let i = state.texts.length - 1; i >= 0; i--) { const t = state.texts[i]; t.t -= dt; t.y -= 30 * dt; if (t.t <= 0) state.texts.splice(i, 1); }
+}
+
+// Fin de la journée : objectif atteint → phase bonus, sinon échec
+function endDay() {
+  if (state.levelIndex >= 0 && state.kg + 1e-6 < state.L.target) { finish(false); return; }
+  state.screen = 'bonus';
+  state.bonus = { dist: 0, tilt: 0, vel: 0, spilled: 0, push: 0, keys: 0 };
+}
+
+// ---------- Phase bonus : porter le panier à l'alambic ----------
+function updateBonus(dt) {
+  const B = state.bonus;
+  B.dist += dt / 9;                         // 9 secondes de marche
+  // le panier penche tout seul (chemin cahoteux)
+  B.vel += (Math.sin(state.t * 2.3) * 0.9 + rand(-1.6, 1.6) + B.tilt * 1.4) * dt;
+  // le joueur corrige : la souris (gauche/droite du centre) ou les flèches
+  const ctrl = B.keys !== 0 ? B.keys : clamp((state.pointer.x - 480) / 200, -1, 1);
+  B.vel -= ctrl * 3.2 * dt;
+  B.vel *= 0.985;
+  B.tilt = clamp(B.tilt + B.vel * dt, -1, 1);
+  if (Math.abs(B.tilt) > 0.6) {
+    B.spilled = Math.min(1, B.spilled + dt * 0.12);
+    if (Math.random() < dt * 20) state.particles.push({ x: 300 + B.tilt * 60, y: 380, vx: B.tilt * 80, vy: -40, t: 1, c: '#ffd23a' });
+  }
+  if (Math.abs(B.tilt) >= 1) B.vel *= -0.3;
+  updateFx(dt);
+  if (B.dist >= 1) finish(true);
+}
+
+// Calcule le résultat, les étoiles et affiche l'écran de fin
+function finish(success) {
+  state.screen = 'end';
+  const i = state.levelIndex;
+  let bonusPts = 0;
+  if (success && state.bonus) {
+    bonusPts = Math.round(150 * (1 - state.bonus.spilled));
+    state.score += bonusPts;
+  }
+  let stars = 0;
+  if (success && i >= 0) {
+    const th = state.L.stars;
+    stars = state.score >= th[2] ? 3 : state.score >= th[1] ? 2 : 1;
+    const prev = (save.levels[i] && save.levels[i].stars) || 0;
+    save.levels[i] = { stars: Math.max(prev, stars) };
+    if (i + 2 > save.unlocked) save.unlocked = Math.min(LEVELS.length, i + 2);
+  }
+  if (i < 0 && state.score > save.best) save.best = state.score;
+  writeSave();
+  success ? SFX.win() : SFX.lose();
+
+  const title = i < 0 ? 'Fin de la journée' : success ? 'Récolte réussie !' : 'Objectif manqué…';
+  let html = '<p class="big">Score : ' + state.score + '</p>';
+  html += '<p>Fleurs : ' + state.kg.toFixed(2) + ' kg' + (i >= 0 ? ' / objectif ' + state.L.target + ' kg' : '') + '</p>';
+  html += '<p>Cueillettes parfaites : ' + state.perfects + ' — meilleur combo : x' + state.bestCombo + '</p>';
+  if (success && state.bonus) html += '<p>Bonus alambic : +' + bonusPts + ' (' + Math.round((1 - state.bonus.spilled) * 100) + ' % livré)</p>';
+  if (i >= 0 && success) html += '<p style="font-size:34px;color:#e0a800;margin:4px">' + '★'.repeat(stars) + '<span style="color:#d8cfb5">' + '★'.repeat(3 - stars) + '</span></p>';
+  if (i < 0) html += '<p>Record : ' + save.best + '</p>';
+  document.getElementById('endTitle').textContent = title;
+  document.getElementById('endText').innerHTML = html;
+  const btns = document.getElementById('endBtns'); btns.innerHTML = '';
+  const mk = (txt, fn, sec) => { const b = document.createElement('button'); b.textContent = txt; if (sec) b.className = 'sec'; b.onclick = fn; btns.appendChild(b); };
+  if (success && i >= 0 && i < LEVELS.length - 1) mk('Niveau suivant', () => startLevel(i + 1));
+  mk('Rejouer', () => startLevel(i), success && i >= 0 && i < LEVELS.length - 1);
+  mk('Menu', showMenu, true);
+  show('ovEnd');
+}
+
+// ---------- Dessin ----------
+function drawBackground() {
+  // ciel du matin
+  const sky = ctx.createLinearGradient(0, 0, 0, 300);
+  if (state.L && state.L.rain) { sky.addColorStop(0, '#8a9aa8'); sky.addColorStop(1, '#c9d2cf'); }
+  else { sky.addColorStop(0, '#8fc9ea'); sky.addColorStop(0.6, '#f7dfb0'); sky.addColorStop(1, '#ffe9c4'); }
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+  // soleil levant
+  if (!(state.L && state.L.rain)) {
+    const g = ctx.createRadialGradient(780, 120, 10, 780, 120, 140);
+    g.addColorStop(0, 'rgba(255,245,200,1)'); g.addColorStop(0.25, 'rgba(255,225,150,.6)'); g.addColorStop(1, 'rgba(255,220,150,0)');
+    ctx.fillStyle = g; ctx.fillRect(600, 0, 360, 300);
+  }
+  // nuages
+  const t = state.t || 0;
+  ctx.fillStyle = 'rgba(255,255,255,.7)';
+  for (let i = 0; i < 4; i++) {
+    const x = ((i * 280 + t * 8) % 1200) - 120, y = 50 + i * 22;
+    ctx.beginPath(); ctx.ellipse(x, y, 50, 14, 0, 0, 7); ctx.ellipse(x + 30, y - 8, 30, 14, 0, 0, 7); ctx.fill();
+  }
+  // lagon
+  const lag = ctx.createLinearGradient(0, 220, 0, 290);
+  lag.addColorStop(0, '#5cc6d0'); lag.addColorStop(1, '#2f9fb3');
+  ctx.fillStyle = lag; ctx.fillRect(0, 225, W, 70);
+  ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 12; i++) { const x = (i * 97 + t * 10) % W; ctx.beginPath(); ctx.moveTo(x, 240 + (i % 3) * 14); ctx.lineTo(x + 25, 240 + (i % 3) * 14); ctx.stroke(); }
+  // collines lointaines
+  hill('#7fa77a', 230, [0, 60, 160, 40, 330, 75, 520, 30, 700, 65, 960, 35]);
+  hill('#5f8c55', 270, [0, 30, 200, 55, 420, 25, 640, 50, 820, 20, 960, 40]);
+  // sol de la plantation
+  const gr = ctx.createLinearGradient(0, 300, 0, 540);
+  gr.addColorStop(0, '#6fa24c'); gr.addColorStop(1, '#3f6e2e');
+  ctx.fillStyle = gr; ctx.fillRect(0, 300, W, 240);
+  // rangées d'arbustes lointains
+  ctx.fillStyle = '#4f8a3c';
+  for (let i = 0; i < 14; i++) { ctx.beginPath(); ctx.ellipse(i * 75 + 20, 312, 30, 14, 0, 0, 7); ctx.fill(); }
+  // chemin de terre
+  ctx.fillStyle = '#b48a5a';
+  ctx.beginPath(); ctx.moveTo(0, 480); ctx.quadraticCurveTo(480, 455, 960, 485); ctx.lineTo(960, 540); ctx.lineTo(0, 540); ctx.fill();
+}
+function hill(c, base, pts) {
+  ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, base);
+  for (let i = 0; i < pts.length; i += 2) ctx.lineTo(pts[i], base - pts[i + 1]);
+  ctx.lineTo(W, base + 40); ctx.lineTo(0, base + 40); ctx.fill();
+}
+
+function drawTree(tr) {
+  const sway = Math.sin((state.t || 0) * 0.8 + tr.x) * 2;
+  // tronc tordu
+  ctx.strokeStyle = '#6b4a2e'; ctx.lineCap = 'round';
+  ctx.lineWidth = 22 * tr.scale;
+  ctx.beginPath(); ctx.moveTo(tr.x, 475); ctx.quadraticCurveTo(tr.x - 25 * tr.scale, (475 + tr.trunkTop) / 2, tr.x, tr.trunkTop); ctx.stroke();
+  // branches
+  for (const b of tr.branches) {
+    ctx.strokeStyle = '#6b4a2e'; ctx.lineWidth = 9 * tr.scale;
+    ctx.beginPath(); ctx.moveTo(b.p0.x, b.p0.y); ctx.quadraticCurveTo(b.p1.x, b.p1.y, b.p2.x + sway, b.p2.y); ctx.stroke();
+    ctx.strokeStyle = '#8a6440'; ctx.lineWidth = 3 * tr.scale;
+    ctx.beginPath(); ctx.moveTo(b.p0.x, b.p0.y - 2); ctx.quadraticCurveTo(b.p1.x, b.p1.y - 3, b.p2.x + sway, b.p2.y - 2); ctx.stroke();
+  }
+  // feuilles le long des branches
+  for (const b of tr.branches) {
+    for (let k = 0.2; k <= 1; k += 0.12) {
+      const p = bezier(b, k);
+      for (const s of [-1, 1]) {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(s * 0.9 + Math.sin(k * 20) * 0.3 + sway * 0.02);
+        ctx.fillStyle = (k * 10 | 0) % 2 ? '#2f6b2a' : '#3f8236';
+        ctx.beginPath(); ctx.ellipse(0, 14 * tr.scale, 6 * tr.scale, 15 * tr.scale, 0, 0, 7); ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+}
+
+// Fleur d'ylang-ylang : longs pétales étroits et tombants en étoile
+function drawFlower(x, y, r, size, rot) {
+  const c = flowerColor(r);
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(size, size);
+  // petite tige
+  ctx.strokeStyle = '#4e7a32'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(0, 0); ctx.stroke();
+  const droop = 0.4 + Math.min(r, 1) * 0.6;   // plus mûre = plus tombante
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 2 + (i - 2.5) * 0.42 * (1.2 - droop * 0.4);
+    const len = 22 + (i % 2) * 4;
+    const ex = Math.cos(a) * len, ey = Math.sin(a) * len * (0.6 + droop * 0.5);
+    ctx.fillStyle = rgb(mixColor(c, [255, 255, 255], i % 2 ? 0.08 : 0));
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(ex * 0.5 + Math.sin(a) * 5, ey * 0.4 - 4, ex, ey);
+    ctx.quadraticCurveTo(ex * 0.5 - Math.sin(a) * 4, ey * 0.5 + 3, 0, 0);
+    ctx.fill();
+  }
+  // cœur
+  ctx.fillStyle = r > 0.88 ? '#5a3a1a' : '#c0602a';
+  ctx.beginPath(); ctx.arc(0, 1, 2.6, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawBasket(x, y, tilt) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(tilt || 0);
+  // fleurs dans le panier
+  for (let i = 0; i < 7; i++) { ctx.fillStyle = i % 2 ? '#f5c51e' : '#e9d65a'; ctx.beginPath(); ctx.arc(-36 + i * 12, -6 + (i % 2) * 3, 8, 0, 7); ctx.fill(); }
+  // corps en osier
+  ctx.fillStyle = '#b07a3e';
+  ctx.beginPath(); ctx.moveTo(-50, -4); ctx.lineTo(50, -4); ctx.lineTo(40, 30); ctx.lineTo(-40, 30); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#7d5226'; ctx.lineWidth = 2;
+  for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(-48 + k * 2, 4 + k * 7); ctx.lineTo(48 - k * 2, 4 + k * 7); ctx.stroke(); }
+  for (let k = -4; k <= 4; k++) { ctx.beginPath(); ctx.moveTo(k * 11, -4); ctx.lineTo(k * 9, 30); ctx.stroke(); }
+  ctx.fillStyle = '#8c5a2a'; ctx.fillRect(-53, -8, 106, 7);
+  // anse
+  ctx.strokeStyle = '#8c5a2a'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(0, -6, 42, Math.PI, 0); ctx.stroke();
+  ctx.restore();
+}
+
+function drawBee(b) {
+  ctx.save(); ctx.translate(b.x, b.y); if (b.vx < 0) ctx.scale(-1, 1);
+  // ailes floues (plusieurs positions transparentes)
+  for (let k = 0; k < 3; k++) {
+    const a = Math.sin(b.t * 60 + k) * 0.6;
+    ctx.fillStyle = 'rgba(220,240,255,.35)';
+    ctx.save(); ctx.rotate(a - 0.5); ctx.beginPath(); ctx.ellipse(-2, -9, 5, 10, 0, 0, 7); ctx.fill(); ctx.restore();
+  }
+  ctx.fillStyle = '#f2b81a'; ctx.beginPath(); ctx.ellipse(0, 0, 12, 8, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#2a1e0e';
+  ctx.fillRect(-5, -7, 3, 14); ctx.fillRect(2, -7, 3, 14);
+  ctx.beginPath(); ctx.arc(11, -1, 4, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(-17, 1); ctx.lineTo(-12, 3); ctx.fill();
+  ctx.restore();
+}
+
+function drawAlambic(x, y) {
+  // feu
+  ctx.fillStyle = '#6a6a6a'; ctx.fillRect(x - 55, y + 40, 110, 30);
+  const fl = Math.sin((state.t || 0) * 20) * 4;
+  ctx.fillStyle = '#ff8a1a'; ctx.beginPath(); ctx.moveTo(x - 30, y + 45); ctx.quadraticCurveTo(x, y + 15 + fl, x + 30, y + 45); ctx.fill();
+  // cuve en cuivre
+  const g = ctx.createLinearGradient(x - 50, 0, x + 50, 0);
+  g.addColorStop(0, '#8a4a1e'); g.addColorStop(0.4, '#e09050'); g.addColorStop(1, '#7a3e18');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(x, y, 50, 45, 0, 0, 7); ctx.fill();
+  ctx.fillRect(x - 15, y - 70, 30, 30);
+  ctx.beginPath(); ctx.ellipse(x, y - 72, 22, 10, 0, 0, 7); ctx.fill();
+  // col de cygne
+  ctx.strokeStyle = '#b8682e'; ctx.lineWidth = 8;
+  ctx.beginPath(); ctx.moveTo(x, y - 78); ctx.quadraticCurveTo(x + 60, y - 110, x + 100, y - 20); ctx.stroke();
+  // vapeur
+  ctx.fillStyle = 'rgba(255,255,255,.5)';
+  for (let i = 0; i < 4; i++) {
+    const p = (((state.t || 0) * 0.5 + i * 0.25) % 1);
+    ctx.beginPath(); ctx.arc(x + Math.sin(p * 6 + i) * 8, y - 85 - p * 60, 6 + p * 12, 0, 7); ctx.globalAlpha = 1 - p; ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  ctx.fillStyle = 'rgba(255,248,230,.88)';
+  roundRect(10, 10, 940, 46, 14); ctx.fill();
+  ctx.fillStyle = '#4a3a1a'; ctx.font = '600 20px Fredoka'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(state.L.name, 26, 33);
+  ctx.fillText('⏱ ' + Math.ceil(state.time) + ' s', 260, 33);
+  ctx.fillText('Score ' + state.score, 380, 33);
+  // jauge de kg
+  const tgt = state.levelIndex < 0 ? 0 : state.L.target;
+  ctx.fillText(state.kg.toFixed(2) + (tgt ? ' / ' + tgt : '') + ' kg', 540, 33);
+  if (tgt) {
+    ctx.fillStyle = '#e4d6b0'; roundRect(700, 24, 160, 18, 9); ctx.fill();
+    ctx.fillStyle = state.kg >= tgt ? '#6cbf4a' : '#f2c230'; roundRect(700, 24, 160 * Math.min(1, state.kg / tgt), 18, 9); ctx.fill();
+  }
+  if (state.combo > 1) { ctx.fillStyle = '#d08a00'; ctx.fillText('x' + state.combo, 880, 33); }
+  ctx.font = '500 13px Fredoka'; ctx.fillStyle = '#fff'; ctx.textAlign = 'right';
+  ctx.fillText((save.muted ? 'Son coupé (M)' : 'M : son') + '   Échap : pause', 950, 530);
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+function drawFx() {
+  for (const p of state.particles) { ctx.globalAlpha = clamp(p.t, 0, 1); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1; ctx.textAlign = 'center'; ctx.font = '700 20px Fredoka';
+  for (const t of state.texts) {
+    ctx.globalAlpha = clamp(t.t, 0, 1);
+    ctx.strokeStyle = 'rgba(60,40,10,.7)'; ctx.lineWidth = 4; ctx.strokeText(t.s, t.x, t.y);
+    ctx.fillStyle = t.c; ctx.fillText(t.s, t.x, t.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function render() {
+  ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+  if (!state.L) { // décor du menu
+    state.L = null; drawBackground();
+    const tr = render._tree || (render._tree = makeTree(480, 1.2));
+    drawTree(tr);
+    return;
+  }
+  drawBackground();
+  if (state.screen === 'bonus' || (state.screen === 'end' && state.bonus)) { renderBonus(); return; }
+  for (const tr of state.trees) drawTree(tr);
+  const t = state.t;
+  for (const f of state.flowers) {
+    const sw = Math.sin(f.sway) * 0.15;
+    drawFlower(f.x, f.y, f.ripe, 0.4 + f.grow * 0.6, f.rot + sw);
+    // étincelles sur les fleurs dorées (parfaites)
+    if (stage_(f.ripe) === 2) {
+      for (let k = 0; k < 3; k++) {
+        const a = t * 3 + k * 2.1 + f.id, rr = 18 + Math.sin(t * 5 + k) * 4;
+        const sx = f.x + Math.cos(a) * rr, sy = f.y + 8 + Math.sin(a) * rr * 0.7;
+        ctx.fillStyle = 'rgba(255,250,200,' + (0.5 + 0.5 * Math.sin(t * 8 + k)) + ')';
+        ctx.beginPath(); ctx.moveTo(sx, sy - 4); ctx.lineTo(sx + 1.2, sy); ctx.lineTo(sx, sy + 4); ctx.lineTo(sx - 1.2, sy); ctx.fill();
+      }
+    }
+  }
+  for (const f of state.falling) drawFlower(f.x, f.y, f.ripe, 0.9, f.rot);
+  for (const b of state.bees) drawBee(b);
+  drawBasket(state.basketX, 490, 0);
+  if (state.drops.length) {
+    ctx.strokeStyle = 'rgba(200,220,255,.6)'; ctx.lineWidth = 1.5; ctx.beginPath();
+    for (const d of state.drops) { ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - 3, d.y + 12); }
+    ctx.stroke();
+  }
+  drawFx();
+  if (state.stingT > 0) { ctx.fillStyle = 'rgba(255,60,40,' + state.stingT * 0.4 + ')'; ctx.fillRect(0, 0, W, H); }
+  drawHUD();
+}
+
+function renderBonus() {
+  const B = state.bonus;
+  drawAlambic(820, 400);
+  // marcheur stylisé + panier qui avance vers l'alambic
+  const x = 120 + B.dist * 560;
+  ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x, 492, 40, 8, 0, 0, 7); ctx.fill();
+  const step = Math.sin(state.t * 10) * 6;
+  ctx.strokeStyle = '#5a3a24'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x, 440); ctx.lineTo(x - 10 + step, 488); ctx.moveTo(x, 440); ctx.lineTo(x + 10 - step, 488); ctx.stroke();
+  ctx.fillStyle = '#e07a3a'; roundRect(x - 18, 385, 36, 60, 12); ctx.fill();
+  ctx.fillStyle = '#7a4a2a'; ctx.beginPath(); ctx.arc(x, 365, 15, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#7a4a2a'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(x - 14, 395); ctx.lineTo(x - 30 + B.tilt * 30, 350); ctx.moveTo(x + 14, 395); ctx.lineTo(x + 30 + B.tilt * 30, 350); ctx.stroke();
+  drawBasket(x + B.tilt * 20, 335, B.tilt * 0.8);
+  drawFx();
+  // jauge d'équilibre
+  ctx.fillStyle = 'rgba(255,248,230,.9)'; roundRect(280, 14, 400, 80, 14); ctx.fill();
+  ctx.fillStyle = '#4a3a1a'; ctx.font = '600 20px Fredoka'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText("Vers l'alambic ! Garde le panier droit", 480, 34);
+  ctx.fillStyle = '#e8b0a0'; ctx.fillRect(300, 56, 360, 18);
+  ctx.fillStyle = '#9fd18a'; ctx.fillRect(300 + 360 * 0.2, 56, 360 * 0.6, 18);
+  ctx.fillStyle = '#4a3a1a'; ctx.fillRect(480 + B.tilt * 180 - 3, 52, 6, 26);
+  ctx.font = '500 15px Fredoka'; ctx.fillText('Renversé : ' + Math.round(B.spilled * 100) + ' %  —  souris ou ← →', 480, 110);
+}
+
+// ---------- Boucle à pas fixe (60 Hz) ----------
+const STEP = 1 / 60;
+let acc = 0, last = performance.now();
+function loop(now) {
+  acc += Math.min(0.25, (now - last) / 1000); last = now;
+  while (acc >= STEP) { tick(STEP); acc -= STEP; }
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---------- Entrées souris / tactile ----------
+function toGame(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+}
+cv.addEventListener('pointerdown', e => {
+  const p = toGame(e); state.pointer = p;
+  if (state.screen === 'play') clickAt(p.x, p.y);
+});
+cv.addEventListener('pointermove', e => { if (state.pointer) state.pointer = toGame(e); });
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'm') { save.muted = !save.muted; writeSave(); }
+  if ((k === 'escape' || k === 'p') && (state.screen === 'play' || state.screen === 'bonus')) togglePause();
+  if (state.bonus && state.screen === 'bonus') {
+    if (e.key === 'ArrowLeft') state.bonus.keys = -1;
+    if (e.key === 'ArrowRight') state.bonus.keys = 1;
+  }
+});
+addEventListener('keyup', e => { if (state.bonus && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) state.bonus.keys = 0; });
+
+// ---------- Écrans (DOM) ----------
+const $ = id => document.getElementById(id);
+function hideAll() { document.querySelectorAll('.ov').forEach(o => o.classList.remove('on')); }
+function show(id) { hideAll(); $(id).classList.add('on'); }
+function showMenu() {
+  state = { screen: 'menu', paused: false };
+  $('menuBest').textContent = save.best ? 'Record mode infini : ' + save.best : '';
+  show('ovMenu');
+}
+function togglePause() {
+  state.paused = !state.paused;
+  state.paused ? show('ovPause') : hideAll();
+}
+function buildLevels() {
+  const g = $('lvGrid'); g.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement('button');
+    const st = (save.levels[i] && save.levels[i].stars) || 0;
+    const locked = i >= save.unlocked;
+    b.disabled = locked;
+    b.innerHTML = (locked ? '🔒 ' : '') + (i + 1) + '. ' + L.name + '<span class="stars">' + '★'.repeat(st) + '☆'.repeat(3 - st) + '</span>';
+    b.onclick = () => startLevel(i);
+    g.appendChild(b);
+  });
+  show('ovLevels');
+}
+$('bPlay').onclick = () => startLevel(Math.min(save.unlocked, LEVELS.length) - 1);
+$('bLevels').onclick = buildLevels;
+$('bRules').onclick = () => show('ovRules');
+$('bInf').onclick = () => startLevel(-1);
+$('bResume').onclick = togglePause;
+$('bRestart').onclick = () => startLevel(state.levelIndex);
+$('bQuit').onclick = showMenu;
+document.querySelectorAll('[data-back]').forEach(b => b.onclick = showMenu);
+showMenu();
+</script>
+</body>
+</html>

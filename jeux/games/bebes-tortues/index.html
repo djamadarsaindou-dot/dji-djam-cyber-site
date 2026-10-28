@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Les bébés tortues</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #050b1e; font-family: 'Fredoka', sans-serif; color: #fff;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  /* La scène fait toujours 960x540 "virtuels", on la met à l'échelle avec transform */
+  #stage { position: absolute; left: 50%; top: 50%; width: 960px; height: 540px; transform-origin: 0 0; overflow: hidden;
+    border-radius: 6px; box-shadow: 0 0 40px rgba(0,0,0,.6); }
+  canvas { position: absolute; left: 0; top: 0; width: 960px; height: 540px; display: block; cursor: crosshair; }
+  .overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(5,12,35,.72); backdrop-filter: blur(3px); z-index: 10; }
+  .overlay.show { display: flex; }
+  .panel { background: linear-gradient(180deg, #16305e, #0d1d40); border: 2px solid #4f7cc4; border-radius: 22px; padding: 26px 34px;
+    max-width: 680px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.5), inset 0 0 30px rgba(120,170,255,.08); }
+  h1 { font-size: 52px; font-weight: 700; color: #ffe9a8; text-shadow: 0 0 20px rgba(255,230,150,.5); margin-bottom: 6px; }
+  h2 { font-size: 34px; font-weight: 600; color: #ffe9a8; margin-bottom: 12px; }
+  p { font-size: 19px; line-height: 1.4; margin: 8px 0; color: #dfe9ff; }
+  .btn { font-family: inherit; font-size: 22px; font-weight: 600; color: #10224a; background: linear-gradient(180deg, #ffe9a8, #f5c45e);
+    border: none; border-radius: 40px; padding: 10px 28px; margin: 7px; cursor: pointer; box-shadow: 0 4px 0 #b88a2c; transition: transform .1s; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #b88a2c; }
+  .btn.sec { background: linear-gradient(180deg, #9fd6ff, #5aa5e6); box-shadow: 0 4px 0 #2d6aa3; }
+  .row { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 150px); gap: 14px; justify-content: center; margin: 14px 0; }
+  .lvl { font-family: inherit; background: #23467f; border: 2px solid #5f8fd8; border-radius: 16px; color: #fff; padding: 12px 6px; cursor: pointer; font-size: 18px; }
+  .lvl b { display: block; font-size: 30px; color: #ffe9a8; }
+  .lvl .st { font-size: 20px; color: #ffd34d; letter-spacing: 2px; }
+  .lvl.locked { opacity: .45; cursor: not-allowed; }
+  ul.rules { text-align: left; font-size: 18px; line-height: 1.45; margin: 8px 0 8px 20px; color: #dfe9ff; }
+  .stars { font-size: 52px; color: #ffd34d; letter-spacing: 8px; text-shadow: 0 0 14px rgba(255,210,80,.6); }
+  .stars .off { color: #3b4c72; text-shadow: none; }
+  #hudBtns { position: absolute; right: 10px; top: 8px; z-index: 5; display: none; }
+  #hudBtns button { font-family: inherit; font-size: 20px; width: 42px; height: 42px; border-radius: 50%; border: 2px solid #6d95d6;
+    background: rgba(15,30,65,.75); color: #fff; cursor: pointer; margin-left: 6px; }
+  .tip { background: rgba(255,233,168,.12); border: 1px dashed #ffe9a8; border-radius: 14px; padding: 10px 14px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game"></canvas>
+  <div id="hudBtns"><button id="bMute" title="Son (M)">🔊</button><button id="bPause" title="Pause (Échap)">⏸</button></div>
+
+  <!-- Menu principal -->
+  <div class="overlay show" id="ovMenu"><div class="panel">
+    <h1>🐢 Les bébés tortues</h1>
+    <p>À Mayotte, les tortues marines viennent pondre sur les plages. Aide les bébés tortues à rejoindre la mer !</p>
+    <div class="row">
+      <button class="btn" id="mPlay">Jouer</button>
+      <button class="btn sec" id="mLevels">Niveaux</button>
+      <button class="btn sec" id="mRules">Règles</button>
+      <button class="btn sec" id="mTip">Conseil nature</button>
+    </div>
+  </div></div>
+
+  <!-- Choix des niveaux -->
+  <div class="overlay" id="ovLevels"><div class="panel">
+    <h2>Niveaux</h2>
+    <div class="grid" id="lvlGrid"></div>
+    <button class="btn sec" data-back>Retour</button>
+  </div></div>
+
+  <!-- Règles -->
+  <div class="overlay" id="ovRules"><div class="panel">
+    <h2>Règles</h2>
+    <ul class="rules">
+      <li>La nuit, les bébés tortues sortent du sable et filent vers la mer éclairée par la lune.</li>
+      <li>🦀 <b>Touche les crabes</b> et 🐦 <b>les oiseaux</b> (ou leur ombre) pour les faire fuir.</li>
+      <li>💡 <b>Éteins les lampadaires</b> : la lumière perd les bébés tortues !</li>
+      <li>🪵 <b>Touche les bois flottés</b> pour les rouler hors du chemin.</li>
+      <li>🕳️ <b>Touche un trou</b> pour le reboucher et libérer les tortues coincées.</li>
+      <li>🔦 <b>Maintiens appuyé</b> ailleurs : ta lueur guide les tortues égarées.</li>
+      <li>Sauve assez de bébés pour réussir. Plus tu en sauves, plus tu gagnes d'étoiles ⭐.</li>
+    </ul>
+    <p style="font-size:16px">Clavier : Échap / P = pause, M = son.</p>
+    <button class="btn sec" data-back>Retour</button>
+  </div></div>
+
+  <!-- Conseil nature -->
+  <div class="overlay" id="ovTip"><div class="panel">
+    <h2>🌙 Conseil nature</h2>
+    <p style="font-size:22px">Sur la plage la nuit : pas de lumière, on garde ses distances avec les tortues.</p>
+    <p>Les lumières artificielles peuvent désorienter les bébés tortues qui cherchent la mer.</p>
+    <button class="btn sec" data-back>Retour</button>
+  </div></div>
+
+  <!-- Pause -->
+  <div class="overlay" id="ovPause"><div class="panel">
+    <h2>Pause</h2>
+    <div class="row">
+      <button class="btn" id="pResume">Reprendre</button>
+      <button class="btn sec" id="pRestart">Recommencer</button>
+      <button class="btn sec" id="pMenu">Menu</button>
+    </div>
+  </div></div>
+
+  <!-- Fin de niveau -->
+  <div class="overlay" id="ovResult"><div class="panel">
+    <h2 id="rTitle">Bravo !</h2>
+    <div class="stars" id="rStars"></div>
+    <p id="rText"></p>
+    <div class="tip"><p style="margin:0">🌙 Sur la plage la nuit : pas de lumière, on garde ses distances avec les tortues.</p></div>
+    <div class="row">
+      <button class="btn" id="rNext">Niveau suivant</button>
+      <button class="btn sec" id="rRetry">Rejouer</button>
+      <button class="btn sec" id="rMenu">Menu</button>
+    </div>
+  </div></div>
+</div>
+
+<script>
+// =====================================================================
+//  LES BÉBÉS TORTUES — jeu en un seul fichier
+//  Monde virtuel : 960 x 540. La mer est en haut, la plage en bas.
+// =====================================================================
+const W = 960, H = 540;
+const SEA_BASE = 175;      // ligne du rivage (y) par défaut
+const ROAD_Y = 522;        // la route en bas de l'écran
+
+// ---------- Les 6 niveaux ----------
+// nests : nids {x, y, waves:[temps d'éclosion], per: bébés par vague}
+// goal : % minimum à sauver ; s2/s3 : % pour 2 et 3 étoiles
+const LEVELS = [
+  { name: "Première nuit", goal: 85, s2: 92, s3: 100,
+    nests: [{x: 380, y: 430, waves: [1], per: 6}, {x: 580, y: 440, waves: [6], per: 6}],
+    crabEvery: 3.5, birdEvery: 0, logs: [], holes: [], lights: [], relight: 0, tide: 0 },
+  { name: "Bois flotté", goal: 85, s2: 92, s3: 100,
+    nests: [{x: 300, y: 440, waves: [1, 12], per: 5}, {x: 660, y: 430, waves: [5], per: 6}],
+    crabEvery: 6, birdEvery: 0, logs: [{x: 310, y: 300, r: 34}, {x: 640, y: 280, r: 34}], holes: [], lights: [], relight: 0, tide: 0 },
+  { name: "Les oiseaux", goal: 60, s2: 80, s3: 95,
+    nests: [{x: 240, y: 445, waves: [1, 11], per: 5}, {x: 480, y: 455, waves: [4], per: 7}, {x: 720, y: 440, waves: [8], per: 5}],
+    crabEvery: 6, birdEvery: 8, logs: [{x: 480, y: 300, r: 32}], holes: [{x: 250, y: 320}, {x: 720, y: 330}], lights: [], relight: 0, tide: 0 },
+  { name: "La route éclairée", goal: 60, s2: 80, s3: 95,
+    nests: [{x: 260, y: 420, waves: [2, 13], per: 6}, {x: 640, y: 425, waves: [5, 16], per: 6}],
+    crabEvery: 6, birdEvery: 10, logs: [{x: 450, y: 290, r: 32}], holes: [{x: 640, y: 310}],
+    lights: [{x: 160}, {x: 480}, {x: 800}], relight: 0, tide: 0 },
+  { name: "Nuit agitée", goal: 65, s2: 80, s3: 95,
+    nests: [{x: 200, y: 440, waves: [1, 12], per: 5}, {x: 470, y: 430, waves: [4, 16], per: 6}, {x: 760, y: 440, waves: [8, 19], per: 5}],
+    crabEvery: 4.2, birdEvery: 7, logs: [{x: 320, y: 300, r: 32}, {x: 640, y: 290, r: 34}], holes: [{x: 200, y: 320}, {x: 480, y: 340}, {x: 780, y: 310}],
+    lights: [{x: 120}, {x: 480}, {x: 840}], relight: 9, tide: 0 },
+  { name: "Grande marée", goal: 70, s2: 85, s3: 97,
+    nests: [{x: 170, y: 445, waves: [1, 13], per: 6}, {x: 400, y: 435, waves: [4, 17], per: 6}, {x: 620, y: 445, waves: [7, 20], per: 6}, {x: 820, y: 430, waves: [10], per: 6}],
+    crabEvery: 3.6, birdEvery: 6, logs: [{x: 280, y: 300, r: 32}, {x: 520, y: 285, r: 34}, {x: 760, y: 300, r: 32}],
+    holes: [{x: 170, y: 330}, {x: 400, y: 320}, {x: 640, y: 335}, {x: 860, y: 320}],
+    lights: [{x: 100}, {x: 360}, {x: 600}, {x: 860}], relight: 7, tide: 28 }
+];
+
+// ---------- Sauvegarde (localStorage) ----------
+const SAVE_KEY = "tortues-mer-v1";
+let save = { unlocked: 1, levels: {}, muted: false };
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) { const s = JSON.parse(raw); save = Object.assign(save, s); if (!save.levels) save.levels = {}; }
+  } catch (e) { /* stockage indisponible : tant pis */ }
+}
+function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+loadSave();
+
+// ---------- Canvas et mise à l'échelle ----------
+const stage = document.getElementById("stage");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let S = 1, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  S = Math.min(window.innerWidth / W, window.innerHeight / H);
+  stage.style.transform = `scale(${S}) translate(-50%, -50%)`;
+  stage.style.transform = "none";
+  stage.style.left = ((window.innerWidth - W * S) / 2) + "px";
+  stage.style.top = ((window.innerHeight - H * S) / 2) + "px";
+  stage.style.transform = `scale(${S})`;
+  canvas.width = Math.round(W * S * DPR);
+  canvas.height = Math.round(H * S * DPR);
+  ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+}
+window.addEventListener("resize", resize);
+resize();
+
+// ---------- Petits outils ----------
+const rand = (a, b) => a + Math.random() * (b - a);
+const dist = (a, b, c, d) => Math.hypot(a - c, b - d);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Décor fixe : étoiles et grains de sable (calculés une seule fois)
+const STARS = [];
+for (let i = 0; i < 140; i++) STARS.push({ x: rand(0, W), y: rand(0, 105), r: rand(0.5, 1.8), p: rand(0, 6.28) });
+const GRAINS = [];
+for (let i = 0; i < 420; i++) GRAINS.push({ x: rand(0, W), y: rand(SEA_BASE - 10, H), r: rand(0.6, 1.6), c: Math.random() < 0.5 ? "rgba(255,240,210,.18)" : "rgba(60,50,40,.22)" });
+
+// ---------- Son (WebAudio, tout est synthétisé) ----------
+let AC = null, master = null, waveGain = null;
+function initAudio() {
+  if (AC) { if (AC.state === "suspended") AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = save.muted ? 0 : 0.6; master.connect(AC.destination);
+    // Bruit des vagues : bruit blanc filtré, volume qui ondule
+    const buf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
+    const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 500;
+    waveGain = AC.createGain(); waveGain.gain.value = 0.05;
+    src.connect(lp); lp.connect(waveGain); waveGain.connect(master); src.start();
+  } catch (e) { AC = null; }
+}
+function tone(freq, dur, type = "sine", vol = 0.2, slide = 0) {
+  if (!AC || save.muted) return;
+  const t = AC.currentTime;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+}
+const SFX = {
+  pop() { tone(520, 0.12, "sine", 0.18, 300); },
+  splash() { tone(900, 0.18, "triangle", 0.12, -500); setTimeout(() => tone(1200, 0.1, "sine", 0.08, 200), 60); },
+  scare() { tone(300, 0.15, "square", 0.08, 400); tone(180, 0.2, "sawtooth", 0.05, -80); },
+  lost() { tone(330, 0.3, "sine", 0.12, -180); },
+  click() { tone(700, 0.06, "square", 0.06); },
+  fill() { tone(200, 0.2, "triangle", 0.15, 120); },
+  roll() { tone(120, 0.3, "sawtooth", 0.07, -40); },
+  win() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.3, "triangle", 0.15), i * 130)); },
+  fail() { [392, 330, 262].forEach((f, i) => setTimeout(() => tone(f, 0.35, "sine", 0.14), i * 180)); }
+};
+function setMuted(m) {
+  save.muted = m; writeSave();
+  if (master) master.gain.value = m ? 0 : 0.6;
+  document.getElementById("bMute").textContent = m ? "🔇" : "🔊";
+}
+
+// ---------- État du jeu ----------
+const state = {
+  screen: "menu",   // "menu" | "play" | "pause" | "result"
+  level: 0, time: 0, def: null,
+  babies: [], preds: [], nests: [], logs: [], holes: [], lights: [], parts: [], tracks: [], popups: [],
+  total: 0, spawned: 0, saved: 0, lost: 0,
+  lamp: { on: false, x: 0, y: 0 },
+  seaY: SEA_BASE, nextCrab: 0, nextBird: 0, endTimer: 0, shake: 0, stars: 0
+};
+
+// ---------- Démarrer un niveau ----------
+function startLevel(i) {
+  i = clamp(i | 0, 0, LEVELS.length - 1);
+  const L = LEVELS[i];
+  state.level = i; state.def = L; state.time = 0;
+  state.babies = []; state.preds = []; state.parts = []; state.tracks = []; state.popups = [];
+  state.saved = 0; state.lost = 0; state.spawned = 0; state.endTimer = 0; state.shake = 0;
+  state.nests = L.nests.map(n => ({ x: n.x, y: n.y, waves: n.waves.slice(), per: n.per, queue: 0, cd: 0, glow: 0 }));
+  state.total = L.nests.reduce((s, n) => s + n.waves.length * n.per, 0);
+  state.logs = L.logs.map(l => ({ x: l.x, y: l.y, r: l.r, vx: 0, rolling: false, rot: 0 }));
+  state.holes = L.holes.map(h => ({ x: h.x, y: h.y, r: 20, filled: false, fill: 0 }));
+  state.lights = L.lights.map(l => ({ x: l.x, y: ROAD_Y - 6, on: true, off: 0 }));
+  state.nextCrab = L.crabEvery ? 4 : Infinity;
+  state.nextBird = L.birdEvery ? 7 : Infinity;
+  state.lamp.on = false;
+  state.screen = "play";
+  hideAll();                       // cache toutes les fenêtres (dont le résultat)
+  document.getElementById("hudBtns").style.display = "block";
+}
+
+// ---------- Création des bébés tortues ----------
+function spawnBaby(n) {
+  state.babies.push({
+    x: n.x + rand(-10, 10), y: n.y + rand(-6, 6), a: -Math.PI / 2 + rand(-0.6, 0.6),
+    sp: rand(30, 38), flip: rand(0, 6.28), wob: rand(0, 6.28), stuck: 0, hole: null, carried: false, tr: 0
+  });
+  state.spawned++;
+  burst(n.x, n.y, "#e8d3a6", 8, 60);
+  SFX.pop();
+}
+
+// ---------- Particules et petits textes ----------
+function burst(x, y, col, n, sp) {
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, 6.28), v = rand(sp * 0.3, sp);
+    state.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, life: rand(0.4, 0.9), max: 0.9, col, r: rand(1.5, 3.5) });
+  }
+}
+function popup(x, y, txt, col) { state.popups.push({ x, y, txt, col, life: 1.2 }); }
+
+function loseBaby(b, why) {
+  b.dead = true; state.lost++;
+  popup(b.x, b.y - 16, why, "#ff9a9a");
+  SFX.lost();
+}
+
+// ---------- Prédateurs ----------
+function spawnCrab() {
+  const left = Math.random() < 0.5;
+  state.preds.push({ kind: "crab", x: left ? -30 : W + 30, y: rand(SEA_BASE + 70, 470), mode: "hunt", sp: rand(78, 96) + state.level * 5, t: 0, target: null, prey: null });
+}
+function spawnBird() {
+  const alive = state.babies.filter(b => !b.dead && !b.carried && b.y > state.seaY + 30);
+  if (!alive.length) return;
+  const b = alive[(Math.random() * alive.length) | 0];
+  // L'oiseau vise l'endroit où sera la tortue (un peu devant elle)
+  const tx = b.x + Math.cos(b.a) * 25, ty = b.y + Math.sin(b.a) * 25;
+  const fromLeft = Math.random() < 0.5;
+  state.preds.push({ kind: "bird", tx, ty, sx: fromLeft ? -60 : W + 60, sy: -40, x: -100, y: -100, mode: "warn", t: 0, warn: 1.6 - Math.min(0.5, state.level * 0.08) });
+}
+function scarePred(p) {
+  if (p.mode === "flee") return;
+  if (p.prey) { p.prey.carried = false; p.prey = null; }   // il lâche la tortue !
+  p.mode = "flee"; p.t = 0;
+  const px = p.kind === "bird" && p.mode === "warn" ? p.tx : p.x;
+  burst(p.x, p.y, "#ffffff", 12, 120);
+  popup(p.x, p.y - 20, "Ouste !", "#ffe9a8");
+  SFX.scare(); state.shake = 4;
+}
+
+// ---------- Boucle de simulation (appelée 60 fois par seconde) ----------
+function tick(dt) {
+  if (state.screen !== "play") { animateIdle(dt); return; }
+  const L = state.def;
+  state.time += dt;
+  const T = state.time;
+  // Marée : le rivage avance et recule doucement
+  state.seaY = SEA_BASE + (L.tide ? Math.sin(T * 0.35) * L.tide : 0) + Math.sin(T * 1.3) * 3;
+  if (waveGain && AC) waveGain.gain.value = 0.04 + 0.03 * (Math.sin(T * 0.8) + 1);
+
+  // Nids : éclosions par vagues
+  for (const n of state.nests) {
+    while (n.waves.length && T >= n.waves[0]) { n.waves.shift(); n.queue += n.per; n.glow = 1; }
+    n.glow = Math.max(0, n.glow - dt * 0.5);
+    if (n.queue > 0) { n.cd -= dt; if (n.cd <= 0) { spawnBaby(n); n.queue--; n.cd = 0.35; } }
+  }
+
+  // Lampadaires qui se rallument (niveaux difficiles)
+  for (const l of state.lights) {
+    if (!l.on && L.relight) { l.off += dt; if (l.off > L.relight) { l.on = true; l.off = 0; SFX.click(); } }
+  }
+
+  // Apparition des prédateurs (seulement tant qu'il reste des tortues)
+  const remaining = state.total - state.saved - state.lost;
+  if (remaining > 0) {
+    if (T > state.nextCrab) { spawnCrab(); state.nextCrab = T + L.crabEvery * rand(0.7, 1.3); }
+    if (T > state.nextBird) { spawnBird(); state.nextBird = T + L.birdEvery * rand(0.7, 1.3); }
+  }
+
+  updateBabies(dt);
+  updatePreds(dt);
+
+  // Bois flottés qui roulent
+  for (const g of state.logs) if (g.rolling) { g.x += g.vx * dt; g.rot += g.vx * dt / g.r; }
+  state.logs = state.logs.filter(g => g.x > -80 && g.x < W + 80);
+  for (const h of state.holes) if (h.filled) h.fill = Math.min(1, h.fill + dt * 3);
+
+  // Particules
+  for (const p of state.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 120 * dt; p.vx *= 0.97; p.life -= dt; }
+  state.parts = state.parts.filter(p => p.life > 0);
+  for (const p of state.popups) { p.y -= 25 * dt; p.life -= dt; }
+  state.popups = state.popups.filter(p => p.life > 0);
+  for (const t of state.tracks) t.life -= dt * 0.12;
+  state.tracks = state.tracks.filter(t => t.life > 0);
+  state.shake = Math.max(0, state.shake - dt * 20);
+
+  // Fin du niveau : tout le monde est sauvé ou perdu
+  if (state.spawned >= state.total && state.saved + state.lost >= state.total) {
+    state.endTimer += dt;
+    if (state.endTimer > 1.2) finishLevel();
+  }
+}
+
+function updateBabies(dt) {
+  const lamp = state.lamp;
+  for (const b of state.babies) {
+    if (b.dead || b.carried) continue;
+    b.flip += dt * 12; b.wob += dt * 1.7;
+
+    // Coincée dans un trou ?
+    if (b.hole) {
+      if (b.hole.filled) { b.hole = null; b.y -= 6; popup(b.x, b.y - 14, "Libre !", "#a8ffb8"); }
+      else { b.stuck += dt; if (b.stuck > 9) loseBaby(b, "Coincée..."); continue; }
+    }
+
+    // 1) Direction naturelle : vers la mer (en haut) avec un petit zigzag
+    let tx = Math.cos(-Math.PI / 2 + Math.sin(b.wob) * 0.35), ty = Math.sin(-Math.PI / 2 + Math.sin(b.wob) * 0.35);
+    // 2) Les lampadaires allumés attirent (c'est le piège !)
+    for (const l of state.lights) {
+      if (!l.on) continue;
+      const d = dist(b.x, b.y, l.x, l.y);
+      if (d < 330) {
+        const k = (1 - d / 330) * 3.2;
+        tx += (l.x - b.x) / d * k; ty += (l.y - b.y) / d * k;
+      }
+    }
+    // 3) La lueur du joueur guide fortement les tortues proches
+    if (lamp.on) {
+      const d = dist(b.x, b.y, lamp.x, lamp.y);
+      if (d < 140 && d > 4) { const k = 4.5; tx += (lamp.x - b.x) / d * k; ty += (lamp.y - b.y) / d * k; }
+    }
+    // On tourne doucement vers la direction voulue
+    const want = Math.atan2(ty, tx);
+    let diff = want - b.a;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    b.a += clamp(diff, -4 * dt, 4 * dt);
+    const step = b.sp * (0.75 + 0.25 * Math.abs(Math.sin(b.flip))) * dt;
+    b.x += Math.cos(b.a) * step; b.y += Math.sin(b.a) * step;
+
+    // Obstacles : bois flottés (on contourne en glissant)
+    for (const g of state.logs) {
+      if (g.rolling) continue;
+      const d = dist(b.x, b.y, g.x, g.y), m = g.r + 7;
+      if (d < m) {
+        const nx = (b.x - g.x) / (d || 1), ny = (b.y - g.y) / (d || 1);
+        b.x = g.x + nx * m; b.y = g.y + ny * m;
+        // petit coup de pouce sur le côté pour ne pas rester bloquée
+        const side = nx >= 0 ? 1 : -1;
+        b.x += side * 25 * dt;
+      }
+    }
+    // Trous
+    for (const h of state.holes) {
+      if (!h.filled && dist(b.x, b.y, h.x, h.y) < h.r - 4) { b.hole = h; b.stuck = 0; b.x = h.x + rand(-6, 6); b.y = h.y + rand(-4, 4); popup(h.x, h.y - 24, "Au secours !", "#ffd0a0"); }
+    }
+    b.x = clamp(b.x, 8, W - 8);
+
+    // Traces dans le sable
+    b.tr += dt;
+    if (b.tr > 0.12) { b.tr = 0; state.tracks.push({ x: b.x, y: b.y, a: b.a, life: 1 }); if (state.tracks.length > 900) state.tracks.shift(); }
+
+    // Arrivée à la mer = sauvée !
+    if (b.y < state.seaY + 2) {
+      b.dead = true; b.savedOk = true; state.saved++;
+      burst(b.x, b.y, "#bfe6ff", 14, 90);
+      popup(b.x, b.y - 10, "Sauvée !", "#a8ffef");
+      SFX.splash();
+    }
+    // Arrivée sur la route = perdue
+    else if (b.y > ROAD_Y - 4) loseBaby(b, "Perdue !");
+  }
+  state.babies = state.babies.filter(b => !b.dead || b.carried);
+}
+
+function updatePreds(dt) {
+  for (const p of state.preds) {
+    p.t += dt;
+    if (p.kind === "crab") {
+      if (p.mode === "hunt") {
+        // Le crabe cherche la tortue la plus proche
+        let best = null, bd = 1e9;
+        for (const b of state.babies) {
+          if (b.dead || b.carried || b.hole) continue;
+          const d = dist(p.x, p.y, b.x, b.y);
+          if (d < bd) { bd = d; best = b; }
+        }
+        if (best) {
+          const d = bd || 1;
+          p.x += (best.x - p.x) / d * p.sp * dt; p.y += (best.y - p.y) / d * p.sp * dt;
+          if (d < 14) { best.carried = true; p.prey = best; p.mode = "leave"; }
+        } else { p.mode = "flee"; }
+      } else {
+        // Il repart sur le côté (avec ou sans la tortue)
+        const dir = p.x < W / 2 ? -1 : 1;
+        p.x += dir * (p.mode === "flee" ? 260 : 50) * dt;
+        if (p.prey) { p.prey.x = p.x + dir * 6; p.prey.y = p.y - 4; }
+        if (p.x < -50 || p.x > W + 50) {
+          if (p.prey) { const b = p.prey; b.carried = false; b.dead = true; state.lost++; SFX.lost(); }
+          p.gone = true;
+        }
+      }
+    } else { // oiseau
+      if (p.mode === "warn") {
+        if (p.t > p.warn) { p.mode = "dive"; p.t = 0; }
+      } else if (p.mode === "dive") {
+        const k = Math.min(1, p.t / 0.7);
+        p.x = p.sx + (p.tx - p.sx) * k; p.y = p.sy + (p.ty - p.sy) * k * k;
+        if (k >= 1) {
+          // Attrape une tortue proche de la cible
+          const b = state.babies.find(b => !b.dead && !b.carried && dist(b.x, b.y, p.tx, p.ty) < 26);
+          if (b) { b.carried = true; p.prey = b; }
+          p.mode = "leave"; p.t = 0;
+        }
+      } else {
+        // repart vers le ciel
+        const sp = p.mode === "flee" ? 420 : 220;
+        const dir = p.sx < 0 ? 1 : -1;
+        if (p.mode === "flee" && p.x < -50) { p.x = p.tx; p.y = p.ty; }  // fuite pendant l'alerte
+        p.x += dir * sp * 0.6 * dt; p.y -= sp * dt;
+        if (p.prey) { p.prey.x = p.x; p.prey.y = p.y + 14; }
+        if (p.y < -60) {
+          if (p.prey) { const b = p.prey; b.carried = false; b.dead = true; state.lost++; SFX.lost(); }
+          p.gone = true;
+        }
+      }
+    }
+  }
+  state.preds = state.preds.filter(p => !p.gone);
+  // Une tortue lâchée par un prédateur effrayé retombe et repart
+  for (const b of state.babies) if (!b.carried && b.dead && !b.savedOk && b.dropped) b.dead = false;
+}
+
+// Animation douce derrière le menu
+function animateIdle(dt) {
+  state.time += state.screen === "pause" ? 0 : dt;
+  if (state.screen === "menu") state.seaY = SEA_BASE + Math.sin(state.time * 1.3) * 3;
+}
+
+// ---------- Fin de niveau ----------
+function finishLevel() {
+  const L = state.def;
+  const pct = state.total ? Math.round(state.saved / state.total * 100) : 0;
+  const win = pct >= L.goal;
+  const stars = !win ? 0 : pct >= L.s3 ? 3 : pct >= L.s2 ? 2 : 1;
+  state.stars = stars;
+  state.screen = "result";
+  state.lamp.on = false;
+  if (win) {
+    const key = String(state.level);
+    const old = (save.levels[key] && save.levels[key].stars) || 0;
+    save.levels[key] = { stars: Math.max(old, stars) };
+    save.unlocked = Math.max(save.unlocked, Math.min(LEVELS.length, state.level + 2));
+    writeSave(); SFX.win();
+  } else SFX.fail();
+  document.getElementById("rTitle").textContent = win ? (state.level === LEVELS.length - 1 ? "Toutes les nuits réussies ! 🎉" : "Bravo !") : "Pas assez de tortues sauvées...";
+  document.getElementById("rStars").innerHTML = [1, 2, 3].map(s => `<span class="${s <= stars ? "" : "off"}">★</span>`).join("");
+  document.getElementById("rText").textContent = `${state.saved} bébés tortues sur ${state.total} ont rejoint la mer (${pct} %). Objectif : ${L.goal} %.`;
+  document.getElementById("rNext").style.display = win && state.level < LEVELS.length - 1 ? "" : "none";
+  show("ovResult");
+}
+
+// ---------- Interactions (souris + tactile) ----------
+function toWorld(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+}
+canvas.addEventListener("pointerdown", e => {
+  initAudio();
+  if (state.screen !== "play") return;
+  e.preventDefault();
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+  const { x, y } = toWorld(e);
+  // 1) Prédateurs (zone de touche généreuse)
+  for (const p of state.preds) {
+    if (p.mode === "flee") continue;
+    let hx = p.x, hy = p.y;
+    if (p.kind === "bird" && p.mode === "warn") { hx = p.tx; hy = p.ty; }
+    if (dist(x, y, hx, hy) < 42) { scarePred(p); return; }
+  }
+  // 2) Lampadaires
+  for (const l of state.lights) {
+    if (l.on && Math.abs(x - l.x) < 30 && y > l.y - 70 && y < H) { l.on = false; l.off = 0; SFX.click(); burst(l.x, l.y - 52, "#ffe28a", 10, 70); popup(l.x, l.y - 80, "Éteint !", "#ffe9a8"); return; }
+  }
+  // 3) Trous
+  for (const h of state.holes) {
+    if (!h.filled && dist(x, y, h.x, h.y) < 34) { h.filled = true; SFX.fill(); burst(h.x, h.y, "#e8d3a6", 16, 80); return; }
+  }
+  // 4) Bois flottés
+  for (const g of state.logs) {
+    if (!g.rolling && dist(x, y, g.x, g.y) < g.r + 14) { g.rolling = true; g.vx = (x < g.x ? 1 : -1) * 220; SFX.roll(); burst(g.x, g.y + g.r * 0.4, "#e8d3a6", 10, 60); return; }
+  }
+  // 5) Sinon : la lueur guide
+  state.lamp.on = true; state.lamp.x = x; state.lamp.y = y;
+});
+canvas.addEventListener("pointermove", e => {
+  if (!state.lamp.on) return;
+  const { x, y } = toWorld(e); state.lamp.x = x; state.lamp.y = y;
+});
+const lampOff = () => { state.lamp.on = false; };
+canvas.addEventListener("pointerup", lampOff);
+canvas.addEventListener("pointercancel", lampOff);
+
+// Correctif : quand un prédateur est effrayé, sa proie redevient libre
+const _scare = scarePred;
+
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape" || e.key === "p" || e.key === "P") togglePause();
+  if (e.key === "m" || e.key === "M") { initAudio(); setMuted(!save.muted); }
+});
+
+// ---------- Fenêtres (overlays) ----------
+const OVS = ["ovMenu", "ovLevels", "ovRules", "ovTip", "ovPause", "ovResult"];
+function hideAll() { OVS.forEach(id => document.getElementById(id).classList.remove("show")); }
+function show(id) { hideAll(); document.getElementById(id).classList.add("show"); }
+let backTo = "ovMenu";
+function goMenu() { state.screen = "menu"; state.lamp.on = false; document.getElementById("hudBtns").style.display = "none"; show("ovMenu"); }
+function togglePause() {
+  if (state.screen === "play") { state.screen = "pause"; state.lamp.on = false; show("ovPause"); }
+  else if (state.screen === "pause") { state.screen = "play"; hideAll(); }
+}
+function buildLevels() {
+  const g = document.getElementById("lvlGrid"); g.innerHTML = "";
+  LEVELS.forEach((L, i) => {
+    const locked = i + 1 > save.unlocked;
+    const st = (save.levels[i] && save.levels[i].stars) || 0;
+    const b = document.createElement("button");
+    b.className = "lvl" + (locked ? " locked" : "");
+    b.innerHTML = `<b>${locked ? "🔒" : i + 1}</b>${L.name}<div class="st">${"★".repeat(st)}${"☆".repeat(3 - st)}</div>`;
+    if (!locked) b.onclick = () => { initAudio(); SFX.click(); startLevel(i); };
+    g.appendChild(b);
+  });
+}
+const $ = id => document.getElementById(id);
+$("mPlay").onclick = () => { initAudio(); SFX.click(); startLevel(Math.min(save.unlocked, LEVELS.length) - 1); };
+$("mLevels").onclick = () => { initAudio(); SFX.click(); buildLevels(); show("ovLevels"); };
+$("mRules").onclick = () => { initAudio(); SFX.click(); show("ovRules"); };
+$("mTip").onclick = () => { initAudio(); SFX.click(); show("ovTip"); };
+document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => { SFX.click(); show("ovMenu"); });
+$("pResume").onclick = () => togglePause();
+$("pRestart").onclick = () => startLevel(state.level);
+$("pMenu").onclick = goMenu;
+$("rNext").onclick = () => startLevel(state.level + 1);
+$("rRetry").onclick = () => startLevel(state.level);
+$("rMenu").onclick = goMenu;
+$("bPause").onclick = () => togglePause();
+$("bMute").onclick = () => { initAudio(); setMuted(!save.muted); };
+setMuted(save.muted);
+
+// =====================================================================
+//  DESSIN
+// =====================================================================
+function render() {
+  const T = state.time;
+  ctx.save();
+  if (state.shake > 0) ctx.translate(rand(-state.shake, state.shake), rand(-state.shake, state.shake));
+  drawSky(T);
+  drawSea(T);
+  drawSand(T);
+  if (state.screen !== "menu") {
+    drawTracks();
+    drawHoles();
+    drawNests(T);
+    drawLogs();
+    drawRoad(T);
+    drawBirdShadows(T);
+    for (const b of state.babies) drawBaby(b);
+    drawPreds(T);
+    drawLamp(T);
+    drawParts();
+    ctx.restore();
+    drawHUD();
+  } else {
+    drawRoad(T);
+    // Quelques bébés décoratifs sur le menu
+    for (let i = 0; i < 5; i++) {
+      const y = 480 - ((T * 25 + i * 70) % 300);
+      drawBaby({ x: 180 + i * 150, y, a: -Math.PI / 2 + Math.sin(T + i) * 0.2, flip: T * 12 + i, hole: null });
+    }
+    ctx.restore();
+  }
+}
+
+function drawSky(T) {
+  const g = ctx.createLinearGradient(0, 0, 0, SEA_BASE);
+  g.addColorStop(0, "#050b24"); g.addColorStop(1, "#1b2d5c");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, SEA_BASE + 40);
+  for (const s of STARS) {
+    ctx.globalAlpha = 0.45 + 0.55 * Math.abs(Math.sin(T * 0.8 + s.p));
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // Lune et halo
+  const mx = 760, my = 52;
+  const halo = ctx.createRadialGradient(mx, my, 10, mx, my, 110);
+  halo.addColorStop(0, "rgba(255,250,220,.45)"); halo.addColorStop(1, "rgba(255,250,220,0)");
+  ctx.fillStyle = halo; ctx.fillRect(mx - 110, 0, 220, 170);
+  ctx.fillStyle = "#fff8dc"; ctx.beginPath(); ctx.arc(mx, my, 26, 0, 6.28); ctx.fill();
+  ctx.fillStyle = "rgba(200,190,160,.35)";
+  [[-8, -6, 6], [8, 5, 4], [-3, 10, 3]].forEach(c => { ctx.beginPath(); ctx.arc(mx + c[0], my + c[1], c[2], 0, 6.28); ctx.fill(); });
+}
+
+function drawSea(T) {
+  const top = 105, sy = state.seaY;
+  const g = ctx.createLinearGradient(0, top, 0, sy);
+  g.addColorStop(0, "#0d2350"); g.addColorStop(1, "#1d4f7e");
+  ctx.fillStyle = g; ctx.fillRect(0, top, W, sy - top + 12);
+  // horizon
+  ctx.fillStyle = "rgba(160,190,255,.25)"; ctx.fillRect(0, top, W, 1.5);
+  // Reflet de la lune : traits qui scintillent
+  for (let i = 0; i < 22; i++) {
+    const y = top + 4 + i * ((sy - top - 8) / 22);
+    const w = (10 + i * 3.2) * (0.6 + 0.4 * Math.sin(T * 2 + i * 1.7));
+    ctx.fillStyle = `rgba(255,248,210,${0.55 - i * 0.018})`;
+    ctx.fillRect(760 - w / 2 + Math.sin(T * 1.5 + i) * 6, y, w, 2);
+  }
+  // petites vaguelettes
+  ctx.strokeStyle = "rgba(170,210,255,.18)"; ctx.lineWidth = 1.2;
+  for (let i = 0; i < 18; i++) {
+    const x = (i * 97 + T * 12) % (W + 40) - 20, y = top + 14 + (i * 23) % (sy - top - 20);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 8, y - 3, x + 16, y); ctx.stroke();
+  }
+}
+
+function drawSand(T) {
+  const sy = state.seaY;
+  // sable mouillé puis sable sec
+  const g = ctx.createLinearGradient(0, sy, 0, H);
+  g.addColorStop(0, "#4a4560"); g.addColorStop(0.15, "#6b6170"); g.addColorStop(1, "#8a7a6a");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.moveTo(0, H);
+  for (let x = 0; x <= W; x += 20) ctx.lineTo(x, sy + Math.sin(x * 0.02 + T * 1.6) * 4);
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+  for (const gr of GRAINS) { if (gr.y < sy + 6) continue; ctx.fillStyle = gr.c; ctx.fillRect(gr.x, gr.y, gr.r, gr.r); }
+  // Écume animée (deux rubans)
+  for (let k = 0; k < 2; k++) {
+    const off = Math.sin(T * 1.2 + k * 2) * 6 + k * 7;
+    ctx.strokeStyle = `rgba(235,248,255,${0.75 - k * 0.35})`; ctx.lineWidth = 3 - k;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 10) {
+      const y = sy + off + Math.sin(x * 0.03 + T * 2.2 + k) * 3 + Math.sin(x * 0.011 - T) * 2;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // reflet lunaire sur le sable mouillé
+  const rg = ctx.createRadialGradient(760, sy + 10, 5, 760, sy + 10, 120);
+  rg.addColorStop(0, "rgba(255,248,210,.18)"); rg.addColorStop(1, "rgba(255,248,210,0)");
+  ctx.fillStyle = rg; ctx.fillRect(640, sy - 10, 240, 120);
+}
+
+function drawTracks() {
+  for (const t of state.tracks) {
+    ctx.globalAlpha = t.life * 0.5; ctx.fillStyle = "#3d3445";
+    const px = Math.cos(t.a + Math.PI / 2) * 4, py = Math.sin(t.a + Math.PI / 2) * 4;
+    ctx.fillRect(t.x + px - 1, t.y + py - 1, 2.2, 2.2);
+    ctx.fillRect(t.x - px - 1, t.y - py - 1, 2.2, 2.2);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHoles() {
+  for (const h of state.holes) {
+    const r = h.r * (1 - h.fill);
+    if (r < 1) { ctx.fillStyle = "rgba(160,140,110,.35)"; ctx.beginPath(); ctx.ellipse(h.x, h.y, h.r, h.r * 0.5, 0, 0, 6.28); ctx.fill(); continue; }
+    ctx.fillStyle = "#2a2230"; ctx.beginPath(); ctx.ellipse(h.x, h.y, r, r * 0.6, 0, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = "rgba(200,180,150,.5)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(h.x, h.y - 2, r + 2, r * 0.6 + 2, 0, Math.PI, 6.28); ctx.stroke();
+  }
+}
+
+function drawNests(T) {
+  for (const n of state.nests) {
+    ctx.fillStyle = "#5e5262"; ctx.beginPath(); ctx.ellipse(n.x, n.y, 26, 11, 0, 0, 6.28); ctx.fill();
+    ctx.fillStyle = "#9b8a7a"; ctx.beginPath(); ctx.ellipse(n.x, n.y - 3, 22, 8, 0, 0, 6.28); ctx.fill();
+    // œufs visibles
+    ctx.fillStyle = "#f3ece0";
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(n.x - 8 + i * 8, n.y - 4 + (i % 2) * 2, 3.5, 0, 6.28); ctx.fill(); }
+    if (n.waves.length && n.waves[0] - T < 2.5 && n.waves[0] > T) {
+      // le nid tremble juste avant d'éclore
+      ctx.strokeStyle = `rgba(255,233,168,${0.5 + 0.5 * Math.sin(T * 20)})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(n.x, n.y - 2, 30, 13, 0, 0, 6.28); ctx.stroke();
+    }
+    if (n.glow > 0) {
+      ctx.strokeStyle = `rgba(255,233,168,${n.glow})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(n.x, n.y, 30 + (1 - n.glow) * 30, 13 + (1 - n.glow) * 12, 0, 0, 6.28); ctx.stroke();
+    }
+  }
+}
+
+function drawLogs() {
+  for (const g of state.logs) {
+    ctx.save(); ctx.translate(g.x, g.y);
+    ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(4, 10, g.r + 10, 10, 0, 0, 6.28); ctx.fill();
+    ctx.rotate(Math.sin(g.rot) * 0.15);
+    ctx.fillStyle = "#7a5a40"; roundRect(-g.r - 10, -9, (g.r + 10) * 2, 18, 9); ctx.fill();
+    ctx.strokeStyle = "#5a4030"; ctx.lineWidth = 1.5;
+    for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(-g.r + 4 + Math.sin(g.rot + i) * 6, i * 4); ctx.lineTo(g.r - 6 + Math.sin(g.rot + i) * 6, i * 4); ctx.stroke(); }
+    ctx.fillStyle = "#a58260"; ctx.beginPath(); ctx.ellipse(g.r + 8, 0, 4, 8, 0, 0, 6.28); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawRoad(T) {
+  if (!state.lights.length || state.screen === "menu") return;
+  ctx.fillStyle = "#2b2b33"; ctx.fillRect(0, ROAD_Y, W, H - ROAD_Y);
+  ctx.fillStyle = "#d9d9a0";
+  for (let x = 0; x < W; x += 50) ctx.fillRect(x + 10, ROAD_Y + 8, 24, 2);
+  for (const l of state.lights) {
+    // halo jaune dangereux
+    if (l.on) {
+      const g = ctx.createRadialGradient(l.x, l.y - 56, 4, l.x, l.y - 56, 200);
+      g.addColorStop(0, "rgba(255,210,110,.45)"); g.addColorStop(1, "rgba(255,210,110,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(l.x, l.y - 56, 200, 0, 6.28); ctx.fill();
+    }
+    ctx.fillStyle = "#555a66"; ctx.fillRect(l.x - 2.5, l.y - 56, 5, 60);
+    ctx.fillStyle = l.on ? "#ffe9a0" : "#3a3f4a"; ctx.beginPath(); ctx.arc(l.x, l.y - 58, 8, 0, 6.28); ctx.fill();
+    if (l.on) { ctx.fillStyle = "rgba(255,255,255,.8)"; ctx.font = "600 12px Fredoka"; ctx.textAlign = "center"; ctx.fillText("touche !", l.x, l.y - 74 + Math.sin(T * 4) * 2); }
+  }
+}
+
+function drawBirdShadows(T) {
+  for (const p of state.preds) {
+    if (p.kind !== "bird" || (p.mode !== "warn" && p.mode !== "dive")) continue;
+    const k = p.mode === "warn" ? p.t / p.warn : 1;
+    ctx.fillStyle = `rgba(20,10,30,${0.25 + 0.3 * k})`;
+    ctx.beginPath(); ctx.ellipse(p.tx, p.ty, 14 + 16 * k, 6 + 6 * k, 0, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = `rgba(255,120,120,${0.4 + 0.4 * Math.sin(T * 14)})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.tx, p.ty, 34, 0, 6.28); ctx.stroke();
+  }
+}
+
+// Un bébé tortue tout mignon
+function drawBaby(b) {
+  ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.a + Math.PI / 2);
+  if (b.hole) ctx.scale(0.85, 0.85);
+  const f = Math.sin(b.flip) * 0.6;
+  ctx.fillStyle = "#2d3b2f";
+  // nageoires avant (battent) et arrière
+  [[-1, f], [1, -f]].forEach(([s, ang]) => {
+    ctx.save(); ctx.translate(s * 5, -3); ctx.rotate(s * (0.5 + ang)); ctx.beginPath(); ctx.ellipse(s * 5, 0, 6, 2.4, 0, 0, 6.28); ctx.fill(); ctx.restore();
+  });
+  [[-1], [1]].forEach(([s]) => { ctx.beginPath(); ctx.ellipse(s * 4, 6, 2.5, 1.8, s * 0.6, 0, 6.28); ctx.fill(); });
+  // tête
+  ctx.fillStyle = "#3e5240"; ctx.beginPath(); ctx.arc(0, -9, 3.6, 0, 6.28); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-1.5, -10, 1, 0, 6.28); ctx.arc(1.5, -10, 1, 0, 6.28); ctx.fill();
+  // carapace
+  ctx.fillStyle = "#4f5f3c"; ctx.beginPath(); ctx.ellipse(0, 0, 6, 7.5, 0, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = "#7c8a58"; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(0, 6); ctx.moveTo(-5, -1); ctx.lineTo(5, -1); ctx.moveTo(-4, 3.5); ctx.lineTo(4, 3.5); ctx.stroke();
+  ctx.restore();
+}
+
+function drawPreds(T) {
+  for (const p of state.preds) {
+    if (p.kind === "crab") {
+      ctx.save(); ctx.translate(p.x, p.y);
+      const walk = Math.sin(T * 18 + p.x) * 2;
+      ctx.strokeStyle = "#d8c8a8"; ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * 8, -2 + i * 4); ctx.lineTo(s * 16, 2 + i * 4 + (i % 2 ? walk : -walk)); ctx.stroke(); }
+      ctx.fillStyle = "#ece0c4"; ctx.beginPath(); ctx.ellipse(0, 2, 12, 8, 0, 0, 6.28); ctx.fill();
+      // pinces
+      for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(s * 13, -6 + walk * 0.5, 4.5, 0, 6.28); ctx.fill(); }
+      // yeux sur tiges
+      ctx.strokeStyle = "#ece0c4"; ctx.beginPath(); ctx.moveTo(-4, -4); ctx.lineTo(-5, -11); ctx.moveTo(4, -4); ctx.lineTo(5, -11); ctx.stroke();
+      ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-5, -12, 2, 0, 6.28); ctx.arc(5, -12, 2, 0, 6.28); ctx.fill();
+      if (p.mode === "flee") { ctx.fillStyle = "#fff"; ctx.font = "700 16px Fredoka"; ctx.textAlign = "center"; ctx.fillText("!!", 0, -18); }
+      ctx.restore();
+    } else if (p.mode !== "warn") {
+      ctx.save(); ctx.translate(p.x, p.y);
+      const wing = Math.sin(T * (p.mode === "dive" ? 6 : 16)) * 10;
+      ctx.fillStyle = "#1a1626";
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-14, -8 - wing, -30, -wing); ctx.quadraticCurveTo(-14, -2, 0, 4);
+      ctx.quadraticCurveTo(14, -2, 30, -wing); ctx.quadraticCurveTo(14, -8 - wing, 0, 0); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, 2, 5, 9, 0, 0, 6.28); ctx.fill();
+      ctx.fillStyle = "#e0a040"; ctx.beginPath(); ctx.moveTo(-2, 10); ctx.lineTo(2, 10); ctx.lineTo(0, 15); ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+function drawLamp(T) {
+  const l = state.lamp;
+  if (!l.on) return;
+  const g = ctx.createRadialGradient(l.x, l.y, 4, l.x, l.y, 140);
+  g.addColorStop(0, "rgba(180,230,255,.35)"); g.addColorStop(1, "rgba(180,230,255,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(l.x, l.y, 140, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = `rgba(200,240,255,${0.35 + 0.2 * Math.sin(T * 6)})`; ctx.lineWidth = 2; ctx.setLineDash([6, 8]);
+  ctx.beginPath(); ctx.arc(l.x, l.y, 140, 0, 6.28); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = "#e8f8ff"; ctx.beginPath(); ctx.arc(l.x, l.y, 5, 0, 6.28); ctx.fill();
+}
+
+function drawParts() {
+  for (const p of state.parts) { ctx.globalAlpha = clamp(p.life / p.max, 0, 1); ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "center"; ctx.font = "600 15px Fredoka";
+  for (const p of state.popups) { ctx.globalAlpha = clamp(p.life, 0, 1); ctx.fillStyle = p.col; ctx.fillText(p.txt, p.x, p.y); }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  const L = state.def; if (!L) return;
+  ctx.fillStyle = "rgba(8,18,45,.7)"; roundRect(10, 8, 400, 52, 14); ctx.fill();
+  ctx.fillStyle = "#ffe9a8"; ctx.font = "600 18px Fredoka"; ctx.textAlign = "left";
+  ctx.fillText(`Niveau ${state.level + 1} — ${L.name}`, 22, 30);
+  ctx.fillStyle = "#dfe9ff"; ctx.font = "500 15px Fredoka";
+  ctx.fillText(`🐢 Sauvées ${state.saved}   ✖ Perdues ${state.lost}   / ${state.total}`, 22, 51);
+  // barre de progression avec la ligne d'objectif
+  const bx = 270, by = 40, bw = 128, bh = 10;
+  ctx.fillStyle = "#24365e"; roundRect(bx, by, bw, bh, 5); ctx.fill();
+  const pct = state.total ? state.saved / state.total : 0;
+  ctx.fillStyle = pct * 100 >= L.goal ? "#7fe0a0" : "#6fb8ff"; roundRect(bx, by, Math.max(4, bw * pct), bh, 5); ctx.fill();
+  ctx.fillStyle = "#ffd34d"; ctx.fillRect(bx + bw * L.goal / 100 - 1, by - 4, 2, bh + 8);
+  ctx.font = "500 12px Fredoka"; ctx.fillStyle = "#ffd34d"; ctx.fillText(`objectif ${L.goal} %`, bx + 20, by - 6);
+  if (state.time < 4) {
+    ctx.globalAlpha = Math.min(1, 4 - state.time);
+    ctx.fillStyle = "rgba(8,18,45,.7)"; roundRect(W / 2 - 230, H / 2 - 30, 460, 54, 16); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = "500 18px Fredoka"; ctx.textAlign = "center";
+    ctx.fillText(hintFor(state.level), W / 2, H / 2 + 3);
+    ctx.globalAlpha = 1;
+  }
+}
+function hintFor(i) {
+  return ["Touche les crabes pour les chasser !", "Touche le bois flotté pour le rouler !", "Touche l'ombre de l'oiseau pour le chasser !",
+    "Éteins les lampadaires : la lumière perd les tortues !", "Maintiens appuyé pour guider les égarées !", "La marée bouge : reste vigilant !"][i] || "";
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+// ---------- Boucle principale à pas fixe (60 Hz) ----------
+const STEP = 1 / 60;
+let last = performance.now(), acc = 0;
+function frame(now) {
+  acc += Math.min(0.25, (now - last) / 1000); last = now;
+  while (acc >= STEP) { tick(STEP); acc -= STEP; }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+// Pause automatique si on quitte l'onglet
+document.addEventListener("visibilitychange", () => { if (document.hidden && state.screen === "play") togglePause(); });
+</script>
+</body>
+</html>

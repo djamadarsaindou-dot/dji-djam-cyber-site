@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Djarifa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== Mise en page générale ===== */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #062a3a; overflow: hidden; font-family: 'Fredoka', system-ui, sans-serif; color: #fff; user-select: none; -webkit-user-select: none; touch-action: none; }
+  /* La scène fait toujours 960x540 et est agrandie/réduite avec transform: scale */
+  #stage { position: absolute; left: 0; top: 0; width: 960px; height: 540px; transform-origin: 0 0; overflow: hidden; border-radius: 6px; }
+  #game { position: absolute; left: 0; top: 0; width: 960px; height: 540px; display: block; cursor: crosshair; }
+  .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4, 40, 58, 0.55); backdrop-filter: blur(2px); }
+  .hidden { display: none !important; }
+  .panel { background: linear-gradient(160deg, rgba(255,255,255,0.97), rgba(225,250,247,0.97)); color: #0d4a5a; border-radius: 26px; padding: 26px 34px; text-align: center; box-shadow: 0 14px 40px rgba(0,0,0,0.35), inset 0 -6px 0 rgba(0,150,160,0.15); max-width: 640px; }
+  h1 { margin: 0; font-size: 72px; font-weight: 700; letter-spacing: 2px; color: #fff; text-shadow: 0 4px 0 #0a7d8c, 0 8px 18px rgba(0,0,0,0.35); }
+  h2 { margin: 0 0 12px; font-size: 34px; color: #0b6f7e; }
+  p { margin: 8px 0; font-size: 17px; line-height: 1.4; }
+  .sub { color: #e8fbff; font-size: 18px; max-width: 560px; margin: 8px auto 22px; text-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+  .btn { font-family: inherit; font-size: 22px; font-weight: 600; border: 0; border-radius: 999px; padding: 12px 30px; margin: 6px; cursor: pointer; color: #fff; background: linear-gradient(#ff9f43, #f0702b); box-shadow: 0 5px 0 #b44d14, 0 8px 16px rgba(0,0,0,0.25); transition: transform .08s; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b44d14; }
+  .btn.teal { background: linear-gradient(#2ed3c6, #129aa6); box-shadow: 0 5px 0 #0b6a73, 0 8px 16px rgba(0,0,0,0.25); }
+  .btn.small { font-size: 17px; padding: 8px 20px; }
+  #menu { flex-direction: column; background: linear-gradient(rgba(4,40,58,0.15), rgba(4,40,58,0.55)); }
+  #levelGrid { display: grid; grid-template-columns: repeat(3, 170px); gap: 14px; margin: 10px 0 16px; }
+  .lvl { font-family: inherit; border: 0; border-radius: 18px; padding: 12px 8px; cursor: pointer; background: linear-gradient(#e6fffb, #b9efe8); color: #0b5d6a; box-shadow: 0 4px 0 #6cc4bb; }
+  .lvl b { display: block; font-size: 28px; }
+  .lvl span { display: block; font-size: 15px; }
+  .lvl .st { color: #f5a623; font-size: 22px; letter-spacing: 2px; }
+  .lvl.locked { opacity: 0.45; cursor: not-allowed; filter: grayscale(0.7); }
+  .stars { font-size: 54px; color: #f5a623; letter-spacing: 6px; text-shadow: 0 3px 0 #c97c00; }
+  .stars .off { color: #cfdfe0; text-shadow: none; }
+  #topBtns { position: absolute; right: 12px; top: 10px; display: flex; gap: 8px; }
+  .round { width: 44px; height: 44px; border-radius: 50%; border: 0; font-family: inherit; font-size: 18px; font-weight: 700; color: #0b5d6a; background: rgba(255,255,255,0.85); cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,0.2); }
+  #touchLower { position: absolute; right: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.9); background: rgba(255,140,60,0.75); color: #fff; font-family: inherit; font-size: 20px; font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
+  #touchLower.on { background: rgba(20,160,170,0.85); transform: scale(0.94); }
+  .rules { text-align: left; font-size: 16px; }
+  .rules li { margin: 5px 0; }
+  .note { font-size: 14px; color: #3a7a85; font-style: italic; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game"></canvas>
+
+  <div id="topBtns" class="hidden">
+    <button class="round" id="btnMute" title="Son (M)">♪</button>
+    <button class="round" id="btnPause" title="Pause (Échap / P)">II</button>
+  </div>
+  <button id="touchLower" class="hidden">Baisser</button>
+
+  <!-- Menu principal -->
+  <div id="menu" class="overlay">
+    <h1>Djarifa</h1>
+    <div class="sub">Inspiré de la djarifa, pêche traditionnelle pratiquée par les femmes à Mayotte, au bord de la mangrove, avec un tissu à mailles fines. Voici notre version.</div>
+    <div>
+      <button class="btn" id="btnPlay">Jouer</button>
+      <button class="btn teal" id="btnLevels">Niveaux</button>
+      <button class="btn teal" id="btnRules">Règles</button>
+    </div>
+  </div>
+
+  <!-- Choix des niveaux -->
+  <div id="levels" class="overlay hidden">
+    <div class="panel">
+      <h2>Niveaux</h2>
+      <div id="levelGrid"></div>
+      <button class="btn teal small" data-back>Retour</button>
+    </div>
+  </div>
+
+  <!-- Règles -->
+  <div id="rules" class="overlay hidden">
+    <div class="panel">
+      <h2>Règles</h2>
+      <ul class="rules">
+        <li><b>Déplacer le tissu :</b> souris, doigt (glisser) ou flèches du clavier.</li>
+        <li><b>Baisser le tissu :</b> maintenir clic / Espace / bouton « Baisser ». <b>Relâcher</b> pour le remonter et attraper les poissons au-dessus.</li>
+        <li>Baisse le tissu <b>devant</b> un banc et attends qu'il passe dessus : si tu bouges vite, les poissons s'enfuient.</li>
+        <li>Évite les <b>crabes</b> et les <b>oursins</b> : tu perds des poissons et le tissu s'emmêle.</li>
+        <li>Garde le lagon propre : ramasse les <b>déchets plastiques</b>, ils comptent en bonus pour les étoiles.</li>
+        <li>Atteins l'objectif avant que la <b>marée</b> monte !</li>
+      </ul>
+      <p class="note">Inspiré de la djarifa, pêche traditionnelle pratiquée par les femmes à Mayotte, au bord de la mangrove, avec un tissu à mailles fines. Voici notre version.</p>
+      <button class="btn teal small" data-back>Retour</button>
+    </div>
+  </div>
+
+  <!-- Pause -->
+  <div id="pause" class="overlay hidden">
+    <div class="panel">
+      <h2>Pause</h2>
+      <button class="btn" id="btnResume">Reprendre</button>
+      <button class="btn teal" id="btnRestart">Recommencer</button>
+      <button class="btn teal" id="btnQuit">Menu</button>
+    </div>
+  </div>
+
+  <!-- Fin de niveau -->
+  <div id="result" class="overlay hidden">
+    <div class="panel">
+      <h2 id="resTitle">Bravo !</h2>
+      <div class="stars" id="resStars"></div>
+      <p id="resText"></p>
+      <button class="btn" id="btnNext">Suivant</button>
+      <button class="btn teal" id="btnRetry">Rejouer</button>
+      <button class="btn teal" id="btnMenu">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+//  DJARIFA — petit jeu d'arcade
+//  Tout est dans ce fichier. Le canvas « virtuel » fait 960x540.
+// =====================================================================
+
+const W = 960, H = 540;
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let S = 1, DPR = 1;
+
+// ---------- Petits outils mathématiques ----------
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// ---------- Les 6 niveaux ----------
+// time = durée avant la marée haute (secondes), target = poissons à attraper
+const LEVELS = [
+  { name: 'Lagon calme',        tip: 'Baisse le tissu devant un banc, puis relâche !', time: 75, target: 10, schools: 3, fishPer: 12, speed: 0.9,  flee: 0.2,  crabs: 0, urchins: 0, waste: 2, wind: 0,   night: false, cloth: 0 },
+  { name: 'Les crabes du bord', tip: 'Attention aux crabes qui marchent sur le sable.', time: 70, target: 16, schools: 3, fishPer: 12, speed: 1.0,  flee: 0.35, crabs: 3, urchins: 0, waste: 3, wind: 0,   night: false, cloth: 1 },
+  { name: 'Coup de vent',       tip: 'Le vent pousse le tissu et les déchets.',         time: 70, target: 18, schools: 3, fishPer: 13, speed: 1.05, flee: 0.4,  crabs: 1, urchins: 3, waste: 5, wind: 1,   night: false, cloth: 2 },
+  { name: 'Marée rapide',       tip: 'Les poissons filent vite, la marée aussi !',      time: 55, target: 20, schools: 4, fishPer: 11, speed: 1.3,  flee: 0.5,  crabs: 2, urchins: 2, waste: 3, wind: 0.3, night: false, cloth: 3 },
+  { name: 'Nuit à la lanterne', tip: 'La lumière attire les poissons… et cache les crabes.', time: 70, target: 18, schools: 3, fishPer: 12, speed: 1.0, flee: 0.45, crabs: 3, urchins: 3, waste: 3, wind: 0, night: true, cloth: 4 },
+  { name: 'Grande marée',       tip: 'Tout à la fois : bonne chance !',                 time: 65, target: 26, schools: 4, fishPer: 12, speed: 1.35, flee: 0.55, crabs: 3, urchins: 3, waste: 5, wind: 0.8, night: false, cloth: 5 },
+];
+
+// Couleurs des tissus (motifs colorés génériques)
+const CLOTHS = [
+  ['#e63946', '#ffd166', '#ffffff'], ['#7b2cbf', '#4cc9f0', '#ffe066'], ['#2a9d8f', '#f4a261', '#ffffff'],
+  ['#ef476f', '#06d6a0', '#ffd166'], ['#3a0ca3', '#f72585', '#fefae0'], ['#f77f00', '#003049', '#fcbf49'],
+];
+const OUTFITS = [['#d62828', '#fcbf49'], ['#5a189a', '#48cae4'], ['#06a77d', '#f2e86d'], ['#e85d75', '#2b2d42']];
+
+// ---------- Sauvegarde (localStorage) ----------
+const SAVE_KEY = 'djarifa-v1';
+let save = { unlocked: 1, levels: {}, muted: false };
+function loadSave() {
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && typeof s === 'object') save = Object.assign(save, s); } catch (e) {}
+  if (!save.levels) save.levels = {};
+}
+function writeSave() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+loadSave();
+
+// ---------- État du jeu (global pour les tests) ----------
+const state = {
+  screen: 'menu',   // menu | play | pause | result
+  lvl: 0, L: LEVELS[0], t: 0, timeLeft: 0, tide: 0, waterTop: 125,
+  caught: 0, wasteCount: 0, penalties: 0,
+  cloth: { x: 480, y: 360, tx: 480, ty: 360, vx: 0, vy: 0, w: 170, h: 62, depth: 0, down: false, armed: false, tangle: 0 },
+  fish: [], schools: [], hazards: [], waste: [], particles: [], popups: [], scoopFx: null,
+  wind: { x: 0, y: 0 }, windAng: 0, banner: 0, shake: 0, keys: {}, outfits: [0, 1],
+};
+
+// =====================================================================
+//  SONS (WebAudio, tout est synthétisé)
+// =====================================================================
+let actx = null;
+function ensureAudio() {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+  } catch (e) { actx = null; }
+}
+function tone(freq, dur, type = 'sine', vol = 0.15, slideTo = null, delay = 0) {
+  if (!actx || save.muted) return;
+  const t0 = actx.currentTime + delay;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+}
+function noise(dur, vol, freq, delay = 0) {
+  if (!actx || save.muted) return;
+  const t0 = actx.currentTime + delay;
+  const buf = actx.createBuffer(1, Math.floor(actx.sampleRate * dur), actx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = actx.createBufferSource(); src.buffer = buf;
+  const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 0.8;
+  const g = actx.createGain(); g.gain.value = vol;
+  src.connect(f).connect(g).connect(actx.destination); src.start(t0);
+}
+const sfx = {
+  lower() { noise(0.35, 0.25, 600); },
+  lift()  { noise(0.3, 0.3, 1400); },
+  catch(n) { const notes = [523, 659, 784, 1047, 1319]; for (let i = 0; i < Math.min(5, 1 + Math.floor(n / 3)); i++) tone(notes[i], 0.18, 'triangle', 0.12, null, i * 0.07); },
+  bad()   { tone(160, 0.4, 'sawtooth', 0.09, 80); },
+  waste() { tone(880, 0.15, 'sine', 0.14); tone(1320, 0.3, 'sine', 0.11, null, 0.08); },
+  win()   { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, 'triangle', 0.14, null, i * 0.12)); },
+  lose()  { [392, 330, 262].forEach((f, i) => tone(f, 0.35, 'triangle', 0.12, null, i * 0.15)); },
+  click() { tone(660, 0.08, 'square', 0.05); },
+};
+
+// =====================================================================
+//  DÉCOR PRÉ-DESSINÉ (sable + mangrove) dans des canvas cachés
+// =====================================================================
+const bgCanvas = document.createElement('canvas'); bgCanvas.width = W * 2; bgCanvas.height = H * 2;
+const mgCanvas = document.createElement('canvas'); mgCanvas.width = W * 2; mgCanvas.height = 170 * 2;
+const darkCanvas = document.createElement('canvas'); darkCanvas.width = W; darkCanvas.height = H;
+let clothPattern = null;
+
+// Petit générateur aléatoire « à graine » : le décor reste identique pour un niveau
+function seeded(seed) { let s = seed * 9301 + 49297; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
+
+function buildBackground(levelIndex) {
+  const r = seeded(levelIndex + 3);
+  // --- Fond de sable ---
+  const b = bgCanvas.getContext('2d');
+  b.setTransform(2, 0, 0, 2, 0, 0);
+  const g = b.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#d9c590'); g.addColorStop(1, '#ead9a8');
+  b.fillStyle = g; b.fillRect(0, 0, W, H);
+  // rides de sable
+  b.strokeStyle = 'rgba(255,255,255,0.18)'; b.lineWidth = 2;
+  for (let y = 140; y < H; y += 22) {
+    b.beginPath();
+    for (let x = 0; x <= W; x += 20) b.lineTo(x, y + Math.sin(x * 0.02 + y) * 5 + r() * 2);
+    b.stroke();
+  }
+  // grains
+  for (let i = 0; i < 2500; i++) {
+    b.fillStyle = r() < 0.5 ? 'rgba(120,90,50,0.18)' : 'rgba(255,255,255,0.25)';
+    b.fillRect(r() * W, r() * H, 1.2, 1.2);
+  }
+  // herbiers
+  for (let p = 0; p < 7; p++) {
+    const px = r() * W, py = 180 + r() * (H - 200);
+    for (let i = 0; i < 26; i++) {
+      const x = px + (r() - 0.5) * 70, y = py + (r() - 0.5) * 40;
+      b.strokeStyle = `rgba(${60 + r() * 40},${120 + r() * 50},${60},0.55)`; b.lineWidth = 2;
+      b.beginPath(); b.moveTo(x, y); b.quadraticCurveTo(x + 6, y - 8, x + (r() - 0.3) * 14, y - 16 - r() * 8); b.stroke();
+    }
+  }
+  // galets et coquillages
+  for (let i = 0; i < 40; i++) {
+    b.fillStyle = r() < 0.7 ? `rgba(140,120,100,${0.3 + r() * 0.3})` : 'rgba(255,240,230,0.8)';
+    b.beginPath(); b.ellipse(r() * W, 150 + r() * (H - 150), 2 + r() * 5, 2 + r() * 3, r() * 3, 0, 7); b.fill();
+  }
+
+  // --- Mangrove (en haut de l'écran) ---
+  const m = mgCanvas.getContext('2d');
+  m.setTransform(2, 0, 0, 2, 0, 0); m.clearRect(0, 0, W, 170);
+  // vase sombre au pied des arbres
+  const mg = m.createLinearGradient(0, 0, 0, 170);
+  mg.addColorStop(0, '#5b4a32'); mg.addColorStop(1, 'rgba(91,74,50,0)');
+  m.fillStyle = mg; m.fillRect(0, 0, W, 150);
+  // racines-échasses (arcs bruns qui plongent vers l'eau)
+  for (let i = 0; i < 34; i++) {
+    const tx = i * 29 + r() * 15, ty = 40 + r() * 15;
+    for (let k = 0; k < 5; k++) {
+      const ex = tx + (r() - 0.5) * 80, ey = 110 + r() * 50;
+      m.strokeStyle = `rgb(${90 + r() * 30},${70 + r() * 20},${50})`; m.lineWidth = 2.5 + r() * 2;
+      m.beginPath(); m.moveTo(tx, ty); m.quadraticCurveTo((tx + ex) / 2, ty - 10 - r() * 20, ex, ey); m.stroke();
+    }
+    m.fillStyle = '#6e5438'; m.fillRect(tx - 4, 10, 8, ty - 5);
+  }
+  // feuillage en boules
+  for (let i = 0; i < 90; i++) {
+    const x = r() * W, y = r() * 55, rad = 18 + r() * 26;
+    const c = 60 + Math.floor(r() * 50);
+    m.fillStyle = `rgb(${20 + r() * 20},${c + 40},${30 + r() * 20})`;
+    m.beginPath(); m.arc(x, y, rad, 0, 7); m.fill();
+    m.fillStyle = 'rgba(180,230,120,0.18)';
+    m.beginPath(); m.arc(x - rad * 0.3, y - rad * 0.3, rad * 0.5, 0, 7); m.fill();
+  }
+
+  // --- Motif du tissu ---
+  const cols = CLOTHS[LEVELS[levelIndex].cloth % CLOTHS.length];
+  const pc = document.createElement('canvas'); pc.width = 28; pc.height = 28;
+  const p = pc.getContext('2d');
+  p.fillStyle = cols[0]; p.fillRect(0, 0, 28, 28);
+  p.fillStyle = cols[1]; p.fillRect(0, 0, 28, 6); p.fillRect(0, 14, 28, 3);
+  p.fillStyle = cols[2]; p.beginPath(); p.arc(7, 22, 2.5, 0, 7); p.arc(21, 22, 2.5, 0, 7); p.fill();
+  p.fillStyle = 'rgba(0,0,0,0.12)'; for (let x = 0; x < 28; x += 4) p.fillRect(x, 0, 1, 28); // mailles fines
+  clothPattern = ctx.createPattern(pc, 'repeat');
+}
+
+// =====================================================================
+//  CRÉATION DES ÉLÉMENTS (poissons, crabes, oursins, déchets)
+// =====================================================================
+function randomWaterPoint() { return { x: rand(60, W - 60), y: rand(state.waterTop + 60, H - 40) }; }
+
+// Un banc de poissons : soit déjà dans l'eau, soit qui arrive par un bord
+function spawnSchool(idx, inside) {
+  const L = state.L;
+  const sc = state.schools[idx] = { tx: 0, ty: 0, timer: 0, respawn: 0 };
+  const p = randomWaterPoint();
+  sc.tx = p.x; sc.ty = p.y; sc.timer = rand(3, 6);
+  let bx, by;
+  if (inside) { const q = randomWaterPoint(); bx = q.x; by = q.y; }
+  else { bx = Math.random() < 0.5 ? -30 : W + 30; by = rand(state.waterTop + 80, H - 60); }
+  for (let i = 0; i < L.fishPer; i++) {
+    state.fish.push({ s: idx, x: bx + rand(-25, 25), y: by + rand(-18, 18), vx: (sc.tx - bx) * 0.05 + rand(-10, 10), vy: rand(-10, 10), size: rand(0.85, 1.15), wig: rand(0, 6) });
+  }
+}
+
+function spawnHazards() {
+  const L = state.L;
+  state.hazards = [];
+  const far = () => { let p; do { p = randomWaterPoint(); } while (Math.hypot(p.x - 480, p.y - 360) < 150); return p; };
+  for (let i = 0; i < L.crabs; i++) { const p = far(); state.hazards.push({ type: 'crab', x: p.x, y: p.y, dir: Math.random() < 0.5 ? -1 : 1, sp: rand(22, 40), pause: 0, t: rand(0, 9) }); }
+  for (let i = 0; i < L.urchins; i++) { const p = far(); state.hazards.push({ type: 'urchin', x: p.x, y: p.y, t: rand(0, 9) }); }
+}
+function spawnWaste(edge) {
+  const p = randomWaterPoint();
+  if (edge) p.x = Math.random() < 0.5 ? -20 : W + 20;
+  state.waste.push({ type: Math.random() < 0.55 ? 'bottle' : 'bag', x: p.x, y: p.y, vx: rand(-8, 8) || 4, vy: rand(-5, 5), rot: rand(0, 6), vr: rand(-0.5, 0.5) });
+}
+
+// Prépare toute la scène d'un niveau (sans lancer la partie)
+function setupScene(i) {
+  const L = LEVELS[i];
+  state.lvl = i; state.L = L; state.t = 0;
+  state.timeLeft = L.time; state.tide = 0; state.waterTop = 125;
+  state.caught = 0; state.wasteCount = 0; state.penalties = 0;
+  Object.assign(state.cloth, { x: 480, y: 360, tx: 480, ty: 360, vx: 0, vy: 0, depth: 0, down: false, armed: false, tangle: 0 });
+  state.fish = []; state.schools = []; state.particles = []; state.popups = []; state.waste = []; state.scoopFx = null;
+  state.windAng = rand(0, 6.28); state.wind.x = state.wind.y = 0;
+  state.outfits = [i % OUTFITS.length, (i + 1) % OUTFITS.length];
+  for (let s = 0; s < L.schools; s++) spawnSchool(s, true);
+  spawnHazards();
+  for (let k = 0; k < L.waste; k++) spawnWaste(false);
+  buildBackground(i);
+}
+
+// =====================================================================
+//  CONTRÔLE DU TISSU (fonctions globales, utiles aussi pour les tests)
+// =====================================================================
+function moveCloth(x, y) { state.cloth.tx = x; state.cloth.ty = y; }
+
+function lowerCloth() {
+  const c = state.cloth;
+  if (state.screen !== 'play' || c.down || c.tangle > 0) return;
+  c.down = true; c.armed = true;
+  sfx.lower();
+  splash(c.x, c.y, 18);
+  // Les poissons juste au-dessus peuvent prendre peur
+  for (const f of state.fish) {
+    if (Math.abs(f.x - c.x) < c.w / 2 + 20 && Math.abs(f.y - c.y) < c.h / 2 + 20 && Math.random() < state.L.flee) {
+      const a = Math.atan2(f.y - c.y, f.x - c.x); f.vx += Math.cos(a) * 140; f.vy += Math.sin(a) * 140;
+    }
+  }
+}
+
+function liftCloth() {
+  const c = state.cloth;
+  if (!c.down) return;
+  c.down = false;
+  if (state.screen === 'play' && c.armed && c.depth >= 0.7) doScoop();
+  c.armed = false;
+}
+
+// Est-ce qu'un point est au-dessus du tissu ?
+function onCloth(x, y, margin = 0) { const c = state.cloth; return Math.abs(x - c.x) < c.w / 2 - 4 + margin && Math.abs(y - c.y) < c.h / 2 - 2 + margin; }
+
+// On remonte le tissu : on compte ce qu'il y a dessus
+function doScoop() {
+  const c = state.cloth;
+  sfx.lift();
+  splash(c.x, c.y, 30);
+  // Poissons
+  const before = state.fish.length;
+  state.fish = state.fish.filter(f => !onCloth(f.x, f.y));
+  const n = before - state.fish.length;
+  // Déchets (bonus)
+  let w = 0;
+  state.waste = state.waste.filter(o => { if (onCloth(o.x, o.y, 6)) { w++; return false; } return true; });
+  // Crabes / oursins (pénalité)
+  let bad = 0;
+  for (const h of state.hazards) {
+    if (onCloth(h.x, h.y, 4)) {
+      bad++;
+      // la bête est relâchée un peu plus loin
+      const a = rand(0, 6.28); h.x = clamp(h.x + Math.cos(a) * 140, 40, W - 40); h.y = clamp(h.y + Math.sin(a) * 100, state.waterTop + 60, H - 30);
+    }
+  }
+  if (n > 0) {
+    state.caught += n; sfx.catch(n);
+    popup(c.x, c.y - 40, '+' + n + (n >= 10 ? '  Belle prise !' : ''), '#fff6a8');
+    state.scoopFx = { t: 0.9, n: Math.min(n, 14) };
+  } else if (!bad && !w) popup(c.x, c.y - 40, 'Raté…', '#d6f6ff');
+  if (w > 0) { state.wasteCount += w; sfx.waste(); popup(c.x, c.y - 66, 'Lagon propre ! +' + w, '#9ff5c8'); setTimeout(() => { if (state.screen === 'play') for (let k = 0; k < w; k++) spawnWaste(true); }, 9000); }
+  if (bad > 0) {
+    const lost = Math.min(state.caught, 3 * bad);
+    state.caught -= lost; state.penalties += bad; c.tangle = 1.5; state.shake = 8; sfx.bad();
+    popup(c.x, c.y - 14, (lost ? '-' + lost + ' ' : '') + 'Aïe ! Tissu emmêlé', '#ff8a7a');
+  }
+}
+
+// =====================================================================
+//  EFFETS : éclaboussures, textes flottants
+// =====================================================================
+function splash(x, y, n) {
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, 6.28), s = rand(30, 140);
+    state.particles.push({ x: x + rand(-60, 60), y: y + rand(-20, 20), vx: Math.cos(a) * s, vy: Math.sin(a) * s - 40, life: rand(0.4, 0.8), max: 0.8, r: rand(1.5, 3.5), kind: 'drop' });
+  }
+  state.particles.push({ x, y, life: 0.8, max: 0.8, r: 20, kind: 'ring' });
+}
+function popup(x, y, text, color) { state.popups.push({ x, y, text, color, life: 1.4 }); }
+
+// =====================================================================
+//  MISE À JOUR (appelée 60 fois par seconde)
+// =====================================================================
+function tick(dt) {
+  state.t += dt;
+  if (state.screen === 'play') updatePlay(dt);
+  else if (state.screen === 'menu') updateFish(dt); // poissons qui nagent derrière le menu
+}
+
+function updatePlay(dt) {
+  const L = state.L, c = state.cloth;
+  // --- Marée ---
+  state.timeLeft -= dt;
+  state.tide = clamp(1 - state.timeLeft / L.time, 0, 1);
+  state.waterTop = 125 - state.tide * 38;
+  if (state.timeLeft <= 0) { state.timeLeft = 0; endLevel(); return; }
+
+  // --- Vent ---
+  if (L.wind > 0) {
+    state.windAng += Math.sin(state.t * 0.25) * dt * 0.3;
+    const gust = L.wind * (0.6 + 0.4 * Math.sin(state.t * 0.9));
+    state.wind.x = Math.cos(state.windAng) * gust * 45; state.wind.y = Math.sin(state.windAng) * gust * 25;
+  }
+
+  // --- Clavier : les flèches déplacent la cible ---
+  const k = state.keys, ks = 300;
+  if (k.ArrowLeft) c.tx -= ks * dt; if (k.ArrowRight) c.tx += ks * dt;
+  if (k.ArrowUp) c.ty -= ks * dt; if (k.ArrowDown) c.ty += ks * dt;
+
+  // --- Tissu : il suit la cible, plus lentement quand il est baissé ---
+  const minX = c.w / 2 + 40, maxX = W - c.w / 2 - 40, minY = state.waterTop + 55, maxY = H - 40;
+  c.tx = clamp(c.tx, minX, maxX); c.ty = clamp(c.ty, minY, maxY);
+  const maxSp = c.down ? 130 : 330;
+  let vx = (c.tx - c.x) * 7, vy = (c.ty - c.y) * 7;
+  const sp = Math.hypot(vx, vy); if (sp > maxSp) { vx *= maxSp / sp; vy *= maxSp / sp; }
+  c.vx = vx + state.wind.x * 0.5; c.vy = vy + state.wind.y * 0.5;
+  c.x = clamp(c.x + c.vx * dt, minX, maxX); c.y = clamp(c.y + c.vy * dt, minY, maxY);
+  c.depth = c.down ? Math.min(1, c.depth + dt * 3) : Math.max(0, c.depth - dt * 5);
+  if (c.tangle > 0) { c.tangle -= dt; if (c.down) liftClothSilently(); }
+  if (state.scoopFx) { state.scoopFx.t -= dt; if (state.scoopFx.t <= 0) state.scoopFx = null; }
+
+  updateFish(dt);
+
+  // --- Bancs vides : un nouveau banc arrive après un moment ---
+  const counts = new Array(state.schools.length).fill(0);
+  for (const f of state.fish) counts[f.s]++;
+  state.schools.forEach((sc, i) => {
+    if (counts[i] === 0) { sc.respawn += dt; if (sc.respawn > 2.5) spawnSchool(i, false); }
+  });
+
+  // --- Crabes ---
+  for (const h of state.hazards) {
+    h.t += dt;
+    if (h.type !== 'crab') continue;
+    if (h.pause > 0) { h.pause -= dt; continue; }
+    h.x += h.dir * h.sp * dt; h.y += Math.sin(h.t * 0.8) * 8 * dt;
+    if (h.x < 30 || h.x > W - 30) h.dir *= -1;
+    if (Math.random() < dt * 0.25) h.pause = rand(0.5, 1.6);
+    if (Math.random() < dt * 0.15) h.dir *= -1;
+    h.y = clamp(h.y, state.waterTop + 50, H - 25);
+  }
+
+  // --- Déchets qui dérivent ---
+  for (const o of state.waste) {
+    o.x += (o.vx + state.wind.x * 0.7) * dt; o.y += (o.vy + state.wind.y * 0.7 + Math.sin(state.t + o.rot) * 3) * dt; o.rot += o.vr * dt;
+    if (o.x < 20) o.vx = Math.abs(o.vx); if (o.x > W - 20) o.vx = -Math.abs(o.vx);
+    if (o.y < state.waterTop + 40) o.vy = Math.abs(o.vy) + 2; if (o.y > H - 20) o.vy = -Math.abs(o.vy);
+    o.x = clamp(o.x, -30, W + 30); o.y = clamp(o.y, state.waterTop + 30, H - 15);
+  }
+
+  // --- Particules et textes ---
+  for (const p of state.particles) { p.life -= dt; if (p.kind === 'drop') { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 220 * dt; } else p.r += 60 * dt; }
+  state.particles = state.particles.filter(p => p.life > 0);
+  for (const p of state.popups) { p.life -= dt; p.y -= 28 * dt; }
+  state.popups = state.popups.filter(p => p.life > 0);
+  // petites rides de surface aléatoires
+  if (Math.random() < dt * (2 + L.wind * 6)) { const p = randomWaterPoint(); state.particles.push({ x: p.x, y: p.y, life: 1.2, max: 1.2, r: 4, kind: 'ring' }); }
+
+  if (state.banner > 0) state.banner -= dt;
+  if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 30);
+}
+// Le tissu emmêlé remonte sans rien attraper
+function liftClothSilently() { state.cloth.down = false; state.cloth.armed = false; }
+
+// ---------- Bancs de poissons (« boids ») ----------
+function updateFish(dt) {
+  const L = state.L, c = state.cloth, fish = state.fish;
+  const top = state.waterTop + 40;
+  // centre et vitesse moyenne de chaque banc
+  const agg = state.schools.map(() => ({ x: 0, y: 0, vx: 0, vy: 0, n: 0 }));
+  for (const f of fish) { const a = agg[f.s]; a.x += f.x; a.y += f.y; a.vx += f.vx; a.vy += f.vy; a.n++; }
+  // nouvelles destinations pour les bancs
+  state.schools.forEach((sc, i) => {
+    sc.timer -= dt;
+    const a = agg[i];
+    const reached = a.n && Math.hypot(a.x / a.n - sc.tx, a.y / a.n - sc.ty) < 50;
+    if (sc.timer <= 0 || reached) {
+      if (L.night && Math.random() < 0.6) { sc.tx = c.x + rand(-120, 120); sc.ty = c.y + rand(-80, 80); }
+      else { const p = randomWaterPoint(); sc.tx = p.x; sc.ty = p.y; }
+      sc.tx = clamp(sc.tx, 40, W - 40); sc.ty = clamp(sc.ty, top + 20, H - 30);
+      sc.timer = rand(3, 7);
+    }
+    if (a.n) sc.respawn = 0;
+  });
+  const cSpeed = Math.hypot(c.vx, c.vy);
+  const base = 55 * L.speed;
+  for (const f of fish) {
+    const a = agg[f.s], sc = state.schools[f.s];
+    let ax = 0, ay = 0;
+    if (a.n > 1) {
+      ax += (a.x / a.n - f.x) * 0.9; ay += (a.y / a.n - f.y) * 0.9;           // cohésion
+      ax += (a.vx / a.n - f.vx) * 0.8; ay += (a.vy / a.n - f.vy) * 0.8;       // alignement
+    }
+    for (const o of fish) {                                                  // séparation
+      if (o === f || o.s !== f.s) continue;
+      const dx = f.x - o.x, dy = f.y - o.y, d2 = dx * dx + dy * dy;
+      if (d2 < 150 && d2 > 0.01) { ax += dx / d2 * 900; ay += dy / d2 * 900; }
+    }
+    ax += (sc.tx - f.x) * 0.5; ay += (sc.ty - f.y) * 0.5;                    // destination du banc
+    // fuite si le tissu baissé bouge vite près d'eux
+    if (state.screen === 'play' && c.depth > 0.3 && cSpeed > 60) {
+      const dx = f.x - c.x, dy = f.y - c.y, d = Math.hypot(dx, dy);
+      if (d < 130) { const k = (1 - d / 130) * 500 * L.flee; ax += dx / (d + 1) * k; ay += dy / (d + 1) * k; }
+    }
+    // bords
+    if (f.y < top) ay += (top - f.y) * 6;
+    if (f.y > H - 20) ay -= (f.y - (H - 20)) * 6;
+    if (f.x < 15 && sc.tx > 15) ax += 40; if (f.x > W - 15 && sc.tx < W - 15) ax -= 40;
+    f.vx += ax * dt; f.vy += ay * dt;
+    const sp = Math.hypot(f.vx, f.vy), mx = base * 2.2, mn = base * 0.5;
+    if (sp > mx) { f.vx *= mx / sp; f.vy *= mx / sp; } else if (sp < mn && sp > 0) { f.vx *= mn / sp; f.vy *= mn / sp; }
+    f.x += f.vx * dt; f.y += f.vy * dt;
+    f.wig += dt * (6 + sp * 0.05);
+  }
+}
+
+// =====================================================================
+//  DESSIN
+// =====================================================================
+function render() {
+  ctx.setTransform(S * DPR, 0, 0, S * DPR, 0, 0);
+  ctx.save();
+  if (state.shake > 0) ctx.translate(rand(-state.shake, state.shake), rand(-state.shake, state.shake));
+  const L = state.L, c = state.cloth, t = state.t;
+
+  // 1) Sable du fond
+  ctx.drawImage(bgCanvas, 0, 0, W, H);
+
+  // 2) Ce qui est au fond : ombres des poissons, oursins, crabes, tissu baissé
+  ctx.fillStyle = 'rgba(30,60,60,0.18)';
+  for (const f of state.fish) { ctx.beginPath(); ctx.ellipse(f.x + 7, f.y + 10, 6, 2.5, Math.atan2(f.vy, f.vx), 0, 7); ctx.fill(); }
+  for (const h of state.hazards) h.type === 'urchin' ? drawUrchin(h) : drawCrab(h);
+  if (c.depth > 0.5) drawCloth(true);
+
+  // 3) L'eau : teinte, reflets lumineux (caustiques)
+  const wt = state.waterTop;
+  const wg = ctx.createLinearGradient(0, wt, 0, H);
+  wg.addColorStop(0, 'rgba(90,215,205,0.30)'); wg.addColorStop(1, 'rgba(10,130,170,0.55)');
+  ctx.fillStyle = wg; ctx.fillRect(0, wt, W, H - wt);
+  drawCaustics(t, wt);
+
+  // 4) Poissons (dans l'eau)
+  for (const f of state.fish) drawFish(f);
+
+  // 5) Mangrove + ligne d'eau qui monte avec la marée
+  ctx.drawImage(mgCanvas, 0, 0, W, 170);
+  ctx.fillStyle = 'rgba(70,190,190,0.45)';
+  ctx.beginPath(); ctx.moveTo(0, 170);
+  for (let x = 0; x <= W; x += 16) ctx.lineTo(x, wt + Math.sin(x * 0.03 + t * 1.5) * 3);
+  ctx.lineTo(W, 170); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 12) ctx.lineTo(x, wt + Math.sin(x * 0.03 + t * 1.5) * 3);
+  ctx.stroke();
+
+  // 6) Surface : rides, déchets flottants
+  for (const p of state.particles) if (p.kind === 'ring') {
+    ctx.strokeStyle = `rgba(255,255,255,${0.5 * p.life / p.max})`; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * 0.55, 0, 0, 7); ctx.stroke();
+  }
+  if (L.wind > 0) drawWindLines(t);
+  for (const o of state.waste) drawWaste(o);
+
+  // 7) Tissu levé + les deux femmes
+  if (c.depth <= 0.5) drawCloth(false);
+  drawWomen();
+
+  // 8) Gouttes
+  for (const p of state.particles) if (p.kind === 'drop') {
+    ctx.fillStyle = `rgba(230,255,255,${p.life / p.max})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+  }
+
+  // 9) Nuit : obscurité avec un trou de lumière autour de la lanterne
+  if (L.night) drawNight();
+
+  // 10) Textes flottants + interface
+  for (const p of state.popups) {
+    ctx.globalAlpha = Math.min(1, p.life * 1.5);
+    ctx.font = '600 22px Fredoka'; ctx.textAlign = 'center';
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,50,60,0.7)'; ctx.strokeText(p.text, p.x, p.y);
+    ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  if (state.screen !== 'menu') drawHUD();
+}
+
+function drawCaustics(t, wt) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = 'rgba(255,255,255,0.075)'; ctx.lineWidth = 2.2;
+  for (let y = wt + 10; y < H + 20; y += 30) {
+    ctx.beginPath();
+    for (let x = -10; x <= W + 10; x += 24) ctx.lineTo(x, y + Math.sin(x * 0.03 + t * 1.3 + y) * 8 + Math.sin(x * 0.011 - t * 0.7) * 6);
+    ctx.stroke();
+  }
+  for (let x = 0; x < W + 20; x += 34) {
+    ctx.beginPath();
+    for (let y = wt; y <= H + 10; y += 24) ctx.lineTo(x + Math.sin(y * 0.035 - t * 1.1 + x) * 9 + Math.sin(y * 0.013 + t * 0.6) * 6, y);
+    ctx.stroke();
+  }
+  // éclats de soleil
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i = 0; i < 18; i++) {
+    const x = (i * 173 + t * 12) % W, y = wt + 30 + ((i * 97) % (H - wt - 30));
+    const a = Math.max(0, Math.sin(t * 2 + i * 1.7));
+    if (a > 0.6) { ctx.globalAlpha = (a - 0.6) * 1.5; ctx.fillRect(x - 6, y, 12, 1.5); ctx.fillRect(x - 1, y - 4, 2, 9); }
+  }
+  ctx.restore();
+}
+
+function drawWindLines(t) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5;
+  const wx = state.wind.x, wy = state.wind.y, len = Math.hypot(wx, wy) || 1;
+  for (let i = 0; i < 14; i++) {
+    const x = ((i * 211 + t * wx * 3) % (W + 100) + W + 100) % (W + 100) - 50;
+    const y = state.waterTop + 30 + ((i * 131 + t * wy * 3) % (H - state.waterTop) + (H - state.waterTop)) % (H - state.waterTop - 30);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + wx / len * 15, y - 4, x + wx / len * 30, y + wy / len * 30); ctx.stroke();
+  }
+}
+
+function drawFish(f) {
+  const ang = Math.atan2(f.vy, f.vx), s = f.size;
+  ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(ang); ctx.scale(s, s);
+  const wig = Math.sin(f.wig) * 0.35;
+  ctx.fillStyle = '#b9cdd6';
+  ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(-11, -3.5 + wig * 3); ctx.lineTo(-11, 3.5 + wig * 3); ctx.closePath(); ctx.fill();
+  const g = ctx.createLinearGradient(0, -3, 0, 3);
+  g.addColorStop(0, '#5f8796'); g.addColorStop(0.5, '#eef7fa'); g.addColorStop(1, '#c7d9df');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(0, 0, 7.5, 2.8, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#123'; ctx.beginPath(); ctx.arc(4.5, -0.6, 0.8, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawCrab(h) {
+  ctx.save(); ctx.translate(h.x, h.y);
+  const leg = Math.sin(h.t * 14) * (h.pause > 0 ? 0 : 2);
+  ctx.strokeStyle = '#b8401f'; ctx.lineWidth = 2;
+  for (let i = -1; i <= 1; i++) for (const sd of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(sd * 7, i * 3); ctx.lineTo(sd * 14, i * 5 + (i ? leg : -leg)); ctx.stroke();
+  }
+  ctx.fillStyle = '#e4572e'; ctx.beginPath(); ctx.ellipse(0, 0, 10, 7, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f08a5d'; ctx.beginPath(); ctx.ellipse(-2, -2, 5, 3, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#e4572e';
+  ctx.beginPath(); ctx.arc(-9, -9, 4, 0, 7); ctx.arc(9, -9, 4, 0, 7); ctx.fill();
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-3, -6, 1.5, 0, 7); ctx.arc(3, -6, 1.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawUrchin(h) {
+  ctx.save(); ctx.translate(h.x, h.y);
+  ctx.strokeStyle = '#2b1838'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 16; i++) {
+    const a = i / 16 * 6.283 + Math.sin(h.t + i) * 0.08, l = 13 + (i % 2) * 3;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * l, Math.sin(a) * l); ctx.stroke();
+  }
+  ctx.fillStyle = '#4a2463'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.arc(-2, -2, 2.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+function drawWaste(o) {
+  ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.rot);
+  if (o.type === 'bottle') {
+    ctx.fillStyle = 'rgba(160,220,255,0.75)'; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-10, -4, 16, 8, 3) : ctx.rect(-10, -4, 16, 8); ctx.fill(); ctx.stroke();
+    ctx.fillRect(6, -2, 4, 4);
+    ctx.fillStyle = '#e63946'; ctx.fillRect(9, -2.5, 3, 5);
+  } else {
+    ctx.fillStyle = 'rgba(245,245,250,0.8)';
+    ctx.beginPath(); ctx.moveTo(-9, -6); ctx.quadraticCurveTo(0, -11, 9, -6); ctx.quadraticCurveTo(12, 4, 6, 8); ctx.quadraticCurveTo(-2, 11, -8, 7); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(150,170,190,0.8)'; ctx.stroke();
+  }
+  ctx.restore();
+  // petit halo pour qu'on les repère
+  ctx.strokeStyle = `rgba(255,255,255,${0.25 + 0.15 * Math.sin(state.t * 3 + o.rot)})`;
+  ctx.beginPath(); ctx.ellipse(o.x, o.y, 15, 9, 0, 0, 7); ctx.stroke();
+}
+
+// Le tissu tendu entre les deux femmes
+function drawCloth(under) {
+  const c = state.cloth, d = c.depth;
+  const k = under ? 0.96 : 1;
+  const w = c.w * k, h = c.h * k;
+  const L = c.x - w / 2, R = c.x + w / 2, T = c.y - h / 2, B = c.y + h / 2;
+  const sag = under ? 4 : 10 + (state.scoopFx ? 6 : 0);
+  ctx.save();
+  if (under) ctx.globalAlpha = 0.85;
+  ctx.beginPath(); ctx.moveTo(L, T); ctx.quadraticCurveTo(c.x, T + sag, R, T);
+  ctx.lineTo(R, B); ctx.quadraticCurveTo(c.x, B + sag, L, B); ctx.closePath();
+  if (!under) { ctx.shadowColor = 'rgba(0,40,50,0.35)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 6; }
+  ctx.fillStyle = clothPattern || '#e63946'; ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle = under ? 'rgba(20,110,140,0.25)' : `rgba(20,110,140,${d * 0.4})`; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+  // poissons qui sautillent dans le tissu après une bonne prise
+  if (!under && state.scoopFx) {
+    const fx = state.scoopFx;
+    for (let i = 0; i < fx.n; i++) {
+      const px = c.x + ((i * 37) % 120) - 60, py = c.y + ((i * 23) % 36) - 18;
+      const j = Math.abs(Math.sin(state.t * 12 + i)) * 8 * fx.t;
+      drawFish({ x: px, y: py - j, vx: Math.cos(i + state.t * 6), vy: Math.sin(i * 2), size: 1, wig: state.t * 20 + i });
+    }
+  }
+  // tissu emmêlé
+  if (c.tangle > 0) {
+    ctx.font = '600 16px Fredoka'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffdddd';
+    ctx.fillText('Emmêlé… ' + c.tangle.toFixed(1) + ' s', c.x, c.y + c.h / 2 + 30);
+  }
+}
+
+// Une femme vue de dessus, dans l'eau jusqu'à la taille
+function drawWoman(x, y, outfit, facing, bob, lantern) {
+  const [col, scarf] = OUTFITS[outfit];
+  const c = state.cloth;
+  ctx.save(); ctx.translate(x, y + bob);
+  // remous autour de la taille
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(0, 4, 26 + Math.sin(state.t * 3) * 2, 15, 0, 0, 7); ctx.stroke();
+  // corps (vêtement coloré)
+  ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(0, 2, 17, 13, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = scarf; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.arc(i * 7, 4 + Math.abs(i) * 2, 2, 0, 7); ctx.fill(); }
+  // bras qui tiennent les coins du tissu
+  ctx.strokeStyle = '#7a4a2a'; ctx.lineWidth = 4.5; ctx.lineCap = 'round';
+  const hx = facing * (c.w / 2 > 0 ? 18 : 18);
+  ctx.beginPath(); ctx.moveTo(facing * 8, -6); ctx.lineTo(hx, -c.h / 2 + 4 - bob); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(facing * 8, 8); ctx.lineTo(hx, c.h / 2 - 4 - bob); ctx.stroke();
+  // tête + foulard
+  ctx.fillStyle = '#6b4226'; ctx.beginPath(); ctx.arc(facing * 3, -2, 9, 0, 7); ctx.fill();
+  ctx.fillStyle = scarf; ctx.beginPath(); ctx.arc(-facing * 1, -3, 9.5, Math.PI * 0.5, Math.PI * 2.1); ctx.fill();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(-facing * 9, -3, 3.5, 0, 7); ctx.fill();
+  // lanterne (niveau de nuit)
+  if (lantern) {
+    ctx.fillStyle = '#3d2b1f'; ctx.fillRect(-facing * 22 - 4, -20, 8, 10);
+    ctx.fillStyle = `rgba(255,200,90,${0.85 + 0.15 * Math.sin(state.t * 9)})`;
+    ctx.beginPath(); ctx.arc(-facing * 22, -15, 4, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawWomen() {
+  const c = state.cloth, bob = Math.sin(state.t * 2) * 1.5;
+  drawWoman(c.x - c.w / 2 - 16, c.y, state.outfits[0], 1, bob, state.L.night);
+  drawWoman(c.x + c.w / 2 + 16, c.y, state.outfits[1], -1, -bob, false);
+}
+
+function drawNight() {
+  const c = state.cloth, d = darkCanvas.getContext('2d');
+  const lx = c.x - c.w / 2 - 16 - 22, ly = c.y - 15;
+  d.globalCompositeOperation = 'source-over'; d.clearRect(0, 0, W, H);
+  d.fillStyle = 'rgba(4,10,32,0.86)'; d.fillRect(0, 0, W, H);
+  d.globalCompositeOperation = 'destination-out';
+  const r = 200 + Math.sin(state.t * 7) * 4;
+  const g = d.createRadialGradient(lx + 60, ly, 10, lx + 60, ly, r);
+  g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.6, 'rgba(0,0,0,0.8)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  d.fillStyle = g; d.fillRect(0, 0, W, H);
+  // reflet de lune
+  const g2 = d.createRadialGradient(820, 90, 0, 820, 90, 60);
+  g2.addColorStop(0, 'rgba(0,0,0,0.6)'); g2.addColorStop(1, 'rgba(0,0,0,0)');
+  d.fillStyle = g2; d.fillRect(700, 0, 260, 200);
+  ctx.drawImage(darkCanvas, 0, 0, W, H);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g3 = ctx.createRadialGradient(lx, ly, 0, lx, ly, 150);
+  g3.addColorStop(0, 'rgba(255,170,60,0.22)'); g3.addColorStop(1, 'rgba(255,170,60,0)');
+  ctx.fillStyle = g3; ctx.fillRect(lx - 150, ly - 150, 300, 300);
+  ctx.restore();
+}
+
+// ---------- Interface dessinée sur le canvas ----------
+function pill(x, y, w, h) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, h / 2); else ctx.rect(x, y, w, h); }
+function drawHUD() {
+  const L = state.L;
+  ctx.save();
+  ctx.font = '600 20px Fredoka'; ctx.textBaseline = 'middle';
+  // poissons
+  ctx.fillStyle = 'rgba(0,50,70,0.55)'; pill(12, 12, 170, 40); ctx.fill();
+  drawFish({ x: 38, y: 32, vx: 1, vy: 0, size: 1.6, wig: state.t * 5 });
+  ctx.fillStyle = state.caught >= L.target ? '#a8ffb0' : '#fff'; ctx.textAlign = 'left';
+  ctx.fillText(state.caught + ' / ' + L.target, 62, 33);
+  // déchets
+  ctx.fillStyle = 'rgba(0,50,70,0.55)'; pill(190, 12, 92, 40); ctx.fill();
+  drawWaste({ type: 'bottle', x: 214, y: 32, rot: -0.4 });
+  ctx.fillStyle = '#9ff5c8'; ctx.fillText('×' + state.wasteCount, 234, 33);
+  // marée
+  const bx = 330, bw = 300;
+  ctx.fillStyle = 'rgba(0,50,70,0.55)'; pill(bx, 12, bw, 40); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.2)'; pill(bx + 82, 25, bw - 96, 14); ctx.fill();
+  const g = ctx.createLinearGradient(bx + 82, 0, bx + bw - 14, 0); g.addColorStop(0, '#62e3d6'); g.addColorStop(1, '#1d6fd1');
+  ctx.fillStyle = g; pill(bx + 82, 25, Math.max(14, (bw - 96) * state.tide), 14); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText('Marée', bx + 14, 33);
+  ctx.font = '500 15px Fredoka'; ctx.textAlign = 'right'; ctx.fillText(Math.ceil(state.timeLeft) + ' s', bx + bw - 18, 33);
+  // nom du niveau (bandeau de début)
+  if (state.banner > 0) {
+    ctx.globalAlpha = Math.min(1, state.banner);
+    ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,50,70,0.6)'; pill(250, 220, 460, 100); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '700 32px Fredoka'; ctx.fillText('Niveau ' + (state.lvl + 1) + ' — ' + L.name, 480, 255);
+    ctx.font = '500 18px Fredoka'; ctx.fillStyle = '#d8fbff'; ctx.fillText(L.tip + '  Objectif : ' + L.target + ' poissons', 480, 292);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+// =====================================================================
+//  ÉCRANS (overlays DOM)
+// =====================================================================
+const $ = id => document.getElementById(id);
+const overlays = ['menu', 'levels', 'rules', 'pause', 'result'];
+function show(id) {
+  overlays.forEach(o => $(o).classList.toggle('hidden', o !== id));
+  const playing = id === null || id === 'pause';
+  $('topBtns').classList.toggle('hidden', !playing);
+  $('touchLower').classList.toggle('hidden', !(id === null && isCoarse));
+}
+const isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+
+function startLevel(i) {
+  i = clamp(i | 0, 0, LEVELS.length - 1);
+  setupScene(i);
+  state.screen = 'play'; state.banner = 3.2;
+  show(null); // cache tous les overlays, y compris l'écran de résultat
+}
+
+function starsFor(L, caught, waste) {
+  if (caught < L.target) return 0;
+  const v = caught + waste;
+  return v >= Math.ceil(L.target * 1.7) ? 3 : v >= Math.ceil(L.target * 1.35) ? 2 : 1;
+}
+
+function endLevel() {
+  const L = state.L, i = state.lvl;
+  liftClothSilently();
+  const stars = starsFor(L, state.caught, state.wasteCount);
+  state.screen = 'result';
+  if (stars > 0) {
+    const prev = (save.levels[i] && save.levels[i].stars) || 0;
+    save.levels[i] = { stars: Math.max(prev, stars) };
+    save.unlocked = Math.max(save.unlocked, Math.min(LEVELS.length, i + 2));
+    writeSave(); sfx.win();
+  } else sfx.lose();
+  $('resTitle').textContent = stars ? (stars === 3 ? 'Magnifique !' : 'Bravo !') : 'La marée est haute…';
+  $('resStars').innerHTML = [0, 1, 2].map(k => k < stars ? '★' : '<span class="off">★</span>').join('');
+  $('resText').innerHTML = `Poissons : <b>${state.caught}</b> / ${L.target} &nbsp;·&nbsp; Déchets ramassés : <b>${state.wasteCount}</b>` +
+    (state.penalties ? ` &nbsp;·&nbsp; Accrocs : ${state.penalties}` : '') +
+    (stars ? (stars < 3 ? `<br>3 étoiles à ${Math.ceil(L.target * 1.7)} (poissons + déchets).` : '') : '<br>Réessaie : baisse le tissu devant les bancs !');
+  $('btnNext').classList.toggle('hidden', !(stars > 0 && i < LEVELS.length - 1));
+  show('result');
+}
+
+function buildLevelGrid() {
+  const g = $('levelGrid'); g.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement('button');
+    const locked = i >= save.unlocked;
+    const st = (save.levels[i] && save.levels[i].stars) || 0;
+    b.className = 'lvl' + (locked ? ' locked' : '');
+    b.innerHTML = `<b>${i + 1}</b><span>${L.name}</span><span class="st">${locked ? 'verrouillé' : '★★★'.slice(0, st) + '☆☆☆'.slice(0, 3 - st)}</span>`;
+    b.onclick = () => { if (!locked) { ensureAudio(); sfx.click(); startLevel(i); } };
+    g.appendChild(b);
+  });
+}
+
+function pauseGame() { if (state.screen === 'play') { liftClothSilently(); state.screen = 'pause'; show('pause'); } }
+function resumeGame() { if (state.screen === 'pause') { state.screen = 'play'; show(null); } }
+function goMenu() { setupScene(0); state.screen = 'menu'; show('menu'); }
+function toggleMute() { save.muted = !save.muted; writeSave(); $('btnMute').textContent = save.muted ? '×' : '♪'; }
+
+$('btnPlay').onclick = () => { ensureAudio(); sfx.click(); startLevel(Math.min(save.unlocked, LEVELS.length) - 1); };
+$('btnLevels').onclick = () => { ensureAudio(); sfx.click(); buildLevelGrid(); show('levels'); };
+$('btnRules').onclick = () => { ensureAudio(); sfx.click(); show('rules'); };
+document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => { sfx.click(); show('menu'); });
+$('btnResume').onclick = resumeGame;
+$('btnRestart').onclick = () => startLevel(state.lvl);
+$('btnQuit').onclick = goMenu;
+$('btnNext').onclick = () => startLevel(state.lvl + 1);
+$('btnRetry').onclick = () => startLevel(state.lvl);
+$('btnMenu').onclick = goMenu;
+$('btnPause').onclick = () => state.screen === 'play' ? pauseGame() : resumeGame();
+$('btnMute').onclick = toggleMute;
+$('btnMute').textContent = save.muted ? '×' : '♪';
+
+// =====================================================================
+//  ENTRÉES : souris, tactile, clavier
+// =====================================================================
+function toVirtual(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+}
+let touchDrag = null; // { id, offX, offY }
+canvas.addEventListener('pointerdown', e => {
+  ensureAudio();
+  const p = toVirtual(e);
+  if (e.pointerType === 'mouse') { moveCloth(p.x, p.y); lowerCloth(); }
+  else { touchDrag = { id: e.pointerId, offX: state.cloth.x - p.x, offY: state.cloth.y - p.y }; }
+  e.preventDefault();
+});
+canvas.addEventListener('pointermove', e => {
+  const p = toVirtual(e);
+  if (e.pointerType === 'mouse') moveCloth(p.x, p.y);
+  else if (touchDrag && touchDrag.id === e.pointerId) moveCloth(p.x + touchDrag.offX, p.y + touchDrag.offY);
+});
+window.addEventListener('pointerup', e => {
+  if (e.pointerType === 'mouse') liftCloth();
+  if (touchDrag && touchDrag.id === e.pointerId) touchDrag = null;
+});
+// Gros bouton tactile « Baisser »
+const tl = $('touchLower');
+tl.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); tl.classList.add('on'); lowerCloth(); });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => tl.addEventListener(ev, () => { tl.classList.remove('on'); liftCloth(); }));
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); ensureAudio(); if (!e.repeat) lowerCloth(); }
+  else if (e.key.startsWith('Arrow')) { e.preventDefault(); state.keys[e.key] = true; }
+  else if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { state.screen === 'play' ? pauseGame() : resumeGame(); }
+  else if (e.key === 'm' || e.key === 'M') toggleMute();
+});
+window.addEventListener('keyup', e => {
+  if (e.code === 'Space') liftCloth();
+  else if (e.key.startsWith('Arrow')) state.keys[e.key] = false;
+});
+window.addEventListener('blur', () => { state.keys = {}; pauseGame(); });
+
+// =====================================================================
+//  REDIMENSIONNEMENT (la scène 960x540 s'adapte à la fenêtre)
+// =====================================================================
+function resize() {
+  S = Math.min(window.innerWidth / W, window.innerHeight / H);
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  stage.style.transform = `scale(${S})`;
+  stage.style.left = (window.innerWidth - W * S) / 2 + 'px';
+  stage.style.top = (window.innerHeight - H * S) / 2 + 'px';
+  canvas.width = Math.round(W * S * DPR); canvas.height = Math.round(H * S * DPR);
+  buildBackground(state.lvl); // recrée aussi le motif du tissu pour ce contexte
+}
+window.addEventListener('resize', resize);
+
+// =====================================================================
+//  BOUCLE PRINCIPALE : pas de temps fixe à 60 Hz
+// =====================================================================
+const STEP = 1 / 60;
+let acc = 0, last = performance.now();
+function frame(now) {
+  acc += Math.min(0.25, (now - last) / 1000); last = now;
+  while (acc >= STEP) { tick(STEP); acc -= STEP; }
+  render();
+  requestAnimationFrame(frame);
+}
+
+// Démarrage : décor du niveau 1 qui vit derrière le menu
+setupScene(0);
+resize();
+show('menu');
+requestAnimationFrame(frame);
+
+// Globals pour les tests (déjà globaux, mais on les expose explicitement)
+Object.assign(window, { state, startLevel, tick, render, LEVELS, lowerCloth, liftCloth, moveCloth, doScoop, endLevel });
+</script>
+</body>
+</html>
